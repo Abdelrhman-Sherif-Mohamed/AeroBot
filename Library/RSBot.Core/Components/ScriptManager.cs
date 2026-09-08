@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -158,18 +158,27 @@ public class ScriptManager
             Log.Debug($"[Script] Executing line #{CurrentLineIndex}");
             Log.Status("Running walk script");
 
-            var arguments = scriptLine.Split(' ');
-            var commandName = arguments.Length == 0 ? scriptLine : arguments[0];
+            if (string.IsNullOrWhiteSpace(scriptLine))
+                continue;
 
-            if (string.IsNullOrEmpty(commandName)
-                || commandName.Trim().StartsWith("//")
-                || commandName.Trim().StartsWith("#"))
-                continue; //No command name given / empty line
+            var trimmedLine = scriptLine.Trim();
+            if (trimmedLine.StartsWith("//") || trimmedLine.StartsWith("#"))
+                continue;
 
-            var handler = CommandHandlers.FirstOrDefault(h => h.Name == commandName);
+            Log.Debug($"[Script] Executing line #{CurrentLineIndex}");
+            Log.Status("Running walk script");
+
+            var tokens = trimmedLine.Split(new[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0)
+                continue;
+
+            var commandName = tokens[0].ToLowerInvariant();
+            var arguments = tokens.Skip(1).ToArray();
+
+            var handler = CommandHandlers.FirstOrDefault(h => h.Name.Equals(commandName, StringComparison.OrdinalIgnoreCase));
             if (handler == null)
             {
-                LogScriptMessage("No script command handler found.", CurrentLineIndex, LogLevel.Warning);
+                LogScriptMessage("No script command handler found.", CurrentLineIndex, LogLevel.Warning, commandName);
 
                 continue; //No matching handler found for this command
             }
@@ -184,7 +193,7 @@ public class ScriptManager
             }
 
             EventManager.FireEvent("OnScriptStartExecuteCommand", handler, CurrentLineIndex);
-            var executionResult = handler.Execute(arguments.Skip(1).ToArray());
+            var executionResult = handler.Execute(arguments);
             EventManager.FireEvent("OnScriptFinishExecuteCommand", handler, executionResult, CurrentLineIndex);
 
             if (executionResult == false)
@@ -222,35 +231,59 @@ public class ScriptManager
 
     /// <summary>
     ///     A convenience function that returns all positions in the walk script.
-    ///     Warning: This method is not extendable at the moment, that means that there can not be
-    ///     a custom implementation of the "move" command. The move command currently always needs to have the arguments
-    ///     XOffset, YOffset, ZOffset, XSector, YSector.
     /// </summary>
     /// <returns></returns>
     public static List<Position> GetWalkScript()
     {
-        var walkCommands = Commands.Where(c => c.Trim().StartsWith("move"));
+        if (Commands == null || Commands.Length == 0)
+            return new List<Position>();
 
-        return walkCommands.Select(command => command.Split(ArgumentSeparator).Skip(1).ToArray()).Select(ParsePosition)
+        var walkCommands = Commands.Where(c => !string.IsNullOrWhiteSpace(c) && c.Trim().StartsWith("move", StringComparison.OrdinalIgnoreCase));
+
+        return walkCommands
+            .Select(command => command.Split(new[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries).Skip(1).ToArray())
+            .Select(ParsePosition)
+            .Where(p => p.Region.Id != 0 || p.XOffset != 0 || p.YOffset != 0)
             .ToList();
     }
 
     /// <summary>
     ///     Parses the position from the given arguments.
+    ///     Supports both 5-argument native RSBot format and 3-argument Silkroad world coordinates format.
     /// </summary>
     /// <param name="args">The arguments.</param>
     /// <returns></returns>
-    private static Position ParsePosition(string[] args)
+    public static Position ParsePosition(string[] args)
     {
-        if (!float.TryParse(args[0], out var xOffset)
-            || !float.TryParse(args[1], out var yOffset)
-            || !float.TryParse(args[2], out var zOffset)
-            || !byte.TryParse(args[3], out var xSector)
-            || !byte.TryParse(args[4], out var ySector)
-           )
-            return default; //Invalid format
+        if (args == null || args.Length < 3)
+            return default;
 
-        return new Position(xSector, ySector, xOffset, yOffset, zOffset);
+        var cleaned = args.Select(a => a.Trim().TrimEnd(',')).ToArray();
+
+        // 5-argument native format (xOffset, yOffset, zOffset, xSector, ySector)
+        if (cleaned.Length >= 5 &&
+            float.TryParse(cleaned[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var xOffset) &&
+            float.TryParse(cleaned[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var yOffset) &&
+            float.TryParse(cleaned[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var zOffset) &&
+            byte.TryParse(cleaned[3], out var xSector) &&
+            byte.TryParse(cleaned[4], out var ySector))
+        {
+            return new Position(xSector, ySector, xOffset, yOffset, zOffset);
+        }
+
+        // 3-argument World Coordinates format (x, y, z) from .vb scripts
+        if (float.TryParse(cleaned[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var worldX) &&
+            float.TryParse(cleaned[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var worldY))
+        {
+            float.TryParse(cleaned[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var worldZ);
+            var pos = new Position(worldX, worldY)
+            {
+                ZOffset = worldZ
+            };
+            return pos;
+        }
+
+        return default;
     }
 
     /// <summary>
@@ -284,17 +317,22 @@ public class ScriptManager
         {
             line++;
 
-            if (command.Trim().StartsWith("//") ||
-                command.Trim().StartsWith("#") ||
-                !command.StartsWith("move") ||
-                string.IsNullOrWhiteSpace(command))
+            if (string.IsNullOrWhiteSpace(command))
                 continue;
 
-            var args = command.Split(ArgumentSeparator).Skip(1).ToArray();
+            var trimmed = command.Trim();
+            if (trimmed.StartsWith("//") ||
+                trimmed.StartsWith("#") ||
+                !trimmed.StartsWith("move", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var tokens = trimmed.Split(new[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length < 4) continue;
+            var args = tokens.Skip(1).ToArray();
             var curPos = ParsePosition(args);
             var distance = curPos.DistanceToPlayer();
 
-            if (distance < 100 && !playerPos.HasCollisionBetween(curPos))
+            if (distance < 150)
                 moveCommands.Add(line, curPos);
         }
 

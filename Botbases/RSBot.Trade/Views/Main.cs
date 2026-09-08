@@ -1,4 +1,6 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -31,11 +33,19 @@ public partial class Main : DoubleBufferedControl
         EventManager.SubscribeEvent("OnJobJoin", OnUpdateJobInfo);
         EventManager.SubscribeEvent("OnJobLeave", OnUpdateJobInfo);
         EventManager.SubscribeEvent("OnJobAliasUpdate", OnUpdateJobInfo);
+        EventManager.SubscribeEvent("OnTradeRoutesUpdated", OnTradeRoutesUpdated);
+        EventManager.SubscribeEvent("OnAddLog", new Action<string, LogLevel>(OnAddLog));
     }
 
     private void OnUpdateJobInfo()
     {
-        if (Game.Player.TradeInfo == null)
+        if (InvokeRequired)
+        {
+            BeginInvoke(new System.Action(OnUpdateJobInfo));
+            return;
+        }
+
+        if (Game.Player?.TradeInfo == null)
             return;
 
         if (Game.Player.JobInformation.Type == JobType.None)
@@ -43,13 +53,13 @@ public partial class Main : DoubleBufferedControl
             lblJobExp.Text = "0";
             lblJobLevel.Text = "0";
             lblJobAlias.Text = "<none>";
-
+            lblTradeScale.Text = "■";
             return;
         }
 
-        lblTradeScale.Text = new string('■', Game.Player.TradeInfo.Scale);
+        lblTradeScale.Text = new string('■', Math.Max(1, (int)Game.Player.TradeInfo.Scale));
         lblJobExp.Text = Game.Player.JobInformation.Experience.ToString();
-        lblJobAlias.Text = Game.Player.JobInformation.Name;
+        lblJobAlias.Text = Game.Player.JobInformation.Name ?? "<none>";
         lblJobLevel.Text = Game.Player.JobInformation.Level.ToString();
     }
 
@@ -58,293 +68,452 @@ public partial class Main : DoubleBufferedControl
         if (Game.Player.State.DialogState is not { IsInDialog: true, TalkOption: TalkOption.Trade })
             return;
 
-        EventManager.FireEvent("AppendScriptCommand", $"buy-goods {Game.Player.State.DialogState.Npc.Record.CodeName}");
+        EventManager.FireEvent("AppendScriptCommand", $"buy-goods {Game.Player.State.DialogState.Npc.Record.CodeName} Full");
+    }
+
+    private void OnTradeRoutesUpdated()
+    {
+        RefreshRouteListView();
+    }
+
+    private void OnAddLog(string message, LogLevel level)
+    {
+        if (string.IsNullOrEmpty(message)) return;
+        if (message.Contains("[Trade]") || TradeBotbase.IsActive)
+        {
+            AppendTradeLog(message, level);
+        }
+    }
+
+    public void AppendTradeLog(string message, LogLevel level = LogLevel.Notify)
+    {
+        if (txtTradeLog == null || txtTradeLog.IsDisposed) return;
+
+        if (InvokeRequired)
+        {
+            BeginInvoke(new System.Action<string, LogLevel>(AppendTradeLog), message, level);
+            return;
+        }
+
+        var timestamp = DateTime.Now.ToString("HH:mm:ss");
+        var prefix = $"[{timestamp}] ";
+        var color = level switch
+        {
+            LogLevel.Error => Color.FromArgb(248, 113, 113),
+            LogLevel.Warning => Color.FromArgb(251, 191, 36),
+            LogLevel.Debug => Color.FromArgb(148, 163, 184),
+            _ => Color.FromArgb(226, 232, 240)
+        };
+
+        txtTradeLog.SelectionStart = txtTradeLog.TextLength;
+        txtTradeLog.SelectionLength = 0;
+        txtTradeLog.SelectionColor = Color.FromArgb(100, 116, 139);
+        txtTradeLog.AppendText(prefix);
+
+        txtTradeLog.SelectionColor = color;
+        txtTradeLog.AppendText(message + Environment.NewLine);
+        txtTradeLog.ScrollToCaret();
     }
 
     private void ReloadView()
     {
-        PopulateRouteListComboBox();
-
         _loadingConfig = true;
+
+        // Populate Start and End cities
+        if (comboStartCity.Items.Count == 0)
+        {
+            var cities = new[] { "Jangan", "Donwhang", "Hotan", "Samarkand", "Constantinople" };
+            comboStartCity.Items.AddRange(cities);
+            comboEndCity.Items.AddRange(cities);
+            comboStartCity.SelectedIndex = 0; // Jangan
+            comboEndCity.SelectedIndex = 2; // Hotan
+        }
+
+        // Populate Transport
+        if (comboTransport.Items.Count == 0)
+        {
+            comboTransport.Items.AddRange(new object[] { "Auto / Any", "White Elephant", "Camel", "Horse" });
+            var savedTransport = TradeConfig.SelectedTransport;
+            var foundIdx = comboTransport.FindStringExact(savedTransport);
+            comboTransport.SelectedIndex = foundIdx >= 0 ? foundIdx : 0;
+        }
+
+        // Route subtab controls
+        checkSellGoods.Checked = TradeConfig.SellGoods;
+        checkBuyGoods.Checked = TradeConfig.BuyGoods;
+        numAmountGoods.Value = TradeConfig.BuyGoodsQuantity;
+        numAmountGoods.Enabled = TradeConfig.BuyGoods;
+        checkDisableAutoActivation.Checked = TradeConfig.DisableAutoActivation;
+
+        // Settings tab controls
+        checkRepeatLoop.Checked = TradeConfig.RepeatLoop;
+        numRepeatTimes.Value = TradeConfig.RepeatTimes;
+        numRepeatTimes.Enabled = TradeConfig.RepeatLoop;
+        checkReturnScroll.Checked = TradeConfig.ReturnScrollAfterLoop;
+        checkUnequipJobSuit.Checked = TradeConfig.UnequipJobSuitAfterLoop;
+        checkSkipTownScripts.Checked = TradeConfig.SkipTownScripts;
+
+        checkMountTransport.Checked = TradeConfig.MountTransport;
+        checkProtectTransport.Checked = TradeConfig.ProtectTransport;
+        numMaxDistance.Value = TradeConfig.MaxTransportDistance;
+        numMaxDistance.Enabled = TradeConfig.ProtectTransport;
 
         checkAttackThiefNpc.Checked = TradeConfig.AttackThiefNpcs;
         checkAttackThiefPlayers.Checked = TradeConfig.AttackThiefPlayers;
+        checkCounterAttack.Checked = TradeConfig.CounterAttack;
         checkCastBuffs.Checked = TradeConfig.CastBuffs;
         checkWaitForHunter.Checked = TradeConfig.WaitForHunter;
-        checkCounterAttack.Checked = TradeConfig.CounterAttack;
-        checkRunTownscript.Checked = TradeConfig.RunTownScript;
-        checkBuyGoods.Checked = TradeConfig.BuyGoods;
-        checkSellGoods.Checked = TradeConfig.SellGoods;
-        checkProtectTransport.Checked = TradeConfig.ProtectTransport;
-        checkMountTransport.Checked = TradeConfig.MountTransport;
 
-        //Make sure that the user didn't modify the config so both could equal true
-        if (TradeConfig.UseRouteScripts && TradeConfig.TracePlayer)
-            TradeConfig.TracePlayer = false;
-
-        if (!TradeConfig.UseRouteScripts && !TradeConfig.TracePlayer)
-            TradeConfig.UseRouteScripts = true;
-
-        radioTracePlayer.Checked = TradeConfig.TracePlayer;
-        radioUseRouteList.Checked = TradeConfig.UseRouteScripts;
-
-        numAmountGoods.Value = TradeConfig.BuyGoodsQuantity;
-        numMaxDistance.Value = TradeConfig.MaxTransportDistance;
-        txtTracePlayerName.Text = TradeConfig.TracePlayerName;
+        RefreshRouteListView();
 
         _loadingConfig = false;
     }
 
-    private void PopulateRouteListComboBox()
+    private void RefreshRouteListView()
     {
-        comboRouteList.Items.Clear();
+        if (InvokeRequired)
+        {
+            BeginInvoke(new System.Action(RefreshRouteListView));
+            return;
+        }
 
-        foreach (var scriptList in TradeConfig.RouteScripts)
-            comboRouteList.Items.Add(scriptList.Key);
-
-        if (comboRouteList.Items.Count > TradeConfig.SelectedRouteListIndex)
-            comboRouteList.SelectedIndex = TradeConfig.SelectedRouteListIndex;
-    }
-
-    private void RefreshRoutes()
-    {
+        lvRouteList.BeginUpdate();
         lvRouteList.Items.Clear();
-        var selectedRouteList = (string)comboRouteList.SelectedItem ?? "";
 
-        if (!TradeConfig.RouteScripts.ContainsKey(selectedRouteList))
-            return;
-
-        foreach (var fileName in TradeConfig.RouteScripts[selectedRouteList])
+        var routes = TradeConfig.Routes;
+        if (routes != null)
         {
-            if (!File.Exists(fileName))
-                continue;
-
-            ScriptManager.Load(fileName);
-            var walkScript = ScriptManager.GetWalkScript();
-
-            if (walkScript.Count == 0)
+            for (int i = 0; i < routes.Count; i++)
             {
-                Log.Warn($"There is no walk script in the route [{fileName}]!");
+                var r = routes[i];
+                r.Index = i + 1;
+                var scriptDisplay = !string.IsNullOrEmpty(r.ScriptFile) ? Path.GetFileName(r.ScriptFile) : "<None>";
+                var item = new ListViewItem(r.Index.ToString());
+                item.SubItems.Add(r.StartCity ?? "");
+                item.SubItems.Add(r.EndCity ?? "");
+                item.SubItems.Add(scriptDisplay);
+                item.SubItems.Add(r.Active ? "Yes" : "No");
+                item.SubItems.Add(r.LoopCount.ToString());
 
-                continue;
+                if (r.Active)
+                {
+                    item.Font = new Font(lvRouteList.Font, FontStyle.Bold);
+                    item.ForeColor = Color.FromArgb(16, 185, 129);
+                }
+
+                lvRouteList.Items.Add(item);
             }
-
-            var origin = walkScript.First();
-            var destination = walkScript.Last();
-            var originRegionName = Game.ReferenceManager.GetTranslation(origin.Region.ToString());
-            var destinationRegionName = Game.ReferenceManager.GetTranslation(destination.Region.ToString());
-
-            var lvItem = new ListViewItem(Path.GetFileNameWithoutExtension(fileName)) { Tag = fileName };
-            lvItem.SubItems.Add(originRegionName);
-            lvItem.SubItems.Add(destinationRegionName);
-            lvItem.SubItems.Add(walkScript.Count.ToString());
-
-            lvRouteList.Items.Add(lvItem);
         }
+
+        lvRouteList.EndUpdate();
     }
 
-    private void comboRouteList_SelectedIndexChanged(object sender, EventArgs e)
+    private void ReindexRoutes(List<TradeRouteItem> routes)
     {
-        buttonDeleteList.Enabled = comboRouteList.SelectedIndex != 0;
-
-        TradeConfig.SelectedRouteListIndex = comboRouteList.SelectedIndex;
-        RefreshRoutes();
+        for (int i = 0; i < routes.Count; i++)
+            routes[i].Index = i + 1;
     }
 
-    private void buttonDeleteList_Click(object sender, EventArgs e)
+    private void btnAddRoute_Click(object sender, EventArgs e)
     {
-        //Can not delete Default
-        if (comboRouteList.SelectedIndex <= 0)
-            return;
+        var startCity = comboStartCity.Text?.Trim();
+        var endCity = comboEndCity.Text?.Trim();
 
-        if (MessageBox.Show(
-                $"Do you realy want to delete the route list {comboRouteList.SelectedItem}?", "Delete list",
-                MessageBoxButtons.YesNo) !=
-            DialogResult.Yes)
-            return;
-
-        var selectedIndex = comboRouteList.SelectedIndex - 1; //- default
-        var scripts = TradeConfig.RouteScriptList;
-        if (scripts.Count > selectedIndex)
-            scripts.RemoveAt(selectedIndex);
-
-        TradeConfig.RouteScriptList = scripts;
-
-        PopulateRouteListComboBox();
-        RefreshRoutes();
-    }
-
-    private void buttonCreateList_Click(object sender, EventArgs e)
-    {
-        var dialog = new InputDialog("New route list", "New route list",
-            "Please enter the name for the new route list");
-        if (dialog.ShowDialog() != DialogResult.OK)
-            return;
-
-        var userInput = (string)dialog.Value;
-
-        if (userInput.Contains(';'))
+        if (string.IsNullOrWhiteSpace(startCity) || string.IsNullOrWhiteSpace(endCity))
         {
-            MessageBox.Show("The character ';' is invalid in route list names", "Invalid character",
-                MessageBoxButtons.OK);
-
+            AppendTradeLog("Please select valid Start and End cities.", LogLevel.Warning);
             return;
         }
 
-        //ToDO: Refactor the config handling completely to JSON so it's possible to have whitespaces and such in names -> Or create a key value pair 
-        if (userInput.Contains(' '))
+        if (startCity.Equals(endCity, StringComparison.OrdinalIgnoreCase))
         {
-            MessageBox.Show("The name can not have a whitespace character", "Invalid character",
-                MessageBoxButtons.OK);
-
+            AppendTradeLog("Start and End cities cannot be the same.", LogLevel.Warning);
             return;
         }
 
-        userInput = userInput.Trim();
-        if (TradeConfig.RouteScriptList.Contains(userInput))
+        var scriptFile = TradeConfig.ResolveTradeScript(startCity, endCity);
+        if (string.IsNullOrEmpty(scriptFile) || !File.Exists(scriptFile))
         {
-            MessageBox.Show("The name can not have a whitespace character", "Invalid character",
-                MessageBoxButtons.OK);
+            var ofd = new OpenFileDialog
+            {
+                Title = $"Select trade script for {startCity} to {endCity}",
+                Filter = "Silkroad Script (*.vb;*.txt;*.rbs)|*.vb;*.txt;*.rbs|All files (*.*)|*.*",
+                InitialDirectory = Path.Combine(Kernel.BasePath, "Data", "Scripts", "Trade")
+            };
 
-            return;
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                scriptFile = ofd.FileName;
+            }
+            else
+            {
+                AppendTradeLog($"No script found for {startCity} to {endCity}. Route not added.", LogLevel.Warning);
+                return;
+            }
         }
 
-        var routeScripts = TradeConfig.RouteScriptList;
-        routeScripts.Add(userInput);
-
-        TradeConfig.RouteScriptList = routeScripts;
-        ReloadView();
-
-        comboRouteList.SelectedIndex = comboRouteList.Items.Count - 1;
-    }
-
-    private void menuChooseScript_Click(object sender, EventArgs e)
-    {
-        var openFileDiag = new OpenFileDialog
+        var routes = TradeConfig.Routes ?? new List<TradeRouteItem>();
+        var isFirst = routes.Count == 0;
+        var newRoute = new TradeRouteItem
         {
-            Title = "Select RSBot script file(s)",
-            AddExtension = true,
-            CheckFileExists = true,
-            Multiselect = true
+            Index = routes.Count + 1,
+            StartCity = startCity,
+            EndCity = endCity,
+            ScriptFile = scriptFile,
+            Active = isFirst,
+            LoopCount = 1
         };
 
-        if (openFileDiag.ShowDialog() != DialogResult.OK)
-            return;
-
-        var selectedRouteList = (string)comboRouteList.SelectedItem;
-
-        if (!TradeConfig.RouteScripts.ContainsKey(selectedRouteList))
-            return;
-
-        var newRouteList = TradeConfig.RouteScripts;
-        var routes = newRouteList[selectedRouteList];
-
-        foreach (var fileName in openFileDiag.FileNames)
-        {
-            if (routes.Contains(fileName))
-                continue;
-
-            routes.Add(fileName);
-        }
-
-        newRouteList[selectedRouteList] = routes;
-        TradeConfig.RouteScripts = newRouteList;
-
-        RefreshRoutes();
+        routes.Add(newRoute);
+        TradeConfig.Routes = routes;
+        RefreshRouteListView();
+        AppendTradeLog($"Added Route #{newRoute.Index}: {startCity} -> {endCity} ({Path.GetFileName(scriptFile)})", LogLevel.Notify);
     }
 
-    private void checkBoxSetting_CheckedChanged(object sender, EventArgs e)
+    private void btnStartTrade_Click(object sender, EventArgs e)
     {
-        if (_loadingConfig)
-            return;
+        if (!Kernel.Bot.Running)
+        {
+            Kernel.Bot.Start();
+            AppendTradeLog("Trade bot started.", LogLevel.Notify);
+        }
+    }
 
-        TradeConfig.WaitForHunter = checkWaitForHunter.Checked;
-        TradeConfig.RunTownScript = checkRunTownscript.Checked;
-        TradeConfig.AttackThiefPlayers = checkAttackThiefPlayers.Checked;
-        TradeConfig.AttackThiefNpcs = checkAttackThiefNpc.Checked;
-        TradeConfig.CastBuffs = checkCastBuffs.Checked;
-        TradeConfig.CounterAttack = checkCounterAttack.Checked;
-        TradeConfig.ProtectTransport = checkProtectTransport.Checked;
-        TradeConfig.BuyGoods = checkBuyGoods.Checked;
+    private void btnStopTrade_Click(object sender, EventArgs e)
+    {
+        if (Kernel.Bot.Running)
+        {
+            Kernel.Bot.Stop();
+            AppendTradeLog("Trade bot stopped.", LogLevel.Notify);
+        }
+    }
+
+    private void btnMoveUp_Click(object sender, EventArgs e)
+    {
+        if (lvRouteList.SelectedIndices.Count == 0) return;
+        var idx = lvRouteList.SelectedIndices[0];
+        var routes = TradeConfig.Routes;
+        if (idx > 0 && idx < routes.Count)
+        {
+            var item = routes[idx];
+            routes.RemoveAt(idx);
+            routes.Insert(idx - 1, item);
+            ReindexRoutes(routes);
+            TradeConfig.Routes = routes;
+            RefreshRouteListView();
+            if (idx - 1 < lvRouteList.Items.Count)
+                lvRouteList.Items[idx - 1].Selected = true;
+        }
+    }
+
+    private void btnMoveDown_Click(object sender, EventArgs e)
+    {
+        if (lvRouteList.SelectedIndices.Count == 0) return;
+        var idx = lvRouteList.SelectedIndices[0];
+        var routes = TradeConfig.Routes;
+        if (idx >= 0 && idx < routes.Count - 1)
+        {
+            var item = routes[idx];
+            routes.RemoveAt(idx);
+            routes.Insert(idx + 1, item);
+            ReindexRoutes(routes);
+            TradeConfig.Routes = routes;
+            RefreshRouteListView();
+            if (idx + 1 < lvRouteList.Items.Count)
+                lvRouteList.Items[idx + 1].Selected = true;
+        }
+    }
+
+    private void menuActivateRoute_Click(object sender, EventArgs e)
+    {
+        if (lvRouteList.SelectedIndices.Count == 0) return;
+        var idx = lvRouteList.SelectedIndices[0];
+        var routes = TradeConfig.Routes;
+        if (idx >= 0 && idx < routes.Count)
+        {
+            for (int i = 0; i < routes.Count; i++)
+                routes[i].Active = (i == idx);
+            TradeConfig.Routes = routes;
+            RefreshRouteListView();
+            AppendTradeLog($"Activated Route #{routes[idx].Index}: {routes[idx].StartCity} -> {routes[idx].EndCity}", LogLevel.Notify);
+        }
+    }
+
+    private void menuSetScript_Click(object sender, EventArgs e)
+    {
+        if (lvRouteList.SelectedIndices.Count == 0) return;
+        var idx = lvRouteList.SelectedIndices[0];
+        var routes = TradeConfig.Routes;
+        if (idx >= 0 && idx < routes.Count)
+        {
+            var ofd = new OpenFileDialog
+            {
+                Title = "Select script file",
+                Filter = "Silkroad Script (*.vb;*.txt;*.rbs)|*.vb;*.txt;*.rbs|All files (*.*)|*.*",
+                InitialDirectory = Path.Combine(Kernel.BasePath, "Data", "Scripts", "Trade")
+            };
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                routes[idx].ScriptFile = ofd.FileName;
+                TradeConfig.Routes = routes;
+                RefreshRouteListView();
+                AppendTradeLog($"Updated script for Route #{routes[idx].Index} to: {Path.GetFileName(ofd.FileName)}", LogLevel.Notify);
+            }
+        }
+    }
+
+    private void menuRemoveRoute_Click(object sender, EventArgs e)
+    {
+        if (lvRouteList.SelectedIndices.Count == 0) return;
+        var idx = lvRouteList.SelectedIndices[0];
+        var routes = TradeConfig.Routes;
+        if (idx >= 0 && idx < routes.Count)
+        {
+            var removed = routes[idx];
+            routes.RemoveAt(idx);
+            if (removed.Active && routes.Count > 0)
+                routes[0].Active = true;
+            ReindexRoutes(routes);
+            TradeConfig.Routes = routes;
+            RefreshRouteListView();
+            AppendTradeLog($"Removed Route: {removed.StartCity} -> {removed.EndCity}", LogLevel.Notify);
+        }
+    }
+
+    private void menuClearRoutes_Click(object sender, EventArgs e)
+    {
+        var routes = TradeConfig.Routes;
+        routes.Clear();
+        TradeConfig.Routes = routes;
+        RefreshRouteListView();
+        AppendTradeLog("All trade routes cleared.", LogLevel.Notify);
+    }
+
+    private void checkSellGoods_CheckedChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
         TradeConfig.SellGoods = checkSellGoods.Checked;
+    }
+
+    private void checkBuyGoods_CheckedChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.BuyGoods = checkBuyGoods.Checked;
+        numAmountGoods.Enabled = checkBuyGoods.Checked;
+    }
+
+    private void numAmountGoods_ValueChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.BuyGoodsQuantity = Convert.ToInt32(numAmountGoods.Value);
+    }
+
+    private void checkDisableAutoActivation_CheckedChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.DisableAutoActivation = checkDisableAutoActivation.Checked;
+    }
+
+    private void linkTradeGuide_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+    {
+        var guideText = "AeroBot Trade System Guide:\n\n" +
+                        "1. Equip your Trader / Hunter / Thief Job Suit.\n" +
+                        "2. Have transport summon scrolls (Elephant/Camel/Horse) in inventory.\n" +
+                        "3. Choose Start and End cities, then click 'Add Route'.\n" +
+                        "4. Add multiple routes for a multi-city trade run (e.g. Jangan -> Hotan, then Hotan -> Jangan).\n" +
+                        "5. Check 'Repeat trade loop' in Settings to repeat back and forth automatically.\n" +
+                        "6. Check 'Buy Special Goods' and 'Sell goods' as desired.\n" +
+                        "7. Click '▶ Start' to launch the automated trade expedition!";
+
+        MessageBox.Show(guideText, "AeroBot Trade Guide", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private void checkRepeatLoop_CheckedChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.RepeatLoop = checkRepeatLoop.Checked;
+        numRepeatTimes.Enabled = checkRepeatLoop.Checked;
+    }
+
+    private void numRepeatTimes_ValueChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.RepeatTimes = Convert.ToInt32(numRepeatTimes.Value);
+    }
+
+    private void checkReturnScroll_CheckedChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.ReturnScrollAfterLoop = checkReturnScroll.Checked;
+    }
+
+    private void checkUnequipJobSuit_CheckedChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.UnequipJobSuitAfterLoop = checkUnequipJobSuit.Checked;
+    }
+
+    private void checkSkipTownScripts_CheckedChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.SkipTownScripts = checkSkipTownScripts.Checked;
+    }
+
+    private void checkMountTransport_CheckedChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
         TradeConfig.MountTransport = checkMountTransport.Checked;
     }
 
-    private void menuRemoveScript_Click(object sender, EventArgs e)
+    private void checkProtectTransport_CheckedChanged(object sender, EventArgs e)
     {
-        if (lvRouteList.SelectedItems.Count == 0)
-            return;
-
-        var selectedRouteList = (string)comboRouteList.SelectedItem;
-        if (!TradeConfig.RouteScripts.ContainsKey(selectedRouteList))
-            return;
-
-        var routes = TradeConfig.RouteScripts;
-        var selectedIndex = lvRouteList.SelectedItems[0].Index;
-
-        if (selectedIndex > routes[selectedRouteList].Count)
-            return;
-
-        routes[selectedRouteList].RemoveAt(selectedIndex);
-
-        TradeConfig.RouteScripts = routes;
-
-        RefreshRoutes();
+        if (_loadingConfig) return;
+        TradeConfig.ProtectTransport = checkProtectTransport.Checked;
+        numMaxDistance.Enabled = checkProtectTransport.Checked;
     }
 
-    private void radioSetting_CheckedChanged(object sender, EventArgs e)
+    private void numMaxDistance_ValueChanged(object sender, EventArgs e)
     {
-        if (_loadingConfig)
-            return;
-
-        TradeConfig.UseRouteScripts = radioUseRouteList.Checked;
-        TradeConfig.TracePlayer = radioTracePlayer.Checked;
-
-        txtTracePlayerName.Enabled = radioTracePlayer.Checked;
-    }
-
-    private void txtTracePlayerName_TextChanged(object sender, EventArgs e)
-    {
-        if (_loadingConfig)
-            return;
-
-        TradeConfig.TracePlayerName = txtTracePlayerName.Text;
-    }
-
-    private void numSetting_ValueChanged(object sender, EventArgs e)
-    {
-        if (_loadingConfig)
-            return;
-
-        TradeConfig.BuyGoodsQuantity = Convert.ToInt32(numAmountGoods.Value);
+        if (_loadingConfig) return;
         TradeConfig.MaxTransportDistance = Convert.ToInt32(numMaxDistance.Value);
     }
 
-    private void linkRecord_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+    private void checkAttackThiefNpc_CheckedChanged(object sender, EventArgs e)
     {
-        ShowScriptRecorder();
+        if (_loadingConfig) return;
+        TradeConfig.AttackThiefNpcs = checkAttackThiefNpc.Checked;
     }
 
-    private void ShowScriptRecorder()
+    private void checkAttackThiefPlayers_CheckedChanged(object sender, EventArgs e)
     {
-        if (!ScriptManager.Running)
-            EventManager.FireEvent("OnShowScriptRecorder", 2000, true);
-        else
-            MessageBox.Show("Can not record a new script while a script is running! Stop the bot and try again.",
-                "Script manager busy",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        if (_loadingConfig) return;
+        TradeConfig.AttackThiefPlayers = checkAttackThiefPlayers.Checked;
     }
 
-    private void menuRecordScript_Click(object sender, EventArgs e)
+    private void checkCounterAttack_CheckedChanged(object sender, EventArgs e)
     {
-        ShowScriptRecorder();
+        if (_loadingConfig) return;
+        TradeConfig.CounterAttack = checkCounterAttack.Checked;
     }
 
-    /// <summary>
-    ///     Occurs before Main form is displayed.
-    /// </summary>
-    /// <param name="sender"></param>
-    /// <param name="e"></param>
+    private void checkCastBuffs_CheckedChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.CastBuffs = checkCastBuffs.Checked;
+    }
+
+    private void checkWaitForHunter_CheckedChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.WaitForHunter = checkWaitForHunter.Checked;
+    }
+
+    private void comboTransport_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        if (_loadingConfig) return;
+        TradeConfig.SelectedTransport = comboTransport.SelectedItem?.ToString() ?? "Auto";
+    }
+
     private void Main_Load(object sender, EventArgs e)
     {
         ReloadView();

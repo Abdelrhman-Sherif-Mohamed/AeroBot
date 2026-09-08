@@ -70,6 +70,8 @@ public class TradeBotbase : IBotbase
         Log.Debug("[Trade] Botbase registered to the kernel!");
 
         ScriptManager.CommandHandlers.Add(new BuyGoodsScriptCommand());
+        ScriptManager.CommandHandlers.Add(new SellGoodsScriptCommand());
+        ScriptManager.CommandHandlers.Add(new SummonTransportScriptCommand());
 
         Bundles.Initialize();
     }

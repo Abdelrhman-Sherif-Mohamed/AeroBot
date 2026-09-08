@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using RSBot.Core;
 using RSBot.Core.Components;
@@ -81,7 +81,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
             Log.Notify($"[Script] Purchasing goods from {Game.SelectedEntity.Record.GetRealName()}...");
 
-            BuyGoods();
+            BuyGoods(arguments);
 
             ShoppingManager.CloseShop();
 
@@ -132,10 +132,19 @@ internal class BuyGoodsScriptCommand : IScriptCommand
     /// <summary>
     ///     Buys specialty goods from the selected merchant.
     /// </summary>
-    private void BuyGoods()
+    private void BuyGoods(string[] arguments = null)
     {
         if (!TradeConfig.BuyGoods)
             return;
+
+        var targetQuantity = TradeConfig.BuyGoodsQuantity;
+        if (arguments != null && arguments.Length > 1)
+        {
+            if (arguments[1].Equals("Full", System.StringComparison.OrdinalIgnoreCase))
+                targetQuantity = 0; // 0 = fill to maximum capacity
+            else if (int.TryParse(arguments[1], out var parsedQty))
+                targetQuantity = parsedQty;
+        }
 
         var shopGroup = Game.ReferenceManager.GetRefShopGroup(Game.SelectedEntity?.Record.CodeName);
         if (shopGroup == null)
@@ -175,7 +184,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
         var maxSteps = Game.Player.JobTransport.Inventory.Capacity;
         var existingItemsCount = Game.Player.JobTransport.Inventory.GetSumAmount(packageItem.RefItemCodeName);
         while (!Game.Player.JobTransport.Inventory.Full
-               && (existingItemsCount < TradeConfig.BuyGoodsQuantity || TradeConfig.BuyGoodsQuantity == 0))
+               && (existingItemsCount < targetQuantity || targetQuantity == 0))
         {
             //Avoid endless loop
             if (--maxSteps == 0)
@@ -185,8 +194,8 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             if (buyNextQty == 0)
                 break;
 
-            if (TradeConfig.BuyGoodsQuantity > 0 && bought + buyNextQty > TradeConfig.BuyGoodsQuantity)
-                buyNextQty = TradeConfig.BuyGoodsQuantity - bought;
+            if (targetQuantity > 0 && bought + buyNextQty > targetQuantity)
+                buyNextQty = targetQuantity - bought;
 
             ShoppingManager.PurchaseItem(Game.Player.JobTransport, tabIndex, item.SlotIndex, (ushort)buyNextQty);
 

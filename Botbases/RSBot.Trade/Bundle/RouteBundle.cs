@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -74,16 +74,65 @@ internal class RouteBundle
         TownscriptRunning = false;
         CurrentRouteFile = null;
 
-        //Townscript finished?
         if (!_lastScriptIsTownScript)
         {
-            _checkForTownScript = true;
+            AdvanceToNextRoute();
+            _checkForTownScript = !TradeConfig.SkipTownScripts;
 
             return;
         }
 
         _checkForTownScript = false;
         _lastScriptIsTownScript = false;
+    }
+
+    /// <summary>
+    ///     Advances to the next route in the queue or loops back.
+    /// </summary>
+    private void AdvanceToNextRoute()
+    {
+        var routes = TradeConfig.Routes;
+        if (routes == null || routes.Count == 0) return;
+
+        var activeIndex = routes.FindIndex(r => r.Active);
+        if (activeIndex >= 0)
+        {
+            routes[activeIndex].Active = false;
+            routes[activeIndex].LoopCount++;
+
+            var nextIndex = activeIndex + 1;
+            if (nextIndex < routes.Count)
+            {
+                routes[nextIndex].Active = true;
+                Log.Notify($"[Trade] Route completed! Advancing to next route: {routes[nextIndex].StartCity} -> {routes[nextIndex].EndCity}");
+            }
+            else
+            {
+                if (TradeConfig.RepeatLoop && (TradeConfig.RepeatTimes == 0 || routes[0].LoopCount <= TradeConfig.RepeatTimes))
+                {
+                    routes[0].Active = true;
+                    Log.Notify($"[Trade] Full trade cycle completed! Looping back to Route #1: {routes[0].StartCity} -> {routes[0].EndCity} (Cycle #{routes[0].LoopCount})");
+                }
+                else
+                {
+                    Log.Notify("[Trade] All trade loops completed successfully!");
+
+                    if (TradeConfig.ReturnScrollAfterLoop)
+                    {
+                        var returnScroll = Game.Player.Inventory.GetNormalPartItems(i => i.Record.CodeName.Contains("ITEM_ETC_SCROLL_RETURN")).FirstOrDefault();
+                        returnScroll?.Use();
+                    }
+
+                    Kernel.Bot.Stop();
+                    TradeConfig.Routes = routes;
+                    EventManager.FireEvent("OnTradeRoutesUpdated");
+                    return;
+                }
+            }
+
+            TradeConfig.Routes = routes;
+            EventManager.FireEvent("OnTradeRoutesUpdated");
+        }
     }
 
     /// <summary>
@@ -343,6 +392,28 @@ internal class RouteBundle
     /// <returns></returns>
     public string GetNextRouteFile()
     {
+        var routes = TradeConfig.Routes;
+        if (routes != null && routes.Count > 0)
+        {
+            var activeRoute = routes.FirstOrDefault(r => r.Active);
+            if (activeRoute == null && !TradeConfig.DisableAutoActivation)
+            {
+                routes[0].Active = true;
+                activeRoute = routes[0];
+                TradeConfig.Routes = routes;
+                EventManager.FireEvent("OnTradeRoutesUpdated");
+            }
+
+            if (activeRoute != null && !string.IsNullOrWhiteSpace(activeRoute.ScriptFile) && File.Exists(activeRoute.ScriptFile))
+            {
+                Log.Notify($"[Trade] Selected Route #{activeRoute.Index + 1}: {activeRoute.StartCity} -> {activeRoute.EndCity} ({Path.GetFileName(activeRoute.ScriptFile)})");
+                return activeRoute.ScriptFile;
+            }
+        }
+
+        if (TradeConfig.RouteScriptList.Count <= TradeConfig.SelectedRouteListIndex)
+            return null;
+
         var selectedRouteList = TradeConfig.RouteScriptList[TradeConfig.SelectedRouteListIndex];
 
         if (!TradeConfig.RouteScripts.ContainsKey(selectedRouteList))

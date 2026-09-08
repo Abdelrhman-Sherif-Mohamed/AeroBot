@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading;
 using RSBot.Core.Objects;
 
@@ -52,7 +52,7 @@ internal class MoveScriptCommand : IScriptCommand
     /// </returns>
     public bool Execute(string[] arguments = null)
     {
-        if (arguments == null || arguments.Length != Arguments.Count)
+        if (arguments == null || arguments.Length < 3)
         {
             Log.Warn("[Script] Invalid move command: Position information missing / invalid format.");
 
@@ -103,33 +103,23 @@ internal class MoveScriptCommand : IScriptCommand
     ///     Executes the movement.
     /// </summary>
     /// <param name="arguments">The arguments.</param>
-    private bool ExecuteMove(IReadOnlyList<string> arguments)
+    private bool ExecuteMove(string[] arguments)
     {
-        if (!float.TryParse(arguments[0], out var xOffset)
-            || !float.TryParse(arguments[1], out var yOffset)
-            || !float.TryParse(arguments[2], out var zOffset)
-            || !byte.TryParse(arguments[3], out var xSector)
-            || !byte.TryParse(arguments[4], out var ySector))
+        var pos = ScriptManager.ParsePosition(arguments);
+        if (pos.Region.Id == 0 && pos.XOffset == 0 && pos.YOffset == 0)
         {
             IsBusy = false;
-
-            return false; //Invalid format
+            return false; // Invalid format
         }
-
-        Position pos = new(xSector, ySector, xOffset, yOffset, zOffset);
 
         if (PlayerConfig.Get("RSBot.Training.checkUseMount", true))
             if (!Game.Player.HasActiveVehicle && !Game.Player.IsInDungeon && !Game.Player.InAction)
                 Game.Player.SummonVehicle();
 
-        //Check if the new position is nearby a cave entrance.
-        //If so dismount the vehicle
-        //TODO: Find out how to get the ingame positions of ground teleporters like dw cave...
-
         var distance = pos.DistanceTo(Game.Player.Position);
-        if (distance > 100)
+        if (distance > 200)
         {
-            Log.Warn("[Script] Target position too far away, bot logic aborted!");
+            Log.Warn($"[Script] Target position too far away ({distance:F1}m), bot logic aborted!");
 
             IsBusy = false;
             return false;
