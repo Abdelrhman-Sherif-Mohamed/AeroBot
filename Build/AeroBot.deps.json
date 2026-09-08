@@ -1,0 +1,161 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v6.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v6.0": {
+      "AeroBot/1.0.0": {
+        "dependencies": {
+          "AeroBot.Core": "1.0.0",
+          "SDUI": "1.0.0",
+          "AeroBot.Core.Reference": "1.0.0.0",
+          "AeroBot.FileSystem.Reference": "1.0.0.0",
+          "AeroBot.NavMeshApi.Reference": "1.0.0.0"
+        },
+        "runtime": {
+          "AeroBot.dll": {}
+        }
+      },
+      "ExCSS/4.2.3": {
+        "runtime": {
+          "lib/net6.0/ExCSS.dll": {
+            "assemblyVersion": "4.2.3.0",
+            "fileVersion": "4.2.3.0"
+          }
+        }
+      },
+      "Svg/3.4.7": {
+        "dependencies": {
+          "ExCSS": "4.2.3"
+        },
+        "runtime": {
+          "lib/net6.0/Svg.dll": {
+            "assemblyVersion": "3.4.0.0",
+            "fileVersion": "3.4.7.1"
+          }
+        }
+      },
+      "AeroBot.Core/1.0.0": {
+        "dependencies": {
+          "AeroBot.FileSystem": "1.0.0",
+          "AeroBot.NavMeshApi": "1.0.0"
+        },
+        "runtime": {
+          "AeroBot.Core.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "AeroBot.FileSystem/1.0.0": {
+        "runtime": {
+          "AeroBot.FileSystem.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "AeroBot.NavMeshApi/1.0.0": {
+        "dependencies": {
+          "AeroBot.FileSystem": "1.0.0"
+        },
+        "runtime": {
+          "AeroBot.NavMeshApi.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "SDUI/1.0.0": {
+        "dependencies": {
+          "Svg": "3.4.7"
+        },
+        "runtime": {
+          "SDUI.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "AeroBot.Core.Reference/1.0.0.0": {
+        "runtime": {
+          "AeroBot.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "AeroBot.FileSystem.Reference/1.0.0.0": {
+        "runtime": {
+          "AeroBot.FileSystem.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "AeroBot.NavMeshApi.Reference/1.0.0.0": {
+        "runtime": {
+          "AeroBot.NavMeshApi.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "AeroBot/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ExCSS/4.2.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-SyeAfu2wL5247sipJoPUzQfjiwQtfSd8hN4IbgoyVcDx4PP6Dud4znwPRibWQzLtTlUxYYcbf5f4p+EfFC7KtQ==",
+      "path": "excss/4.2.3",
+      "hashPath": "excss.4.2.3.nupkg.sha512"
+    },
+    "Svg/3.4.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Omez7ly5BGhg3OzdV+LHZ5sI0+JQ6hF7WVKUeyHw4jRvcEWNCPCf1MWMBaf+R0DRBSZHx5EUHwBTEF+2oYtsAw==",
+      "path": "svg/3.4.7",
+      "hashPath": "svg.3.4.7.nupkg.sha512"
+    },
+    "AeroBot.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AeroBot.FileSystem/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AeroBot.NavMeshApi/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SDUI/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AeroBot.Core.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AeroBot.FileSystem.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AeroBot.NavMeshApi.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
