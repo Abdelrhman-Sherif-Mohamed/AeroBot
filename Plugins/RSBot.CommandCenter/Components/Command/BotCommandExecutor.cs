@@ -17,7 +17,7 @@ internal class BotCommandExecutor : RSBot.Core.Components.Command.ICommandExecut
         if (Game.Player == null || !Game.Ready)
         {
             if (!silent)
-                Game.ShowNotification("[Sonic] Enter the game first!");
+                Game.ShowNotification("[AeroBot] Enter the game first!");
             return false;
         }
 

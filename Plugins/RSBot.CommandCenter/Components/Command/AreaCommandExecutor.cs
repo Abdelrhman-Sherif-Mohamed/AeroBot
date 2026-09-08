@@ -1,4 +1,4 @@
-﻿using RSBot.Core;
+using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Components.Command;
 using RSBot.Core.Event;
@@ -15,7 +15,7 @@ internal class AreaCommandExecutor : ICommandExecutor
     {
         if (Game.Player == null || !Game.Ready)
         {
-            SonicLog.Notify(silent, "[Sonic] Enter the game first!", SonicLog.NeedGame);
+            SonicLog.Notify(silent, "[AeroBot] Enter the game first!", SonicLog.NeedGame);
             return false;
         }
 
@@ -23,7 +23,7 @@ internal class AreaCommandExecutor : ICommandExecutor
 
         if (!silent)
             Game.ShowNotification(
-                $"[Sonic] Setting training area to X={Game.Player.Position.X:0.00} Y={Game.Player.Position.Y:0.00} R={radius}");
+                $"[AeroBot] Setting training area to X={Game.Player.Position.X:0.00} Y={Game.Player.Position.Y:0.00} R={radius}");
 
         PlayerConfig.Set("RSBot.Area.Region", Game.Player.Position.Region);
         PlayerConfig.Set("RSBot.Area.X", Game.Player.Position.XOffset.ToString("0.0"));
@@ -33,7 +33,7 @@ internal class AreaCommandExecutor : ICommandExecutor
 
         EventManager.FireEvent("OnSetTrainingArea");
 
-        Log.Notify($"[Sonic] تم حفظ منطقة التدريب: X={Game.Player.Position.X:0} Y={Game.Player.Position.Y:0} R={radius}");
+        Log.Notify($"[AeroBot] تم حفظ منطقة التدريب: X={Game.Player.Position.X:0} Y={Game.Player.Position.Y:0} R={radius}");
 
         return true;
     }

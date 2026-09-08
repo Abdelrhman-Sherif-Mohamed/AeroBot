@@ -262,7 +262,7 @@ internal class RouteBundle
 
             _blockedByRouteDialog = false;
 
-            Game.ShowNotification($"[RSBot] Picked trade route {Path.GetFileNameWithoutExtension(CurrentRouteFile)}");
+            Game.ShowNotification($"[AeroBot] Picked trade route {Path.GetFileNameWithoutExtension(CurrentRouteFile)}");
 
             ScriptManager.Load(CurrentRouteFile);
             Task.Run(() => ScriptManager.RunScript(restartNearby));

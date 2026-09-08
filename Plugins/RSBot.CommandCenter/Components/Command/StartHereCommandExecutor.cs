@@ -1,4 +1,4 @@
-﻿using RSBot.Core;
+using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Components.Command;
 
@@ -14,11 +14,11 @@ internal class StartHereCommandExecutor : ICommandExecutor
     {
         if (Game.Player == null || !Game.Ready)
         {
-            SonicLog.Notify(silent, "[Sonic] Enter the game first!", SonicLog.NeedGame);
+            SonicLog.Notify(silent, "[AeroBot] Enter the game first!", SonicLog.NeedGame);
             return false;
         }
 
-        SonicLog.Notify(silent, "[Sonic] Starting bot at the current location",
+        SonicLog.Notify(silent, "[AeroBot] Starting bot at the current location",
             "بدأ البوت في المكان الحالي وتم حفظه كمنطقة تدريب");
 
         return CommandManager.Execute("area", true) && CommandManager.Execute("start", true);

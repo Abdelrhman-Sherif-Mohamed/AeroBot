@@ -15,12 +15,12 @@ internal static class SonicLog
         if (!silent)
             Game.ShowNotification(gameMsg);
 
-        Log.Notify("[Sonic] " + arabic);
+        Log.Notify("[AeroBot] " + arabic);
     }
 
     public static void Error(string arabic, string technical = null)
     {
-        Log.Error("[Sonic] " + arabic + (string.IsNullOrEmpty(technical) ? "" : " | " + technical));
+        Log.Error("[AeroBot] " + arabic + (string.IsNullOrEmpty(technical) ? "" : " | " + technical));
     }
 
     public const string NeedGame =

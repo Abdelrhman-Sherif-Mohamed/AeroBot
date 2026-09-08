@@ -19,14 +19,14 @@ internal static class LearnMode
     {
         ArmedAttack = true;
         ArmedBuff = false;
-        Game.ShowNotification("[Sonic] Learn mode: cast any ATTACK skill once in game, I will add it. Type !learn again to cancel.");
+        Game.ShowNotification("[AeroBot] Learn mode: cast any ATTACK skill once in game, I will add it. Type !learn again to cancel.");
     }
 
     public static void ArmBuff()
     {
         ArmedBuff = true;
         ArmedAttack = false;
-        Game.ShowNotification("[Sonic] Learn mode: cast any BUFF once in game, I will add it. Type !learnbuff again to cancel.");
+        Game.ShowNotification("[AeroBot] Learn mode: cast any BUFF once in game, I will add it. Type !learnbuff again to cancel.");
     }
 
     public static void Cancel()
@@ -52,27 +52,27 @@ internal static class LearnMode
 
         if (info == null)
         {
-            Game.ShowNotification("[Sonic] Could not recognize that skill (unknown id " + skillId + ")");
+            Game.ShowNotification("[AeroBot] Could not recognize that skill (unknown id " + skillId + ")");
             return;
         }
 
         if (wantAttack && (info.IsAttack || info.Record.TargetGroup_Enemy_M))
         {
             if (SkillChatHelper.AddAttack(info))
-                Game.ShowNotification("[Sonic] Learned attack: " + SkillChatHelper.Describe(info));
+                Game.ShowNotification("[AeroBot] Learned attack: " + SkillChatHelper.Describe(info));
             else
-                Game.ShowNotification("[Sonic] Already have: " + SkillChatHelper.Describe(info));
+                Game.ShowNotification("[AeroBot] Already have: " + SkillChatHelper.Describe(info));
         }
         else if (!wantAttack && !info.IsAttack && !info.Record.TargetGroup_Enemy_M)
         {
             if (SkillChatHelper.AddBuff(info))
-                Game.ShowNotification("[Sonic] Learned buff: " + SkillChatHelper.Describe(info));
+                Game.ShowNotification("[AeroBot] Learned buff: " + SkillChatHelper.Describe(info));
             else
-                Game.ShowNotification("[Sonic] Already have: " + SkillChatHelper.Describe(info));
+                Game.ShowNotification("[AeroBot] Already have: " + SkillChatHelper.Describe(info));
         }
         else
         {
-            Game.ShowNotification("[Sonic] That looks like a " +
+            Game.ShowNotification("[AeroBot] That looks like a " +
                                   (info.IsAttack ? "attack" : "buff") +
                                   " - use " + (info.IsAttack ? "!learn" : "!learnbuff") + " for it: " +
                                   SkillChatHelper.Describe(info));

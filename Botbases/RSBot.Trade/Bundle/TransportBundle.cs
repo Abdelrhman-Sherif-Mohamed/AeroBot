@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using RSBot.Core;
 using RSBot.Core.Components;
@@ -63,7 +63,7 @@ internal class TransportBundle
 
         //ToDO: Better unstack mechanic for trade transports.
         Log.Warn("[Trade] Your transport is stuck! Go back to your transport and try to unstuck it.");
-        Game.ShowNotification("[RSBot] Your transport is stuck! Go back to your transport and try to unstuck it.");
+        Game.ShowNotification("[AeroBot] Your transport is stuck! Go back to your transport and try to unstuck it.");
 
         //TransportStuck = true;
     }

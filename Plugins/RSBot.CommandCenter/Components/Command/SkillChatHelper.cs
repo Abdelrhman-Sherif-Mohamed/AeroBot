@@ -379,7 +379,7 @@ internal static class SkillChatHelper
         for (var s = 0; s < row.Cells.Count; s++)
             parts.Add($"{s + 1})" + CellText(row.Cells[s]));
 
-        return $"[Sonic] {title} R{rowOneBased}: " + string.Join(" ", parts);
+        return $"[AeroBot] {title} R{rowOneBased}: " + string.Join(" ", parts);
     }
 
     public static bool RefIsPassive(RefSkill r)

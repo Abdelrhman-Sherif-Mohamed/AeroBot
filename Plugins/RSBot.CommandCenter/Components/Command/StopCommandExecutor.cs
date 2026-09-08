@@ -1,4 +1,4 @@
-﻿using RSBot.Core;
+using RSBot.Core;
 using RSBot.Core.Components.Command;
 
 namespace RSBot.CommandCenter.Components.Command;
@@ -11,7 +11,7 @@ internal class StopCommandExecutor : ICommandExecutor
 
     public bool Execute(bool silent)
     {
-        SonicLog.Notify(silent, $"[Sonic] Stopping bot [{Kernel.Bot?.Botbase.DisplayName}]",
+        SonicLog.Notify(silent, $"[AeroBot] Stopping bot [{Kernel.Bot?.Botbase.DisplayName}]",
             "البوت وقف (تقدر تشغله تاني بـ !start)");
 
         Kernel.Bot?.Stop();
