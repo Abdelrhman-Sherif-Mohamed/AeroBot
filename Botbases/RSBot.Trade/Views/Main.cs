@@ -265,9 +265,35 @@ public partial class Main : DoubleBufferedControl
         };
 
         routes.Add(newRoute);
+
+        // Auto-add reverse return route (e.g. Jangan -> Hotan automatically adds Hotan -> Jangan)
+        var returnScript = TradeConfig.ResolveTradeScript(endCity, startCity);
+        if (string.IsNullOrEmpty(returnScript) || !File.Exists(returnScript))
+        {
+            returnScript = TradeConfig.GenerateReverseScript(scriptFile, startCity, endCity);
+        }
+
+        if (!string.IsNullOrEmpty(returnScript) && File.Exists(returnScript))
+        {
+            var returnRoute = new TradeRouteItem
+            {
+                Index = routes.Count + 1,
+                StartCity = endCity,
+                EndCity = startCity,
+                ScriptFile = returnScript,
+                Active = false,
+                LoopCount = 1
+            };
+            routes.Add(returnRoute);
+            AppendTradeLog($"[Trade] Added Route #{newRoute.Index} ({startCity} -> {endCity}) and Return Route #{returnRoute.Index} ({endCity} -> {startCity})", LogLevel.Notify);
+        }
+        else
+        {
+            AppendTradeLog($"Added Route #{newRoute.Index}: {startCity} -> {endCity} ({Path.GetFileName(scriptFile)})", LogLevel.Notify);
+        }
+
         TradeConfig.Routes = routes;
         RefreshRouteListView();
-        AppendTradeLog($"Added Route #{newRoute.Index}: {startCity} -> {endCity} ({Path.GetFileName(scriptFile)})", LogLevel.Notify);
     }
 
     private void btnStartTrade_Click(object sender, EventArgs e)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -257,6 +258,97 @@ internal static class TradeConfig
         }
 
         return string.Empty;
+    }
+
+    /// <summary>
+    ///     Generates a reverse trade script by reversing walk waypoints and swapping buy/sell NPCs.
+    /// </summary>
+    public static string GenerateReverseScript(string scriptPath, string startCity = "", string endCity = "")
+    {
+        if (string.IsNullOrEmpty(scriptPath) || !File.Exists(scriptPath))
+            return string.Empty;
+
+        try
+        {
+            var lines = File.ReadAllLines(scriptPath);
+            if (lines.Length == 0) return string.Empty;
+
+            var moveCommands = new List<string>();
+            string buyCommand = null;
+            string sellCommand = null;
+
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("//") || trimmed.StartsWith("#"))
+                    continue;
+
+                if (trimmed.StartsWith("move", StringComparison.OrdinalIgnoreCase))
+                    moveCommands.Add(trimmed);
+                else if (trimmed.StartsWith("buy-goods", StringComparison.OrdinalIgnoreCase))
+                    buyCommand = trimmed;
+                else if (trimmed.StartsWith("sell-goods", StringComparison.OrdinalIgnoreCase))
+                    sellCommand = trimmed;
+            }
+
+            if (moveCommands.Count == 0)
+                return string.Empty;
+
+            // Reverse waypoints
+            moveCommands.Reverse();
+
+            var reversedLines = new List<string>();
+            string newBuyCommand = null;
+            string newSellCommand = null;
+
+            if (!string.IsNullOrEmpty(sellCommand))
+            {
+                var parts = sellCommand.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2)
+                    newBuyCommand = $"buy-goods {parts[1]} Full";
+            }
+
+            if (!string.IsNullOrEmpty(buyCommand))
+            {
+                var parts = buyCommand.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2)
+                    newSellCommand = $"sell-goods {parts[1]}";
+            }
+
+            var insertBuyIndex = Math.Min(10, moveCommands.Count / 10);
+            for (int i = 0; i < moveCommands.Count; i++)
+            {
+                reversedLines.Add(moveCommands[i]);
+                if (i == insertBuyIndex && !string.IsNullOrEmpty(newBuyCommand))
+                {
+                    reversedLines.Add("summon-transport");
+                    reversedLines.Add(newBuyCommand);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(newSellCommand))
+                reversedLines.Add(newSellCommand);
+
+            var dir = Path.GetDirectoryName(scriptPath);
+            var baseName = Path.GetFileNameWithoutExtension(scriptPath);
+            string reverseFileName;
+
+            if (!string.IsNullOrEmpty(startCity) && !string.IsNullOrEmpty(endCity))
+                reverseFileName = $"{endCity} to {startCity}.vb";
+            else
+                reverseFileName = $"{baseName}_reversed.vb";
+
+            var reversePath = Path.Combine(dir, reverseFileName);
+            File.WriteAllLines(reversePath, reversedLines);
+            Log.Notify($"[Trade] Auto-generated reverse trade script: {reverseFileName}");
+
+            return reversePath;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"[Trade] Could not generate reverse script: {ex.Message}");
+            return string.Empty;
+        }
     }
 }
 

@@ -72,11 +72,12 @@ internal class RouteBundle
             return;
 
         TownscriptRunning = false;
+        var finishedRouteFile = CurrentRouteFile;
         CurrentRouteFile = null;
 
         if (!_lastScriptIsTownScript)
         {
-            AdvanceToNextRoute();
+            AdvanceToNextRoute(finishedRouteFile);
             _checkForTownScript = !TradeConfig.SkipTownScripts;
 
             return;
@@ -89,10 +90,14 @@ internal class RouteBundle
     /// <summary>
     ///     Advances to the next route in the queue or loops back.
     /// </summary>
-    private void AdvanceToNextRoute()
+    private void AdvanceToNextRoute(string finishedRouteFile = null)
     {
         var routes = TradeConfig.Routes;
-        if (routes == null || routes.Count == 0) return;
+        if (routes == null || routes.Count == 0)
+        {
+            AutoReverseCurrentScript(finishedRouteFile);
+            return;
+        }
 
         var activeIndex = routes.FindIndex(r => r.Active);
         if (activeIndex >= 0)
@@ -100,11 +105,42 @@ internal class RouteBundle
             routes[activeIndex].Active = false;
             routes[activeIndex].LoopCount++;
 
+            // If only 1 route was defined (e.g. Jangan -> Hotan), automatically add and start the return route (Hotan -> Jangan)
+            if (routes.Count == 1)
+            {
+                var cur = routes[0];
+                var returnScript = TradeConfig.ResolveTradeScript(cur.EndCity, cur.StartCity);
+                if (string.IsNullOrEmpty(returnScript) || !File.Exists(returnScript))
+                {
+                    returnScript = TradeConfig.GenerateReverseScript(cur.ScriptFile, cur.StartCity, cur.EndCity);
+                }
+
+                if (!string.IsNullOrEmpty(returnScript) && File.Exists(returnScript))
+                {
+                    var returnRoute = new TradeRouteItem
+                    {
+                        Index = 2,
+                        StartCity = cur.EndCity,
+                        EndCity = cur.StartCity,
+                        ScriptFile = returnScript,
+                        Active = true,
+                        LoopCount = 1
+                    };
+                    routes.Add(returnRoute);
+                    TradeConfig.Routes = routes;
+                    EventManager.FireEvent("OnTradeRoutesUpdated");
+                    Log.Notify($"[Trade] Auto-generated Return Route #{returnRoute.Index}: {returnRoute.StartCity} -> {returnRoute.EndCity} ({Path.GetFileName(returnScript)})");
+                    Game.ShowNotification($"[AeroBot] Auto-reversing: {returnRoute.StartCity} -> {returnRoute.EndCity}");
+                    return;
+                }
+            }
+
             var nextIndex = activeIndex + 1;
             if (nextIndex < routes.Count)
             {
                 routes[nextIndex].Active = true;
                 Log.Notify($"[Trade] Route completed! Advancing to next route: {routes[nextIndex].StartCity} -> {routes[nextIndex].EndCity}");
+                Game.ShowNotification($"[AeroBot] Next route: {routes[nextIndex].StartCity} -> {routes[nextIndex].EndCity}");
             }
             else
             {
@@ -112,6 +148,7 @@ internal class RouteBundle
                 {
                     routes[0].Active = true;
                     Log.Notify($"[Trade] Full trade cycle completed! Looping back to Route #1: {routes[0].StartCity} -> {routes[0].EndCity} (Cycle #{routes[0].LoopCount})");
+                    Game.ShowNotification($"[AeroBot] Looping back to Route #1 (Cycle #{routes[0].LoopCount})");
                 }
                 else
                 {
@@ -132,6 +169,41 @@ internal class RouteBundle
 
             TradeConfig.Routes = routes;
             EventManager.FireEvent("OnTradeRoutesUpdated");
+        }
+    }
+
+    /// <summary>
+    ///     Automatically reverses the finished script for seamless return trade trip.
+    /// </summary>
+    private void AutoReverseCurrentScript(string scriptPath)
+    {
+        if (string.IsNullOrEmpty(scriptPath) || !File.Exists(scriptPath))
+            return;
+
+        var baseName = Path.GetFileNameWithoutExtension(scriptPath).ToLowerInvariant();
+        var parts = baseName.Split(new[] { " to ", "to" }, StringSplitOptions.RemoveEmptyEntries);
+        string reverseFile = null;
+
+        if (parts.Length == 2)
+        {
+            var cityA = parts[0].Trim();
+            var cityB = parts[1].Trim();
+            reverseFile = TradeConfig.ResolveTradeScript(cityB, cityA);
+            if (string.IsNullOrEmpty(reverseFile) || !File.Exists(reverseFile))
+                reverseFile = TradeConfig.GenerateReverseScript(scriptPath, cityA, cityB);
+        }
+        else
+        {
+            reverseFile = TradeConfig.GenerateReverseScript(scriptPath);
+        }
+
+        if (!string.IsNullOrEmpty(reverseFile) && File.Exists(reverseFile))
+        {
+            Log.Notify($"[Trade] Auto-reversing trade route to: {Path.GetFileName(reverseFile)}");
+            Game.ShowNotification($"[AeroBot] Auto-reversing to {Path.GetFileNameWithoutExtension(reverseFile)}");
+            CurrentRouteFile = reverseFile;
+            ScriptManager.Load(CurrentRouteFile);
+            Task.Run(() => ScriptManager.RunScript(false));
         }
     }
 
