@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using RSBot.Core.Network;
 using RSBot.Core.Objects.Spawn;
 
@@ -78,10 +78,19 @@ internal class TeleportScriptCommand : IScriptCommand
         packet.WriteByte(0x02);
         packet.WriteUInt(destination);
 
-        var callback = new AwaitCallback(null, 0x3012); //Game Ready
-        PacketManager.SendPacket(packet, PacketDestination.Server, callback);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        PacketManager.SendPacket(packet, PacketDestination.Server);
 
-        callback.AwaitResponse(30_000); //For some really slow PCs
+        // Wait up to 5s for teleport loading screen to start
+        while (Game.Ready && sw.ElapsedMilliseconds < 5000)
+            System.Threading.Thread.Sleep(100);
+
+        // Wait up to 35s for teleport loading to finish
+        while (!Game.Ready && sw.ElapsedMilliseconds < 35000)
+            System.Threading.Thread.Sleep(200);
+
+        // Allow 3 seconds for world entities and transport to spawn after loading
+        System.Threading.Thread.Sleep(3000);
 
         return true;
     }

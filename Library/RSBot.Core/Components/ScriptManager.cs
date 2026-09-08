@@ -210,8 +210,9 @@ public class ScriptManager
                 break;
         }
 
+        var isScriptCompleted = Commands != null && CurrentLineIndex >= Commands.Length && !error;
         if (!Paused)
-            Stop(error);
+            Stop(!isScriptCompleted);
     }
 
     /// <summary>

@@ -68,7 +68,7 @@ internal class RouteBundle
         if (error)
             return;
 
-        if (!TradeBotbase.IsActive || !Game.Ready)
+        if (!TradeBotbase.IsActive || !Game.Ready || !Kernel.Bot.Running)
             return;
 
         TownscriptRunning = false;
@@ -458,6 +458,6 @@ internal class RouteBundle
         _blockedByRouteDialog = false;
         _lastScriptIsTownScript = false;
 
-        ScriptManager.Stop();
+        ScriptManager.Stop(true);
     }
 }

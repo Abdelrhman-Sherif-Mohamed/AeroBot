@@ -35,6 +35,9 @@ internal class TransportBundle
         SubscribeEvents();
     }
 
+    private DateTime _lastTeleportTime = DateTime.MinValue;
+    private bool _isTeleporting;
+
     /// <summary>
     ///     Starts the bundle.
     /// </summary>
@@ -42,6 +45,8 @@ internal class TransportBundle
     {
         WaitingForTransport = false;
         TransportStuck = false;
+        _isTeleporting = false;
+        _lastTeleportTime = DateTime.MinValue;
     }
 
     /// <summary>
@@ -50,6 +55,23 @@ internal class TransportBundle
     private void SubscribeEvents()
     {
         EventManager.SubscribeEvent("OnJobCosStuck", new Action<byte>(OnJobCosStuck));
+        EventManager.SubscribeEvent("OnTeleportStart", OnTeleportStart);
+        EventManager.SubscribeEvent("OnTeleportComplete", OnTeleportComplete);
+    }
+
+    private void OnTeleportStart()
+    {
+        _isTeleporting = true;
+        WaitingForTransport = false;
+        TransportStuck = false;
+    }
+
+    private void OnTeleportComplete()
+    {
+        _isTeleporting = false;
+        _lastTeleportTime = DateTime.UtcNow;
+        WaitingForTransport = false;
+        TransportStuck = false;
     }
 
     /// <summary>
@@ -70,6 +92,16 @@ internal class TransportBundle
 
     public void Tick()
     {
+        if (!Game.Ready || Game.Player == null)
+            return;
+
+        if (_isTeleporting || Game.Player.Teleportation?.IsTeleporting == true)
+            return;
+
+        // Grace period after teleport: allow 10 seconds for surrounding entities (including transport) to spawn
+        if ((DateTime.UtcNow - _lastTeleportTime).TotalSeconds < 10)
+            return;
+
         //Summon new transport?
         if (Game.Player.JobTransport == null)
         {
@@ -88,10 +120,7 @@ internal class TransportBundle
                 return;
             }
 
-            Log.Warn("[Trade] Can not summon transport: No transport scroll in player inventory.");
-
-            Kernel.Bot.Stop();
-
+            // DO NOT immediately stop the bot! The transport might be spawning or the player might be in dialog.
             return;
         }
 
@@ -123,6 +152,9 @@ internal class TransportBundle
     /// s
     private bool CheckDistanceToTransport()
     {
+        if (_isTeleporting || (DateTime.UtcNow - _lastTeleportTime).TotalSeconds < 10)
+            return true;
+
         if (Game.Player.JobTransport == null)
         {
             WaitingForTransport = true;
