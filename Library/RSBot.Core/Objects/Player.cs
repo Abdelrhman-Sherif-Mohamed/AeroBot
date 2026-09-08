@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -12,6 +12,7 @@ using RSBot.Core.Objects.Job;
 using RSBot.Core.Objects.Quests;
 using RSBot.Core.Objects.Skill;
 using RSBot.Core.Objects.Spawn;
+using RSBot.NavMeshApi;
 
 namespace RSBot.Core.Objects;
 
@@ -682,10 +683,21 @@ public class Player : SpawnedBionic
             return false;
         }
 
-        if (HasActiveVehicle)
-        {
-            Vehicle.MoveTo(destination, sleep);
+        if (distance <= 1.5)
             return true;
+
+        // In Silkroad VSRO, mounted players move via 0x7021 (Player Move) packet just like on foot.
+        // We use the vehicle's speed if mounted so arrival time and monitoring are accurate.
+        var effectiveSpeed = (HasActiveVehicle && Vehicle != null && Vehicle.ActualSpeed > 0)
+            ? Vehicle.ActualSpeed
+            : Game.Player.ActualSpeed;
+
+        if (effectiveSpeed <= 0)
+            effectiveSpeed = 5.0f;
+
+        if (Kernel.EnableCollisionDetection && Position.HasCollisionBetween(destination, NavMeshRaycastType.Move))
+        {
+            Log.Warn($"[AeroBot] Wall/Obstacle collision detected along path to ({destination.X:F1}, {destination.Y:F1})");
         }
 
         var packet = new Packet(0x7021);
@@ -720,13 +732,89 @@ public class Player : SpawnedBionic
             if (!sleep)
                 return true;
 
-            //Wait to finish the step (ms = distance/speed seconds * 1000)
-            Thread.Sleep(Convert.ToInt32(distance / Game.Player.ActualSpeed * 1000));
+            var estimatedTimeMs = (int)(distance / effectiveSpeed * 1000);
+            var maxTimeoutMs = Math.Max(2500, estimatedTimeMs + 3000);
+            var startTime = DateTime.UtcNow;
+            var lastPos = Position;
+            var lastMovedTime = DateTime.UtcNow;
 
-            return true;
+            while ((DateTime.UtcNow - startTime).TotalMilliseconds < maxTimeoutMs)
+            {
+                Thread.Sleep(100);
+
+                var curDist = Position.DistanceTo(destination);
+                if (curDist <= 2.5f)
+                    return true;
+
+                // Server stop packet 0xB023 sets Moving = false and HasDestination = false
+                if (!Movement.Moving && !Movement.HasDestination && (DateTime.UtcNow - startTime).TotalMilliseconds > 350)
+                {
+                    if (curDist > 3.0f)
+                    {
+                        Log.Warn($"[AeroBot] Movement blocked by server (wall/collision)! Remaining distance: {curDist:F1}m");
+                        TryUnstuck(destination);
+                        return false;
+                    }
+                    return true;
+                }
+
+                // Check position progression
+                var movedDist = Position.DistanceTo(lastPos);
+                if (movedDist > 0.5f)
+                {
+                    lastPos = Position;
+                    lastMovedTime = DateTime.UtcNow;
+                }
+                else
+                {
+                    // No progress for > 1.8 seconds while supposedly moving
+                    if ((DateTime.UtcNow - lastMovedTime).TotalSeconds > 1.8)
+                    {
+                        Log.Warn($"[AeroBot] Character stuck against obstacle/wall! Distance to target: {curDist:F1}m");
+                        TryUnstuck(destination);
+                        return false;
+                    }
+                }
+            }
+
+            return Position.DistanceTo(destination) <= 3.5f;
         }
 
         return false;
+    }
+
+    /// <summary>
+    ///     Performs a recovery maneuver when stuck against an obstacle or wall.
+    /// </summary>
+    private void TryUnstuck(Position destination)
+    {
+        try
+        {
+            StopMoving();
+
+            var curX = Position.X;
+            var curY = Position.Y;
+            var dx = destination.X - curX;
+            var dy = destination.Y - curY;
+            var len = MathF.Sqrt(dx * dx + dy * dy);
+
+            if (len > 0.001f)
+            {
+                // Sidestep perpendicular to current path
+                float stepX = -(dy / len) * 2.0f;
+                float stepY = (dx / len) * 2.0f;
+
+                var unstuckPos = new Position(curX + stepX, curY + stepY, Position.Region);
+                Log.Debug($"[AeroBot] Performing unstuck sidestep to ({unstuckPos.X:F1}, {unstuckPos.Y:F1})");
+
+                MoveTo(unstuckPos, false);
+                Thread.Sleep(400);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[AeroBot] TryUnstuck error: {ex.Message}");
+        }
     }
 
     private bool UsePotion(TypeIdFilter filter, ref int tick, ref int duration)

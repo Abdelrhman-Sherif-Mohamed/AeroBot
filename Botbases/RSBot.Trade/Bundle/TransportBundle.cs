@@ -37,6 +37,11 @@ internal class TransportBundle
 
     private DateTime _lastTeleportTime = DateTime.MinValue;
     private bool _isTeleporting;
+    private DateTime _lastMountAttempt = DateTime.MinValue;
+    private DateTime _lastDismountAttempt = DateTime.MinValue;
+    private DateTime _waitingStartTime = DateTime.MinValue;
+    private float _lastDistanceWhenWaiting = float.MaxValue;
+    private DateTime _lastTransportProgressTime = DateTime.MinValue;
 
     /// <summary>
     ///     Starts the bundle.
@@ -47,6 +52,9 @@ internal class TransportBundle
         TransportStuck = false;
         _isTeleporting = false;
         _lastTeleportTime = DateTime.MinValue;
+        _lastMountAttempt = DateTime.MinValue;
+        _lastDismountAttempt = DateTime.MinValue;
+        _waitingStartTime = DateTime.MinValue;
     }
 
     /// <summary>
@@ -128,20 +136,39 @@ internal class TransportBundle
         if (!CheckDistanceToTransport() || !CheckTransportIsUnderAttack())
             return;
 
-        if (TradeConfig.MountTransport && !Game.Player.HasActiveVehicle &&
-            Game.Player.State.BattleState == BattleState.InPeace && !Game.Player.InAction)
+        if (TradeConfig.MountTransport)
         {
-            Log.Notify("[Trade] Mounting transport");
+            if (!Game.Player.HasActiveVehicle &&
+                Game.Player.State.BattleState == BattleState.InPeace && !Game.Player.InAction)
+            {
+                if ((DateTime.UtcNow - _lastMountAttempt).TotalSeconds < 4)
+                {
+                    WaitingForTransport = true;
+                    return;
+                }
 
-            WaitingForTransport = true;
+                _lastMountAttempt = DateTime.UtcNow;
+                Log.Notify("[Trade] Mounting transport");
+                WaitingForTransport = true;
 
-            Game.Player.MoveTo(Game.Player.JobTransport.Position);
-            Game.Player.JobTransport?.Mount();
+                var distToTransport = (float)Game.Player.JobTransport.Position.DistanceToPlayer();
+                if (distToTransport > 3.0f)
+                {
+                    Game.Player.MoveTo(Game.Player.JobTransport.Position, false);
+                }
+
+                Game.Player.JobTransport?.Mount();
+            }
         }
-        else if (!TradeConfig.MountTransport && Game.Player.HasActiveVehicle &&
+        else if (Game.Player.HasActiveVehicle &&
                  Game.Player.Vehicle.UniqueId == Game.Player.JobTransport.UniqueId)
         {
-            Game.Player.JobTransport?.Dismount();
+            if ((DateTime.UtcNow - _lastDismountAttempt).TotalSeconds >= 4)
+            {
+                _lastDismountAttempt = DateTime.UtcNow;
+                Log.Notify("[Trade] Dismounting transport");
+                Game.Player.JobTransport?.Dismount();
+            }
         }
     }
 
@@ -149,7 +176,6 @@ internal class TransportBundle
     /// <summary>
     ///     Checks the vehicle distance to the player.
     /// </summary>
-    /// s
     private bool CheckDistanceToTransport()
     {
         if (_isTeleporting || (DateTime.UtcNow - _lastTeleportTime).TotalSeconds < 10)
@@ -158,47 +184,70 @@ internal class TransportBundle
         if (Game.Player.JobTransport == null)
         {
             WaitingForTransport = true;
-
             Log.Debug("[Trade] Waiting for job transport to spawn.");
-
             return false;
         }
 
-        //Player is mounted 
+        // Player is mounted on the job transport
         if (Game.Player.HasActiveVehicle && Game.Player.Vehicle.UniqueId == Game.Player.JobTransport.UniqueId)
         {
             WaitingForTransport = false;
             TransportStuck = false;
-
             return true;
         }
 
-        var currentDistance = Game.Player.JobTransport.Position.DistanceToPlayer();
-        if (currentDistance > TradeConfig.MaxTransportDistance)
+        var currentDistance = (float)Game.Player.JobTransport.Position.DistanceToPlayer();
+
+        // If currently waiting for transport to catch up:
+        // Hysteresis: Keep waiting until transport is close (<= 6.0m) before resuming forward march
+        if (WaitingForTransport)
         {
-            WaitingForTransport = true;
-
-            //In some rare cases, the position of the transport is wrong (e.g. Knock-Back skills)
-            // That makes the bot thinking that the cos is actually very far away. To re-run the distance calculation
-            // we can move the player to the location were it thinks the COS is located. That way the distance is then re-calculated 
-            // and the script can continue.
-            if (!Game.Player.JobTransport.Movement.HasDestination)
+            if (currentDistance > 6.0f)
             {
-                Log.Debug("[Trade] Lost track of the transport! Now trying to move to last known location.");
-                Game.Player.MoveTo(Game.Player.JobTransport.Position);
+                // Check if transport is making progress towards player
+                if (currentDistance < _lastDistanceWhenWaiting - 0.5f)
+                {
+                    _lastDistanceWhenWaiting = currentDistance;
+                    _lastTransportProgressTime = DateTime.UtcNow;
+                }
+                else
+                {
+                    // If transport has not gotten any closer for > 15 seconds, it might be genuinely stuck on geometry
+                    if ((DateTime.UtcNow - _lastTransportProgressTime).TotalSeconds > 15 &&
+                        (DateTime.UtcNow - _waitingStartTime).TotalSeconds > 15)
+                    {
+                        Log.Warn($"[Trade] Transport appears stuck behind ({currentDistance:F1}m). Walking back to assist.");
+                        Game.Player.MoveTo(Game.Player.JobTransport.Position);
+                        _lastTransportProgressTime = DateTime.UtcNow;
+                        return false;
+                    }
+                }
 
+                Log.Status($"Waiting for transport ({currentDistance:F1}m)");
                 return false;
             }
 
-            Log.Status($"Waiting for transport ({currentDistance:F1}m)");
+            Log.Notify($"[Trade] Transport caught up ({currentDistance:F1}m). Resuming route!");
+            WaitingForTransport = false;
+            return true;
+        }
 
+        // Normal walk check: if player outpaced the transport
+        if (currentDistance > TradeConfig.MaxTransportDistance)
+        {
+            WaitingForTransport = true;
+            _waitingStartTime = DateTime.UtcNow;
+            _lastDistanceWhenWaiting = currentDistance;
+            _lastTransportProgressTime = DateTime.UtcNow;
+
+            // Stop player where they stand so camel can catch up! NEVER run backward.
+            Game.Player.StopMoving();
+
+            Log.Status($"Waiting for transport to catch up ({currentDistance:F1}m)");
             return false;
         }
 
-        //ToDo: Check if job transport is stuck. Because the collision files are wrong at certain locations like Hotan
-        //it can not be done until the collision has been fixed.
         WaitingForTransport = false;
-
         return true;
     }
 

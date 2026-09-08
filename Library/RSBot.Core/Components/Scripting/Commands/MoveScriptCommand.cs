@@ -112,7 +112,7 @@ internal class MoveScriptCommand : IScriptCommand
             return false; // Invalid format
         }
 
-        if (PlayerConfig.Get("RSBot.Training.checkUseMount", true))
+        if (PlayerConfig.Get("RSBot.Training.checkUseMount", true) && Kernel.Bot?.Botbase?.Name?.Contains("Trade") != true)
             if (!Game.Player.HasActiveVehicle && !Game.Player.IsInDungeon && !Game.Player.InAction)
                 Game.Player.SummonVehicle();
 

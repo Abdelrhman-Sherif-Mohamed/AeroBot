@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace RSBot.Core.Components.Scripting.Commands;
@@ -47,6 +47,12 @@ internal class DismountScriptCommand : IScriptCommand
         try
         {
             IsBusy = true;
+
+            if (Kernel.Bot?.Botbase?.Name?.Contains("Trade") == true && PlayerConfig.Get("RSBot.Trade.MountTransport", false))
+            {
+                Log.Debug("[Script] Skipping dismount because MountTransport is enabled in Trade botbase.");
+                return true;
+            }
 
             Log.Notify("[Script] Dismounting vehicle...");
             if (!Game.Player.HasActiveVehicle)
