@@ -1,0 +1,11 @@
+﻿DisplayName="Envanter"
+AeroBot.Inventory.Main.Panel.buttonUseItem="Kullan"
+AeroBot.Inventory.Main.Panel.label1="Çanta:"
+AeroBot.Inventory.Main.Panel.label2="Boş Yer:"
+AeroBot.Inventory.UseItemDialog.label2="Kendi kararınıza göre eşya
+kullanabilirsiniz. Bir koşul penceresi açılacaktır
+ve oradan istediğiniz şartları ayarlayabilirsiniz"
+AeroBot.Inventory.UseItemDialog.label1="Öğeyi doğrudan kullanmak istiyorsanız,
+sadece butona tıklayın"
+AeroBot.Inventory.UseItemDialog.buttonCancel="Koşul kullan"
+AeroBot.Inventory.UseItemDialog.buttonOk="Doğrudan kullan"

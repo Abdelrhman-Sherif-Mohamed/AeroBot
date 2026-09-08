@@ -1,0 +1,9 @@
+﻿DisplayName="Mapa"
+AeroBot.Map.Main.label3="Esta opcion no funciona mientras el bot está activo.
+Si desea que el bot ataque automático mientras está activo,
+debe establecer en evitar."
+AeroBot.Map.Main.checkEnableCollisions="Habilitar la detección de colisiones"
+AeroBot.Map.Main.checkBoxAutoSelectUniques="Seleccionar únicos automáticamente"
+AeroBot.Map.Main.label4="Ver:"
+AeroBot.Map.Main.lblRegion="Desconectado"
+NoName="<No name>"

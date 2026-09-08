@@ -1,0 +1,11 @@
+﻿DisplayName="Inventar"
+AeroBot.Inventory.Main.Panel.buttonUseItem="Benutzen"
+AeroBot.Inventory.Main.Panel.label1="Inventar:"
+AeroBot.Inventory.Main.Panel.label2="Freie Plätze:"
+AeroBot.Inventory.UseItemDialog.label2="Artikel nach Ihrer eigenen Entscheidung
+  können Sie verwenden. Es öffnet sich ein Konditionsfenster
+und von dort aus können Sie die gewünschten Bedingungen festlegen"
+AeroBot.Inventory.UseItemDialog.label1="Wenn Sie den Artikel direkt verwenden möchten,
+ klicken Sie einfach auf den Button"
+AeroBot.Inventory.UseItemDialog.buttonCancel="Verwendung mit Bedingungen"
+AeroBot.Inventory.UseItemDialog.buttonOk="Direkt verwenden"

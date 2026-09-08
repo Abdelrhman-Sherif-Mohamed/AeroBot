@@ -1,0 +1,23 @@
+﻿DisplayName="Инвентарь"
+AeroBot.Inventory.Main.Panel.buttonUseItem="Использовать"
+AeroBot.Inventory.Main.Panel.buttonInventory="Инвентарь"
+AeroBot.Inventory.Main.Panel.buttonJobTransport="Проф.инвентарь"
+AeroBot.Inventory.Main.Panel.buttonEquipment="Экипировка"
+AeroBot.Inventory.Main.Panel.buttonAvatars="Аватар"
+AeroBot.Inventory.Main.Panel.buttonStorage="Склад"
+AeroBot.Inventory.Main.Panel.buttonGuildStorage="Гилд.склад"
+AeroBot.Inventory.Main.Panel.buttonSpecialty="Особый"
+AeroBot.Inventory.Main.Panel.buttonGrabpet="Пет.инвентарь"
+AeroBot.Inventory.Main.Panel.buttonJobEquipment="Проф.Экипировка"
+AeroBot.Inventory.Main.Panel.buttonInventory="Инвентарь"
+AeroBot.Inventory.Main.Panel.label1="Инвентарь:"
+AeroBot.Inventory.UseItemDialog.label2="Товар по вашему собственному решению
+  вы можете использовать. Откроется окно условия
+и оттуда вы можете установить условия, которые вы хотите"
+AeroBot.Inventory.UseItemDialog.label1="Если вы хотите использовать товар напрямую,
+ просто нажмите кнопку"
+AeroBot.Inventory.UseItemDialog.buttonCancel="Использовать с условиями"
+AeroBot.Inventory.UseItemDialog.buttonOk="Использовать напрямую"
+AeroBot.Inventory.Main.UseItemDialog.useToolStripMenuItem="Использовать1"
+AeroBot.Inventory.UseItemDialog.useItemAtTrainingPlaceMenuItem="Использовать1"
+

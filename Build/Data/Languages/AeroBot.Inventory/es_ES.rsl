@@ -1,0 +1,22 @@
+﻿DisplayName="Inventario"
+AeroBot.Inventory.Main.Panel.buttonUseItem="Usar"
+AeroBot.Inventory.Main.Panel.buttonInventory="Inventario"
+AeroBot.Inventory.Main.Panel.buttonJobTransport="Job Transp."
+AeroBot.Inventory.Main.Panel.buttonEquipment="Equipo"
+AeroBot.Inventory.Main.Panel.buttonAvatars="Avatars"
+AeroBot.Inventory.Main.Panel.buttonStorage="Storage"
+AeroBot.Inventory.Main.Panel.buttonGuildStorage="Gremio Store"
+AeroBot.Inventory.Main.Panel.buttonSpecialty="Especial"
+AeroBot.Inventory.Main.Panel.buttonGrabpet="Grab Pet"
+AeroBot.Inventory.Main.Panel.buttonJobEquipment="Job Equipo"
+AeroBot.Inventory.Main.Panel.label1="Inventario:"
+AeroBot.Inventory.Main.Panel.label2="Sitios libres:"
+AeroBot.Inventory.UseItemDialog.label2="Artículo según su propia decisión
+  puedes usar. Se abrirá una ventana de condición
+y allí puedes establecer lo que quieras"
+AeroBot.Inventory.UseItemDialog.label1="Si desea utilizar el elemento directamente,
+ simplemente haga clic en el botón"
+AeroBot.Inventory.UseItemDialog.buttonCancel="Usar con condiciones"
+AeroBot.Inventory.UseItemDialog.buttonOk="Usar directamente"
+AeroBot.Inventory.Main.UseItemDialog.useToolStripMenuItem="Usa1"
+AeroBot.Inventory.UseItemDialog.useItemAtTrainingPlaceMenuItem="Usa1"

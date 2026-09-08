@@ -1,0 +1,19 @@
+﻿DisplayName="مركز الأوامر"
+RSBot.CommandCenter.Main.checkEnable="تفعيل مركز الأوامر"
+RSBot.CommandCenter.Main.btnResetToDefaults="إعادة للافتراضي"
+RSBot.CommandCenter.Main.btnSave="حفظ"
+RSBot.CommandCenter.Main.TabControl.tabPage1="أوامر التعبيرات"
+RSBot.CommandCenter.Main.TabControl.tabPage2="أوامر الشات"
+RSBot.CommandCenter.Main.TabControl.tabPage3="الأوفرلاي"
+RSBot.CommandCenter.Main.TabControl.TabPage.label1="اكتب الأوامر التالية في شات اللعبة"
+RSBot.CommandCenter.Main.TabControl.TabPage.label2="أيقونة عائمة تتبع نافذة اللعبة"
+RSBot.CommandCenter.Main.TabControl.TabPage.checkOverlay="تفعيل أيقونة الأوفرلاي داخل اللعبة"
+RSBot.CommandCenter.Main.TabControl.TabPage.btnShowOverlay="إظهار الأوفرلاي الآن"
+RSBot.CommandCenter.Main.TabControl.TabPage.lblOverlayHint="الأوفرلاي نافذة صغيرة فوق الكل (بدون حقن، آمنة).
+
+- زر بدء/إيقاف + حالة HP/MP
+- اختصارات المدينة / الحالة / البوت
+- اسحب شريط العنوان للتحريك
+- الشات من داخل اللعبة:
+  !start  !stop  !here  !area  !buff
+  !status  !town  !overlay  !help"

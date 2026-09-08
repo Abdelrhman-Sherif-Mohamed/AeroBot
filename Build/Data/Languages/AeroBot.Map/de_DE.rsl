@@ -1,0 +1,8 @@
+﻿DisplayName="Karte"
+AeroBot.Map.Main.label3="Diese Funktion funktioniert nicht, wenn der Bot aktiv ist.
+ Wenn du willst, dass der Bot automatisch angreift, während er aktiv ist,
+ Vermeiden einstellen."
+AeroBot.Map.Main.checkBoxAutoSelectUniques="Automatisch Uniques auswählen"
+AeroBot.Map.Main.label4="Anzeigen:"
+AeroBot.Map.Main.lblRegion="Nicht im Spiel"
+NoName="<kein Name>"

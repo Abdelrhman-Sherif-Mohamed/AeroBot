@@ -1,0 +1,8 @@
+﻿DisplayName="Bản Đồ"
+AeroBot.Map.Main.label3="Chức năng này không hoạt động trong khi bot đang chạy.
+  Nếu bạn muốn bot tự động tấn công khi đang hoạt động,
+  đặt Tránh."
+AeroBot.Map.Main.checkBoxAutoSelectUniques="Tự động lựa chọn"
+AeroBot.Map.Main.label4="Hiện:"
+AeroBot.Map.Main.lblRegion="Không trong trò chơi"
+NoName="<Chưa đặt tên>"

@@ -1,0 +1,7 @@
+DisplayName="المهام"
+checkShowCompleted="إظهار المكتملة"
+btnRefresh="تحديث"
+btnWatch="متابعة"
+btnAbandon="إلغاء المهمة"
+watchQuestToolStripMenuItem="متابعة / إلغاء متابعة"
+abandonToolStripMenuItem="إلغاء المهمة"

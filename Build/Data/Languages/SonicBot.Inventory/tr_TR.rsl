@@ -1,0 +1,11 @@
+﻿DisplayName="Envanter"
+SonicBot.Inventory.Main.Panel.buttonUseItem="Kullan"
+SonicBot.Inventory.Main.Panel.label1="Çanta:"
+SonicBot.Inventory.Main.Panel.label2="Boş Yer:"
+SonicBot.Inventory.UseItemDialog.label2="Kendi kararınıza göre eşya
+kullanabilirsiniz. Bir koşul penceresi açılacaktır
+ve oradan istediğiniz şartları ayarlayabilirsiniz"
+SonicBot.Inventory.UseItemDialog.label1="Öğeyi doğrudan kullanmak istiyorsanız,
+sadece butona tıklayın"
+SonicBot.Inventory.UseItemDialog.buttonCancel="Koşul kullan"
+SonicBot.Inventory.UseItemDialog.buttonOk="Doğrudan kullan"

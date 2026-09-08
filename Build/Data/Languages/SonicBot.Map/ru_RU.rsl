@@ -1,0 +1,10 @@
+﻿DisplayName="Карта"
+SonicBot.Map.Main.label3="Эта функция не работает, пока бот активен.
+Если вы хотите, чтобы бот автоматически
+атаковал во время активности,
+ установить избегание."
+SonicBot.Map.Main.checkEnableCollisions="Включить обнаружение столкновений"
+SonicBot.Map.Main.checkBoxAutoSelectUniques="Автоматически выбирать уникальные"
+SonicBot.Map.Main.label4="Показывать:"
+SonicBot.Map.Main.lblRegion="Не в игре"
+NoName="<Без имени>"

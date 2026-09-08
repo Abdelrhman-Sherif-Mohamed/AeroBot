@@ -1,0 +1,11 @@
+﻿DisplayName="Inventory"
+SonicBot.Inventory.Main.Panel.buttonUseItem="Use"
+SonicBot.Inventory.Main.Panel.label1="Inventory:"
+SonicBot.Inventory.Main.Panel.label2="Free Slots:"
+SonicBot.Inventory.UseItemDialog.label2="Item according to your own decision
+  you can use. A condition window will open
+and from there you can set the terms you want"
+SonicBot.Inventory.UseItemDialog.label1="If you want to use the item directly,
+ just click the button"
+SonicBot.Inventory.UseItemDialog.buttonCancel="Use with conditions"
+SonicBot.Inventory.UseItemDialog.buttonOk="Use Directly"

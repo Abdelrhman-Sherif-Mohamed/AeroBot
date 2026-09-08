@@ -1,0 +1,8 @@
+﻿DisplayName="Harita"
+AeroBot.Map.Main.label3="Bot aktifken bu fonksiyon çalışmaz. Bot aktifken
+otomatik saldırmasını istiyorsanız, canavar
+tercihlerinden ayarlayınız."
+AeroBot.Map.Main.checkBoxAutoSelectUniques="Otomatik Unique Seçme"
+AeroBot.Map.Main.label4="Göster:"
+AeroBot.Map.Main.lblRegion="Oyunda değil"
+NoName="<No name>"

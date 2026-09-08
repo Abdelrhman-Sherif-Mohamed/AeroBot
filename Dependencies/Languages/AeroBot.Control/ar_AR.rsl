@@ -1,0 +1,20 @@
+DisplayName="التحكم عن بُعد"
+AeroBot.Control.Main.groupSettings="الإعدادات والأوامر"
+AeroBot.Control.Main.chkEnabled="تفعيل التحكم عن بُعد عبر الشات"
+AeroBot.Control.Main.lblCommandsGuide="الأوامر المدعومة (في شات البارتي أو الهمس):
+• START / STOP : تشغيل أو إيقاف البوت
+• TRACE [اسم] / NOTRACE : اللحاق بالقائد
+• RETURN : استخدام سكرول العودة / الإنعاش
+• ZERK : تفعيل وضع الزيرك
+• GETOUT : مغادرة البارتي
+• MOVEON [نطاق] : التحرك عشوائياً
+• SETPOS / SETRADIUS : إعدادات المنطقة
+• GETPOS : إرسال الإحداثيات في الشات
+• SIT / CAPE / USE [اسم الأيتم]"
+AeroBot.Control.Main.groupLeaders="قادة الفريق المعتمدون"
+AeroBot.Control.Main.lblLeader="اسم الشخصية / قائد البارتي:"
+AeroBot.Control.Main.btnAddLeader="إضافة"
+AeroBot.Control.Main.btnRemoveLeader="حذف"
+AeroBot.Control.Main.btnGetPartyLeader="إضافة قائد البارتي الحالي"
+AeroBot.Control.Main.groupLogs="سجل تنفيذ الأوامر"
+AeroBot.Control.Main.btnClearLogs="مسح السجل"

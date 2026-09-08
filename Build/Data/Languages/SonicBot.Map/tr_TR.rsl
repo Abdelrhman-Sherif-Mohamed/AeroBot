@@ -1,0 +1,8 @@
+﻿DisplayName="Harita"
+SonicBot.Map.Main.label3="Bot aktifken bu fonksiyon çalışmaz. Bot aktifken
+otomatik saldırmasını istiyorsanız, canavar
+tercihlerinden ayarlayınız."
+SonicBot.Map.Main.checkBoxAutoSelectUniques="Otomatik Unique Seçme"
+SonicBot.Map.Main.label4="Göster:"
+SonicBot.Map.Main.lblRegion="Oyunda değil"
+NoName="<No name>"

@@ -1,0 +1,22 @@
+﻿DisplayName="Inventario"
+SonicBot.Inventory.Main.Panel.buttonUseItem="Usar"
+SonicBot.Inventory.Main.Panel.buttonInventory="Inventario"
+SonicBot.Inventory.Main.Panel.buttonJobTransport="Job Transp."
+SonicBot.Inventory.Main.Panel.buttonEquipment="Equipo"
+SonicBot.Inventory.Main.Panel.buttonAvatars="Avatars"
+SonicBot.Inventory.Main.Panel.buttonStorage="Storage"
+SonicBot.Inventory.Main.Panel.buttonGuildStorage="Gremio Store"
+SonicBot.Inventory.Main.Panel.buttonSpecialty="Especial"
+SonicBot.Inventory.Main.Panel.buttonGrabpet="Grab Pet"
+SonicBot.Inventory.Main.Panel.buttonJobEquipment="Job Equipo"
+SonicBot.Inventory.Main.Panel.label1="Inventario:"
+SonicBot.Inventory.Main.Panel.label2="Sitios libres:"
+SonicBot.Inventory.UseItemDialog.label2="Artículo según su propia decisión
+  puedes usar. Se abrirá una ventana de condición
+y allí puedes establecer lo que quieras"
+SonicBot.Inventory.UseItemDialog.label1="Si desea utilizar el elemento directamente,
+ simplemente haga clic en el botón"
+SonicBot.Inventory.UseItemDialog.buttonCancel="Usar con condiciones"
+SonicBot.Inventory.UseItemDialog.buttonOk="Usar directamente"
+SonicBot.Inventory.Main.UseItemDialog.useToolStripMenuItem="Usa1"
+SonicBot.Inventory.UseItemDialog.useItemAtTrainingPlaceMenuItem="Usa1"

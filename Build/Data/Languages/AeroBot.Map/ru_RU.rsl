@@ -1,0 +1,10 @@
+﻿DisplayName="Карта"
+AeroBot.Map.Main.label3="Эта функция не работает, пока бот активен.
+Если вы хотите, чтобы бот автоматически
+атаковал во время активности,
+ установить избегание."
+AeroBot.Map.Main.checkEnableCollisions="Включить обнаружение столкновений"
+AeroBot.Map.Main.checkBoxAutoSelectUniques="Автоматически выбирать уникальные"
+AeroBot.Map.Main.label4="Показывать:"
+AeroBot.Map.Main.lblRegion="Не в игре"
+NoName="<Без имени>"

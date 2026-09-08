@@ -1,0 +1,20 @@
+DisplayName="التحكم عن بُعد"
+SonicBot.Control.Main.groupSettings="الإعدادات والأوامر"
+SonicBot.Control.Main.chkEnabled="تفعيل التحكم عن بُعد عبر الشات"
+SonicBot.Control.Main.lblCommandsGuide="الأوامر المدعومة (في شات البارتي أو الهمس):
+• START / STOP : تشغيل أو إيقاف البوت
+• TRACE [اسم] / NOTRACE : اللحاق بالقائد
+• RETURN : استخدام سكرول العودة / الإنعاش
+• ZERK : تفعيل وضع الزيرك
+• GETOUT : مغادرة البارتي
+• MOVEON [نطاق] : التحرك عشوائياً
+• SETPOS / SETRADIUS : إعدادات المنطقة
+• GETPOS : إرسال الإحداثيات في الشات
+• SIT / CAPE / USE [اسم الأيتم]"
+SonicBot.Control.Main.groupLeaders="قادة الفريق المعتمدون"
+SonicBot.Control.Main.lblLeader="اسم الشخصية / قائد البارتي:"
+SonicBot.Control.Main.btnAddLeader="إضافة"
+SonicBot.Control.Main.btnRemoveLeader="حذف"
+SonicBot.Control.Main.btnGetPartyLeader="إضافة قائد البارتي الحالي"
+SonicBot.Control.Main.groupLogs="سجل تنفيذ الأوامر"
+SonicBot.Control.Main.btnClearLogs="مسح السجل"

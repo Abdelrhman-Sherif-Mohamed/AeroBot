@@ -1,0 +1,35 @@
+# Visual Studio / .NET files
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.pdb
+.vs/
+.idea/
+.vscode/
+
+# Build outputs (binaries compiled from source)
+Build/*.dll
+Build/*.exe
+Build/*.deps.json
+Build/*.runtimeconfig.json
+Build/Data/Bots/*.dll
+Build/Data/Plugins/*.dll
+Build/Data/Bots/*.deps.json
+Build/Data/Plugins/*.deps.json
+Build/User/
+Build/Data/Logs/
+Build/*.rar
+Build/*.zip
+*.log
+boot-error.log
+rsbot_download_temp/
+Releases/
+
+# OS generated files
+.DS_Store
+Thumbs.db

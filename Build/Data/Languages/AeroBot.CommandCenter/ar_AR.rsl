@@ -1,0 +1,19 @@
+﻿DisplayName="مركز الأوامر"
+AeroBot.CommandCenter.Main.checkEnable="تفعيل مركز الأوامر"
+AeroBot.CommandCenter.Main.btnResetToDefaults="إعادة للافتراضي"
+AeroBot.CommandCenter.Main.btnSave="حفظ"
+AeroBot.CommandCenter.Main.TabControl.tabPage1="أوامر التعبيرات"
+AeroBot.CommandCenter.Main.TabControl.tabPage2="أوامر الشات"
+AeroBot.CommandCenter.Main.TabControl.tabPage3="الأوفرلاي"
+AeroBot.CommandCenter.Main.TabControl.TabPage.label1="اكتب الأوامر التالية في شات اللعبة"
+AeroBot.CommandCenter.Main.TabControl.TabPage.label2="أيقونة عائمة تتبع نافذة اللعبة"
+AeroBot.CommandCenter.Main.TabControl.TabPage.checkOverlay="تفعيل أيقونة الأوفرلاي داخل اللعبة"
+AeroBot.CommandCenter.Main.TabControl.TabPage.btnShowOverlay="إظهار الأوفرلاي الآن"
+AeroBot.CommandCenter.Main.TabControl.TabPage.lblOverlayHint="الأوفرلاي نافذة صغيرة فوق الكل (بدون حقن، آمنة).
+
+- زر بدء/إيقاف + حالة HP/MP
+- اختصارات المدينة / الحالة / البوت
+- اسحب شريط العنوان للتحريك
+- الشات من داخل اللعبة:
+  !start  !stop  !here  !area  !buff
+  !status  !town  !overlay  !help"

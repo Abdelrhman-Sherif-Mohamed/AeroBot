@@ -1,0 +1,11 @@
+﻿DisplayName="Inventar"
+SonicBot.Inventory.Main.Panel.buttonUseItem="Benutzen"
+SonicBot.Inventory.Main.Panel.label1="Inventar:"
+SonicBot.Inventory.Main.Panel.label2="Freie Plätze:"
+SonicBot.Inventory.UseItemDialog.label2="Artikel nach Ihrer eigenen Entscheidung
+  können Sie verwenden. Es öffnet sich ein Konditionsfenster
+und von dort aus können Sie die gewünschten Bedingungen festlegen"
+SonicBot.Inventory.UseItemDialog.label1="Wenn Sie den Artikel direkt verwenden möchten,
+ klicken Sie einfach auf den Button"
+SonicBot.Inventory.UseItemDialog.buttonCancel="Verwendung mit Bedingungen"
+SonicBot.Inventory.UseItemDialog.buttonOk="Direkt verwenden"

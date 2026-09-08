@@ -1,0 +1,8 @@
+﻿DisplayName="Bản Đồ"
+SonicBot.Map.Main.label3="Chức năng này không hoạt động trong khi bot đang chạy.
+  Nếu bạn muốn bot tự động tấn công khi đang hoạt động,
+  đặt Tránh."
+SonicBot.Map.Main.checkBoxAutoSelectUniques="Tự động lựa chọn"
+SonicBot.Map.Main.label4="Hiện:"
+SonicBot.Map.Main.lblRegion="Không trong trò chơi"
+NoName="<Chưa đặt tên>"

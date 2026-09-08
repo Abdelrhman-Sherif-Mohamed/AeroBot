@@ -1,0 +1,11 @@
+﻿DisplayName="Inventory"
+AeroBot.Inventory.Main.Panel.buttonUseItem="Use"
+AeroBot.Inventory.Main.Panel.label1="Inventory:"
+AeroBot.Inventory.Main.Panel.label2="Free Slots:"
+AeroBot.Inventory.UseItemDialog.label2="Item according to your own decision
+  you can use. A condition window will open
+and from there you can set the terms you want"
+AeroBot.Inventory.UseItemDialog.label1="If you want to use the item directly,
+ just click the button"
+AeroBot.Inventory.UseItemDialog.buttonCancel="Use with conditions"
+AeroBot.Inventory.UseItemDialog.buttonOk="Use Directly"

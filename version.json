@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "release_date": "2026-09-08",
+  "download_url": "https://github.com/Abdelrhman-Sherif-Mohamed/AeroBot/releases/latest/download/AeroBot.zip",
+  "github_url": "https://github.com/Abdelrhman-Sherif-Mohamed/AeroBot",
+  "changelog": "- الإصدار الأول لبوت AeroBot (v1.0.0)\n- نظام التجارة التلقائي بين المدن (Jangan <-> Hotan)\n- صانع السكربت المطور على نمط phBot (42 أمر تفاعلي)\n- تبويب المهام (Quest) المستقل وخاصية تثبيت الإضافات (.dll)\n- دعم كامل للغة العربية والوضع الليلي (Dark Mode)",
+  "required": false
+}

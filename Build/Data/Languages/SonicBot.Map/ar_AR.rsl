@@ -1,0 +1,8 @@
+﻿DisplayName="الخريطة"
+SonicBot.Map.Main.label3="لا تعمل هذه الوظيفة أثناء نشاط البوت.
+ إذا كنت تريد أن يهاجم الروبوت تلقائيا أثناء النشاط ،
+ تعيين التجنب."
+SonicBot.Map.Main.checkBoxAutoSelectUniques="تلقائيا اختيار اليونيك"
+SonicBot.Map.Main.label4="إظهار"
+SonicBot.Map.Main.lblRegion="ليس في اللعبة"
+NoName="<No name>"
