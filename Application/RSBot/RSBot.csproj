@@ -1,26 +1,38 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net6.0-windows</TargetFramework>
+		<TargetFramework>net8.0-windows</TargetFramework>
 		<Nullable>disable</Nullable>
 		<UseWindowsForms>true</UseWindowsForms>
 		<ImplicitUsings>disable</ImplicitUsings>
 		<OutputPath>.\..\..\Build</OutputPath>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<Description>A open source bot for Silkroad Online</Description>
-		<Copyright>Copyright © 2024, RSBot Team</Copyright>
-		<PackageProjectUrl>https://github.com/SDClowen/RSBot</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/SDClowen/RSBot</RepositoryUrl>
+		<AssemblyName>AeroBot</AssemblyName>
+		<RootNamespace>RSBot</RootNamespace>
+		<Title>AeroBot</Title>
+		<Description>Aerobot Ultimate Edition for Silkroad Online</Description>
+		<Copyright>Copyright © 2026, Aerobot Team</Copyright>
+		<Company>Aerobot Team</Company>
+		<Product>AeroBot</Product>
+		<AssemblyTitle>AeroBot</AssemblyTitle>
+		<PackageProjectUrl>https://github.com/WolvesBot</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/WolvesBot</RepositoryUrl>
 		<OutputType>WinExe</OutputType>
 		<ApplicationIcon>app.ico</ApplicationIcon>
-		<AssemblyVersion>2.9.5</AssemblyVersion>
-		<ApplicationHighDpiMode></ApplicationHighDpiMode>
+		<AssemblyVersion>2.9.16</AssemblyVersion>
 		<PlatformTarget>x86</PlatformTarget>
 		<UseWPF>False</UseWPF>
+		<CodePage>65001</CodePage>
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <Content Include="app.ico" />
+	  <Content Include="app.ico">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="Resources\splash_banner.jpg">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	    <Link>splash_banner.jpg</Link>
+	  </Content>
 	</ItemGroup>
 
 	<ItemGroup>

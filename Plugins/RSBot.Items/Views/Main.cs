@@ -11,7 +11,6 @@ using RSBot.Core.Event;
 using RSBot.Core.Extensions;
 using RSBot.Core.Objects;
 using SDUI.Controls;
-using SDUI.Helpers;
 using CheckBox = SDUI.Controls.CheckBox;
 using GroupBox = SDUI.Controls.GroupBox;
 using ListViewExtensions = RSBot.Core.Extensions.ListViewExtensions;
@@ -36,11 +35,11 @@ public partial class Main : DoubleBufferedControl
         CheckForIllegalCrossThreadCalls = false;
 
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
         SubscribeEvents();
 
         listShoppingList.SmallImageList = ListViewExtensions.StaticItemsImageList;
         listAvailableProducts.SmallImageList = ListViewExtensions.StaticItemsImageList;
+        listFilter.SmallImageList = ListViewExtensions.StaticItemsImageList;
     }
 
     /// <summary>
@@ -161,28 +160,6 @@ public partial class Main : DoubleBufferedControl
         }
 
         listAvailableProducts.EndUpdate();
-    }
-
-    /// <summary>
-    ///     Loads the search result item image.
-    /// </summary>
-    private async void LoadSearchResultItemImagesAsync()
-    {
-        listFilter.BeginUpdate();
-
-        foreach (ListViewItem item in listFilter.Items)
-        {
-            var refItem = (RefObjItem)item.Tag;
-
-            if (!searchImageList.Images.ContainsKey(refItem.CodeName))
-                searchImageList.Images.Add(refItem.CodeName, refItem.GetIcon());
-
-            item.ImageKey = refItem.CodeName;
-        }
-
-        listFilter.EndUpdate();
-
-        await Task.Yield();
     }
 
     /// <summary>
@@ -521,13 +498,13 @@ public partial class Main : DoubleBufferedControl
                 }
             };
 
+            await listViewItem.LoadItemImage(item);
             listViewItems[i] = listViewItem;
         }
 
         listFilter.Items.AddRange(listViewItems);
         listFilter.EndUpdate();
 
-        //LoadSearchResultItemImagesAsync();
 
         listFilter.Visible = true;
 
