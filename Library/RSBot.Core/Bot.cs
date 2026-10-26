@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using System.Threading.Tasks;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
@@ -49,6 +49,20 @@ public class Bot
         if (Running || Botbase == null)
             return;
 
+        if (!RSBot.Core.Security.PermissionManager.CanUseBotbase(Botbase.Name, out var reason))
+        {
+            Log.Notify($"[الصلاحيات] {reason}");
+            EventManager.FireEvent("OnStopBot");
+            return;
+        }
+
+        if (!RSBot.Core.Security.PermissionManager.CheckClientInstanceLimit(out int count, out int limit))
+        {
+            Log.Notify($"[الصلاحيات] تم تجاوز الحد الأقصى للحسابات المسموح بها في النسخة المجانية ({count}/{limit})!");
+            EventManager.FireEvent("OnStopBot");
+            return;
+        }
+
         TokenSource = new CancellationTokenSource();
 
         Task.Factory.StartNew(async e =>
@@ -61,7 +75,17 @@ public class Bot
                 while (!TokenSource.IsCancellationRequested)
                 {
                     if (!Game.Ready)
+                    {
+                        await Task.Delay(100);
                         continue;
+                    }
+
+                    if (RSBot.Core.Security.PermissionManager.IsSessionExpired(out _, out var sessionLimit))
+                    {
+                        Log.Notify($"[الصلاحيات] انتهت مدة الجلسة المسموح بها في النسخة المجانية ({sessionLimit.TotalMinutes} دقيقة).");
+                        Stop();
+                        break;
+                    }
 
                     Botbase.Tick();
                     await Task.Delay(100);
@@ -75,27 +99,32 @@ public class Bot
     /// </summary>
     public void Stop()
     {
-        ScriptManager.Stop();
-        ShoppingManager.Stop();
-        PickupManager.Stop();
-
-        if (Botbase == null)
-            return;
-
-        if (!Running)
-            return;
-
-        if (!TokenSource.IsCancellationRequested)
-            TokenSource.Cancel();
-
-        EventManager.FireEvent("OnStopBot");
-        Log.Notify($"Stopping bot {Botbase.Name}");
-
-        Game.SelectedEntity = null;
-        Botbase.Stop();
         Running = false;
 
-        Log.Notify($"Stoped bot {Botbase.Name}");
+        try { ScriptManager.Stop(); } catch { }
+        try { ShoppingManager.Stop(); } catch { }
+        try { PickupManager.Stop(); } catch { }
+
+        if (TokenSource != null && !TokenSource.IsCancellationRequested)
+        {
+            try { TokenSource.Cancel(); } catch { }
+        }
+
+        try { EventManager.FireEvent("OnStopBot"); } catch { }
+
+        if (Botbase != null)
+        {
+            Log.Notify($"Stopping bot {Botbase.Name}");
+            Game.SelectedEntity = null;
+            try
+            {
+                Botbase.Stop();
+            }
+            catch { }
+
+            Log.Notify($"Stoped bot {Botbase.Name}");
+        }
+
         Log.Status("Bot stopped");
     }
 }

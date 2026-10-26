@@ -4,6 +4,7 @@ using RSBot.Core.Client;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Plugins;
+using RSBot.Core.Security;
 using RSBot.Views.Dialog;
 using SDUI;
 using SDUI.Controls;
@@ -31,6 +32,11 @@ public partial class Main : UIWindow
     private string _playerName;
     private readonly Dictionary<string, UIWindow> _pluginWindows = new(8);
 
+    private System.Windows.Forms.Timer _subscriptionTimer;
+    private ToolStripStatusLabel _lblSubscriptionStatus;
+    private bool _isExpiredHandled;
+    private int _subTickCount;
+
     #endregion Members
 
     #region Constructor
@@ -44,6 +50,28 @@ public partial class Main : UIWindow
         CheckForIllegalCrossThreadCalls = false;
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         RegisterEvents();
+
+        Text = "Aerobot - Ultimate Edition";
+
+        // Lock form dimensions and prevent user resizing
+        Resizable = false;
+        MaximizeBox = false;
+        Size = new Size(1300, 820);
+        MinimumSize = new Size(1300, 820);
+        MaximumSize = new Size(1300, 820);
+
+        try
+        {
+            var iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.ico");
+            if (System.IO.File.Exists(iconPath))
+            {
+                using var stream = new System.IO.FileStream(iconPath, System.IO.FileMode.Open, System.IO.FileAccess.Read);
+                var botIcon = new Icon(stream);
+                Icon = botIcon;
+                notifyIcon.Icon = botIcon;
+            }
+        }
+        catch { }
     }
 
     #endregion Constructor
@@ -103,6 +131,10 @@ public partial class Main : UIWindow
         BackColor = ColorScheme.BackColor;
         stripStatus.BackColor = BackColor.IsDark() ? ColorScheme.BorderColor : Color.FromArgb(33, 150, 243);
         stripStatus.ForeColor = ColorScheme.ForeColor;
+        lblIngameStatus.ForeColor = ColorScheme.ForeColor;
+
+        ChangeControlsTheme(this);
+        Invalidate(true);
 
         if (save)
             GlobalConfig.Save();
@@ -162,6 +194,12 @@ public partial class Main : UIWindow
         if (Kernel.Bot.Running)
             return;
 
+        if (!RSBot.Core.Security.PermissionManager.CanUseBotbase(name, out var permReason))
+        {
+            MessageBox.Show(this, permReason, "صلاحيات النسخة المجانية", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         var oldBotbaseName = Kernel.Bot?.Botbase?.Name;
         var newBotbase = Kernel.BotbaseManager.Bots.FirstOrDefault(bot => bot.Value.Name == name);
         if (newBotbase.Value == null)
@@ -179,6 +217,7 @@ public partial class Main : UIWindow
         control.Enabled = Game.Ready;
         windowPageControl.Controls.Add(control);
         windowPageControl.Controls.SetChildIndex(control, 1);
+        ChangeControlsTheme(control);
 
         Kernel.Bot?.SetBotbase(newBotbase.Value);
         GlobalConfig.Set("RSBot.BotName", newBotbase.Value.Name);
@@ -217,6 +256,7 @@ public partial class Main : UIWindow
             control.Dock = DockStyle.Fill;
 
             windowPageControl.Controls.Add(control);
+            ChangeControlsTheme(control);
         }
 
         foreach (var extension in extensions.Where(extension => !extension.Value.DisplayAsTab))
@@ -239,24 +279,7 @@ public partial class Main : UIWindow
     /// </summary>
     private void ConfigureSidebar()
     {
-        var size = Size;
-        if (menuSidebar.Checked)
-        {
-            size.Width = 1048;
-            pSidebar.Visible = true;
-        }
-        else
-        {
-            size.Width = 800;
-            pSidebar.Visible = false;
-        }
-
-        size.Height = 724;
-        Size = size;
-        Width = size.Width;
-        Height = size.Height;
-        MinimumSize = size;
-        MaximumSize = size;
+        pSidebar.Visible = menuSidebar.Checked;
     }
 
     /// <summary>
@@ -398,7 +421,236 @@ public partial class Main : UIWindow
         BackColor = ColorScheme.BackColor;
         menuCurrentProfile.Text = "Profile: " + ProfileManager.SelectedProfile;
 
+        // Ensure fixed size and center on screen
+        Size = new Size(1300, 820);
+        MinimumSize = new Size(1300, 820);
+        MaximumSize = new Size(1300, 820);
+        CenterToScreen();
+
         EventManager.FireEvent("OnInitialized");
+        InitializeSubscriptionUI();
+    }
+
+    private void InitializeSubscriptionUI()
+    {
+        try
+        {
+            _lblSubscriptionStatus = new ToolStripStatusLabel
+            {
+                Alignment = ToolStripItemAlignment.Right,
+                ForeColor = Color.LightGreen,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                IsLink = true,
+                LinkBehavior = LinkBehavior.NeverUnderline,
+                ToolTipText = "انقر لعرض تفاصيل الاشتراك"
+            };
+
+            _lblSubscriptionStatus.Click += (s, e) =>
+            {
+                var curUser = AuthService.Instance.CurrentUser;
+                if (curUser != null && curUser.IsFreeTier)
+                {
+                    var summary = RSBot.Core.Security.PermissionManager.GetPermissionsSummaryArabic();
+                    MessageBox.Show(this, summary, "معلومات وصلاحيات النسخة المجانية", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                bool isUserAdmin = AuthService.Instance.IsAdmin ||
+                                   string.Equals(AuthService.Instance.CurrentUser?.Username, "abdosonek", StringComparison.OrdinalIgnoreCase);
+
+                if (isUserAdmin)
+                {
+                    using var adminDlg = new AdminForm();
+                    adminDlg.ShowDialog(this);
+                }
+                else
+                {
+                    var rem = AuthService.Instance.CurrentUser?.GetFormattedRemainingTime() ?? "غير محدد";
+                    var exp = AuthService.Instance.CurrentUser?.ExpiresAt ?? "غير محدد";
+                    MessageBox.Show(this, $"تفاصيل اشتراك البوت:\n\nاسم الحساب: {AuthService.Instance.CurrentUser?.Username}\nالوقت المتبقي: {rem}\nتاريخ الانتهاء: {exp}", "معلومات الاشتراك", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            };
+
+            stripStatus.Items.Insert(1, _lblSubscriptionStatus);
+            UpdateSubscriptionStatusText();
+
+            // Admin Management in Menu Strip
+            var menuAdminManageAccounts = new ToolStripMenuItem("🛡️ لوحة إدارة الأدمن والاشتراكات (Admin)")
+            {
+                ForeColor = Color.FromArgb(245, 215, 100),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+            menuAdminManageAccounts.Click += (s, e) =>
+            {
+                bool isUserAdmin = AuthService.Instance.IsAdmin ||
+                                   string.Equals(AuthService.Instance.CurrentUser?.Username, "abdosonek", StringComparison.OrdinalIgnoreCase);
+
+                if (isUserAdmin)
+                {
+                    using var adminDlg = new AdminForm();
+                    adminDlg.ShowDialog(this);
+                }
+                else
+                {
+                    var pass = InputPrompt.Show("أدخل كلمة مرور الأدمن للوصول إلى لوحة التحكم:", "لوحة تحكم الأدمن", "");
+                    if (pass == "01150238481" || pass == "admin")
+                    {
+                        using var adminDlg = new AdminForm();
+                        adminDlg.ShowDialog(this);
+                    }
+                    else if (!string.IsNullOrWhiteSpace(pass))
+                    {
+                        MessageBox.Show(this, "كلمة المرور غير صحيحة.", "تم رفض الوصول", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+            };
+            bool currentUserIsAdmin = AuthService.Instance.IsAdmin || string.Equals(AuthService.Instance.CurrentUser?.Username, "abdosonek", StringComparison.OrdinalIgnoreCase);
+            menuAdminManageAccounts.Visible = currentUserIsAdmin;
+            menuStrip.Items.Add(menuAdminManageAccounts);
+
+            // Register global event
+            AuthService.OnSubscriptionExpiredEvent += () =>
+            {
+                if (InvokeRequired)
+                    Invoke(new Action(OnSubscriptionExpired));
+                else
+                    OnSubscriptionExpired();
+            };
+
+            // Start subscription monitor timer (checks every 15 seconds)
+            _subscriptionTimer = new System.Windows.Forms.Timer
+            {
+                Interval = 15000
+            };
+            _subscriptionTimer.Tick += async (s, e) =>
+            {
+                UpdateSubscriptionStatusText();
+
+                // 1. Local check
+                if (AuthService.Instance.CurrentUser != null && AuthService.Instance.CurrentUser.IsFreeTier)
+                {
+                    if (RSBot.Core.Security.PermissionManager.IsSessionExpired(out var elapsed, out var sessionLimit))
+                    {
+                        if (Kernel.Bot != null && Kernel.Bot.Running)
+                        {
+                            Kernel.Bot.Stop();
+                            MessageBox.Show(this, $"انتهت مدة الجلسة المسموح بها في النسخة المجانية ({sessionLimit.TotalMinutes} دقيقة)!", "تنبيه النسخة المجانية", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                    return;
+                }
+
+                if (AuthService.Instance.CurrentUser != null && AuthService.Instance.CurrentUser.IsExpired)
+                {
+                    OnSubscriptionExpired();
+                    return;
+                }
+
+                // 2. Periodic Firebase check (every ~2 minutes / 8 ticks)
+                _subTickCount++;
+                if (_subTickCount >= 8)
+                {
+                    _subTickCount = 0;
+                    var valid = await AuthService.Instance.CheckCurrentSubscriptionAsync();
+                    if (!valid)
+                    {
+                        OnSubscriptionExpired();
+                    }
+                }
+            };
+            _subscriptionTimer.Start();
+        }
+        catch { }
+    }
+
+    private void UpdateSubscriptionStatusText()
+    {
+        try
+        {
+            if (_lblSubscriptionStatus == null || _lblSubscriptionStatus.IsDisposed)
+                return;
+
+            var user = AuthService.Instance.CurrentUser;
+            if (user == null)
+            {
+                _lblSubscriptionStatus.Text = "⏳ غير مسجل";
+                _lblSubscriptionStatus.ForeColor = Color.LightCoral;
+                return;
+            }
+
+            if (user.IsFreeTier)
+            {
+                _lblSubscriptionStatus.Text = "🆓 النسخة المجانية (Free Tier)";
+                _lblSubscriptionStatus.ForeColor = Color.Cyan;
+                return;
+            }
+
+            if (user.IsLifetime)
+            {
+                _lblSubscriptionStatus.Text = "♾️ اشتراك دائم (Lifetime)";
+                _lblSubscriptionStatus.ForeColor = Color.Aquamarine;
+                return;
+            }
+
+            if (user.IsAdmin)
+            {
+                _lblSubscriptionStatus.Text = "⭐ حساب مسؤول (Admin)";
+                _lblSubscriptionStatus.ForeColor = Color.Gold;
+                return;
+            }
+
+            var rem = user.GetFormattedRemainingTime();
+            _lblSubscriptionStatus.Text = $"⏳ الاشتراك: {rem}";
+
+            if (user.IsExpired)
+            {
+                _lblSubscriptionStatus.ForeColor = Color.LightCoral;
+            }
+            else if (user.RemainingTime.HasValue && user.RemainingTime.Value.TotalHours < 24)
+            {
+                _lblSubscriptionStatus.ForeColor = Color.Orange;
+            }
+            else
+            {
+                _lblSubscriptionStatus.ForeColor = Color.LightGreen;
+            }
+        }
+        catch { }
+    }
+
+    private void OnSubscriptionExpired()
+    {
+        if (_isExpiredHandled)
+            return;
+
+        _isExpiredHandled = true;
+
+        try
+        {
+            _subscriptionTimer?.Stop();
+            _subscriptionTimer?.Dispose();
+        }
+        catch { }
+
+        // Immediately stop bot
+        try
+        {
+            if (Kernel.Bot != null && Kernel.Bot.Running)
+            {
+                Kernel.Bot.Stop();
+            }
+        }
+        catch { }
+
+        // Show subscription expired dialog with WhatsApp info
+        try
+        {
+            using var dlg = new SubscriptionExpiredDialog(shouldExitOnClose: true);
+            dlg.ShowDialog(this);
+        }
+        catch { }
+
+        Environment.Exit(0);
     }
 
     /// <summary>
@@ -565,7 +817,7 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void Main_Resize(object sender, EventArgs e)
     {
-        if (WindowState == FormWindowState.Normal)
+        if (WindowState != FormWindowState.Minimized)
             return;
 
         if (!GlobalConfig.Get<bool>("RSBot.General.TrayWhenMinimize"))
@@ -743,7 +995,16 @@ public partial class Main : UIWindow
     /// </summary>
     private void OnStartBot()
     {
-        btnStartStop.Text = LanguageManager.GetLang("StopBot");
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnStartBot));
+            return;
+        }
+
+        var lang = LanguageManager.GetLang("StopBot");
+        btnStartStop.Text = !string.IsNullOrWhiteSpace(lang) ? lang : "STOP BOT";
+        btnStartStop.Color = System.Drawing.Color.FromArgb(220, 53, 69);
+        btnStartStop.BackColor = System.Drawing.Color.FromArgb(220, 53, 69);
     }
 
     /// <summary>
@@ -751,7 +1012,16 @@ public partial class Main : UIWindow
     /// </summary>
     private void OnStopBot()
     {
-        btnStartStop.Text = LanguageManager.GetLang("StartBot");
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnStopBot));
+            return;
+        }
+
+        var lang = LanguageManager.GetLang("StartBot");
+        btnStartStop.Text = !string.IsNullOrWhiteSpace(lang) ? lang : "START BOT";
+        btnStartStop.Color = System.Drawing.Color.FromArgb(33, 150, 243);
+        btnStartStop.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
     }
 
     /// <summary>
@@ -815,7 +1085,7 @@ public partial class Main : UIWindow
         var disconnectedText = LanguageManager.GetLang("Disconnected");
         if (!Text.EndsWith(disconnectedText))
         {
-            Text = $@"RSBot - {_playerName} - {disconnectedText}";
+            Text = $@"Aerobot - {_playerName} - {disconnectedText}";
             notifyIcon.Text = Text;
         }
     }
@@ -826,6 +1096,12 @@ public partial class Main : UIWindow
     /// <param name="text">The text.</param>
     private void OnChangeStatusText(string text)
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => lblIngameStatus.Text = text));
+            return;
+        }
+
         lblIngameStatus.Text = text;
     }
 
@@ -872,7 +1148,7 @@ public partial class Main : UIWindow
             item.Enabled = true;
 
         _playerName = Game.Player.Name;
-        Text = $@"RSBot - {_playerName}";
+        Text = $@"Aerobot - {_playerName}";
         notifyIcon.Text = Text;
 
         if (Game.Clientless)

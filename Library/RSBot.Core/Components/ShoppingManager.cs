@@ -112,8 +112,11 @@ public static class ShoppingManager
     /// </summary>
     public static void Run(string npcCodeName)
     {
-        if (!Enabled)
+        if (!Enabled || !RSBot.Core.Security.PermissionManager.CanUseTownLoop)
+        {
+            Finished = true;
             return;
+        }
 
         Finished = false;
         Running = true;

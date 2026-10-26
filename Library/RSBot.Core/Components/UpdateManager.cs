@@ -72,7 +72,7 @@ public static class UpdateManager
                     return new Version(ver.Major, ver.Minor, Math.Max(0, ver.Build));
             }
             catch { }
-            return new Version(2, 9, 16);
+            return new Version(2, 9, 17);
         }
     }
 
