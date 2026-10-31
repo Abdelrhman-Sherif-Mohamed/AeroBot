@@ -237,7 +237,14 @@ public partial class Main : UIWindow
             return;
         }
 
-        newBotbase.Value.Translate();
+        try
+        {
+            newBotbase.Value.Translate();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[SelectBotbase] Error translating botbase [{name}]: {ex.Message}");
+        }
 
         var control = newBotbase.Value.View;
         control.Name = newBotbase.Value.Name;
@@ -267,7 +274,16 @@ public partial class Main : UIWindow
     private void LoadExtensions()
     {
         foreach (var plugin in Kernel.PluginManager.Extensions.Values)
-            plugin.Initialize();
+        {
+            try
+            {
+                plugin.Initialize();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[LoadExtensions] Error initializing plugin [{plugin.DisplayName}]: {ex.Message}");
+            }
+        }
 
         var extensions =
             Kernel.PluginManager.Extensions.OrderBy(entry => entry.Value.Index)
@@ -275,31 +291,45 @@ public partial class Main : UIWindow
 
         foreach (var extension in extensions.Where(extension => extension.Value.DisplayAsTab))
         {
-            extension.Value.Translate();
+            try
+            {
+                extension.Value.Translate();
 
-            var control = extension.Value.View;
-            control.Name = extension.Value.InternalName;
-            control.Text = LanguageManager.GetLangBySpecificKey(extension.Value.InternalName, "DisplayName",
-                extension.Value.DisplayName);
-            control.Enabled = true;
-            control.Dock = DockStyle.Fill;
+                var control = extension.Value.View;
+                control.Name = extension.Value.InternalName;
+                control.Text = LanguageManager.GetLangBySpecificKey(extension.Value.InternalName, "DisplayName",
+                    extension.Value.DisplayName);
+                control.Enabled = true;
+                control.Dock = DockStyle.Fill;
 
-            windowPageControl.Controls.Add(control);
-            ChangeControlsTheme(control);
+                windowPageControl.Controls.Add(control);
+                ChangeControlsTheme(control);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[LoadExtensions] Error adding tab [{extension.Key}]: {ex.Message}");
+            }
         }
 
         foreach (var extension in extensions.Where(extension => !extension.Value.DisplayAsTab))
         {
-            var menuItemText = LanguageManager.GetLangBySpecificKey(extension.Value.InternalName, "DisplayName",
-                extension.Value.DisplayName);
-            var menuItem = new ToolStripMenuItem(menuItemText)
+            try
             {
-                Enabled = true
-            };
-            menuItem.Click += PluginMenuItem_Click;
-            menuItem.Tag = extension.Value;
+                var menuItemText = LanguageManager.GetLangBySpecificKey(extension.Value.InternalName, "DisplayName",
+                    extension.Value.DisplayName);
+                var menuItem = new ToolStripMenuItem(menuItemText)
+                {
+                    Enabled = true
+                };
+                menuItem.Click += PluginMenuItem_Click;
+                menuItem.Tag = extension.Value;
 
-            menuPlugins.DropDownItems.Add(menuItem);
+                menuPlugins.DropDownItems.Add(menuItem);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[LoadExtensions] Error adding menu item [{extension.Key}]: {ex.Message}");
+            }
         }
     }
 
@@ -475,24 +505,38 @@ public partial class Main : UIWindow
 
         foreach (var plugin in Kernel.PluginManager.Extensions)
         {
-            plugin.Value.Translate();
+            try
+            {
+                plugin.Value.Translate();
 
-            var tabpage = windowPageControl.Controls[plugin.Key];
-            if (tabpage == null)
-                continue;
+                var tabpage = windowPageControl.Controls[plugin.Key];
+                if (tabpage == null)
+                    continue;
 
-            tabpage.Text = LanguageManager.GetLangBySpecificKey(plugin.Key, "DisplayName", plugin.Value.DisplayName);
+                tabpage.Text = LanguageManager.GetLangBySpecificKey(plugin.Key, "DisplayName", plugin.Value.DisplayName);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[LanguageDropdown_Click] Error translating plugin [{plugin.Key}]: {ex.Message}");
+            }
         }
 
         foreach (var botbase in Kernel.BotbaseManager.Bots)
         {
-            botbase.Value.Translate();
+            try
+            {
+                botbase.Value.Translate();
 
-            if (!windowPageControl.Controls.ContainsKey(botbase.Key))
-                continue;
+                if (!windowPageControl.Controls.ContainsKey(botbase.Key))
+                    continue;
 
-            var tabpage = windowPageControl.Controls[botbase.Key];
-            tabpage.Text = LanguageManager.GetLangBySpecificKey(botbase.Key, "TabText", botbase.Value.TabText);
+                var tabpage = windowPageControl.Controls[botbase.Key];
+                tabpage.Text = LanguageManager.GetLangBySpecificKey(botbase.Key, "TabText", botbase.Value.TabText);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[LanguageDropdown_Click] Error translating botbase [{botbase.Key}]: {ex.Message}");
+            }
         }
 
         LanguageManager.Translate(this, Kernel.Language);

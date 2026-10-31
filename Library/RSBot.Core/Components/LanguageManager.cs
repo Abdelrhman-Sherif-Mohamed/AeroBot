@@ -27,7 +27,7 @@ public class LanguageManager
     private static List<ToolStripMenuItem> GetAllMenuItems(ToolStripMenuItem menuItem)
     {
         var collection = new List<ToolStripMenuItem> { menuItem };
-        foreach (ToolStripMenuItem item in menuItem.DropDownItems)
+        foreach (var item in menuItem.DropDownItems.OfType<ToolStripMenuItem>())
             collection.AddRange(GetAllMenuItems(item));
 
         return collection;
