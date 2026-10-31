@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using RSBot.Core.Components.Scripting;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
@@ -64,6 +65,9 @@ public class ScriptManager
 
     public static bool Paused { get; private set; }
 
+    private static readonly object _loopLock = new();
+    private static volatile bool _isExecutingLoop;
+
     public static void Initialize()
     {
         CommandHandlers = new List<IScriptCommand>(10);
@@ -121,6 +125,54 @@ public class ScriptManager
     }
 
     /// <summary>
+    ///     Resumes the currently paused or running script from its current line index.
+    /// </summary>
+    public static void ResumeScript(bool ignoreBotRunning = false)
+    {
+        if (Commands == null || Commands.Length == 0)
+        {
+            if (!string.IsNullOrEmpty(File) && System.IO.File.Exists(File))
+            {
+                Load(File);
+            }
+            else
+            {
+                LogScriptMessage("No script loaded to resume.", CurrentLineIndex, LogLevel.Warning);
+                return;
+            }
+        }
+
+        Running = true;
+        Paused = false;
+
+        Log.Notify($"[Script] Resuming script execution from line #{CurrentLineIndex}");
+        Task.Run(() => ExecuteScriptLoop(ignoreBotRunning));
+    }
+
+    /// <summary>
+    ///     Runs this instance starting from a specific line index.
+    /// </summary>
+    public static void RunScript(int startLineIndex, bool ignoreBotRunning = false)
+    {
+        if (Commands == null || Commands.Length == 0)
+        {
+            LogScriptMessage("No script loaded.", 0, LogLevel.Warning);
+            return;
+        }
+
+        if (Running && !Paused)
+            return;
+
+        Running = true;
+        Paused = false;
+        CurrentLineIndex = Math.Max(0, Math.Min(startLineIndex, Commands.Length - 1));
+
+        Log.Debug($"[Script] Running script starting from line #{CurrentLineIndex}");
+
+        ExecuteScriptLoop(ignoreBotRunning);
+    }
+
+    /// <summary>
     ///     Runs this instance.
     /// </summary>
     public static void RunScript(bool useNearbyWaypoint = true, bool ignoreBotRunning = false)
@@ -142,77 +194,96 @@ public class ScriptManager
         if (CurrentLineIndex != 0)
             Log.Debug($"[Script] Found nearby walk position at line #{CurrentLineIndex}");
 
-        if (Commands == null || Commands.Length == 0 || Commands.Length < CurrentLineIndex)
-            return;
+        ExecuteScriptLoop(ignoreBotRunning);
+    }
 
-        var error = false;
-        foreach (var scriptLine in Commands?.Skip(CurrentLineIndex))
+    private static void ExecuteScriptLoop(bool ignoreBotRunning)
+    {
+        lock (_loopLock)
         {
-            if (!Running || Paused || (!Kernel.Bot.Running && !ignoreBotRunning))
+            if (_isExecutingLoop)
             {
-                error = true;
-
-                break;
+                Log.Debug("[Script] An execution loop is already active. Ignoring duplicate call.");
+                return;
             }
-
-            Log.Debug($"[Script] Executing line #{CurrentLineIndex}");
-            Log.Status("Running walk script");
-
-            if (string.IsNullOrWhiteSpace(scriptLine))
-                continue;
-
-            var trimmedLine = scriptLine.Trim();
-            if (trimmedLine.StartsWith("//") || trimmedLine.StartsWith("#"))
-                continue;
-
-            Log.Debug($"[Script] Executing line #{CurrentLineIndex}");
-            Log.Status("Running walk script");
-
-            var tokens = trimmedLine.Split(new[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
-            if (tokens.Length == 0)
-                continue;
-
-            var commandName = tokens[0].ToLowerInvariant();
-            var arguments = tokens.Skip(1).ToArray();
-
-            var handler = CommandHandlers.FirstOrDefault(h => h.Name.Equals(commandName, StringComparison.OrdinalIgnoreCase));
-            if (handler == null)
-            {
-                LogScriptMessage("No script command handler found.", CurrentLineIndex, LogLevel.Warning, commandName);
-
-                continue; //No matching handler found for this command
-            }
-
-            if (handler.IsBusy && Running && !Paused)
-            {
-                error = true;
-                LogScriptMessage("The script command is still busy, stopping script execution.", CurrentLineIndex,
-                    LogLevel.Debug, commandName);
-
-                break;
-            }
-
-            EventManager.FireEvent("OnScriptStartExecuteCommand", handler, CurrentLineIndex);
-            var executionResult = handler.Execute(arguments);
-            EventManager.FireEvent("OnScriptFinishExecuteCommand", handler, executionResult, CurrentLineIndex);
-
-            if (executionResult == false)
-            {
-                LogScriptMessage("The execution of the script command failed.", CurrentLineIndex, LogLevel.Warning,
-                    commandName);
-
-                continue;
-            }
-
-            CurrentLineIndex++;
-
-            if (CurrentLineIndex > Commands?.Length - 1)
-                break;
+            _isExecutingLoop = true;
         }
 
-        var isScriptCompleted = Commands != null && CurrentLineIndex >= Commands.Length && !error;
-        if (!Paused)
-            Stop(!isScriptCompleted);
+        try
+        {
+            if (Commands == null || Commands.Length == 0 || Commands.Length <= CurrentLineIndex)
+                return;
+
+            var error = false;
+            var commandList = Commands;
+            if (commandList == null)
+                return;
+
+            for (var i = CurrentLineIndex; i < commandList.Length; i++)
+            {
+                CurrentLineIndex = i;
+
+                if (!Running || Paused || (!Kernel.Bot.Running && !ignoreBotRunning))
+                {
+                    error = true;
+                    break;
+                }
+
+                var scriptLine = commandList[i];
+                if (string.IsNullOrEmpty(scriptLine))
+                    continue;
+
+                Log.Debug($"[Script] Executing line #{CurrentLineIndex}");
+                Log.Status("Running walk script");
+
+                var arguments = scriptLine.Split(' ');
+                var commandName = arguments.Length == 0 ? scriptLine : arguments[0];
+
+                if (string.IsNullOrEmpty(commandName)
+                    || commandName.Trim().StartsWith("//")
+                    || commandName.Trim().StartsWith("#"))
+                    continue;
+
+                var handler = CommandHandlers.FirstOrDefault(h => h.Name == commandName);
+                if (handler == null)
+                {
+                    LogScriptMessage("No script command handler found.", CurrentLineIndex, LogLevel.Warning);
+                    continue;
+                }
+
+                if (handler.IsBusy && Running && !Paused)
+                {
+                    error = true;
+                    LogScriptMessage("The script command is still busy, stopping script execution.", CurrentLineIndex,
+                        LogLevel.Debug, commandName);
+                    break;
+                }
+
+                EventManager.FireEvent("OnScriptStartExecuteCommand", handler, CurrentLineIndex);
+                var executionResult = handler.Execute(arguments.Skip(1).ToArray());
+                EventManager.FireEvent("OnScriptFinishExecuteCommand", handler, executionResult, CurrentLineIndex);
+
+                if (executionResult == false)
+                {
+                    if (!Running || Paused || (!Kernel.Bot.Running && !ignoreBotRunning))
+                    {
+                        error = true;
+                        break;
+                    }
+
+                    LogScriptMessage("The execution of the script command failed.", CurrentLineIndex, LogLevel.Warning,
+                        commandName);
+                    continue;
+                }
+            }
+
+            if (!Paused)
+                Stop(error);
+        }
+        finally
+        {
+            _isExecutingLoop = false;
+        }
     }
 
     /// <summary>
@@ -221,70 +292,51 @@ public class ScriptManager
     public static void Stop(bool error = false)
     {
         Running = false;
-        Commands = null;
-        File = null;
+        Paused = false;
 
         foreach (var handler in CommandHandlers)
-            handler.Stop();
+        {
+            try
+            {
+                handler.Stop();
+            }
+            catch { }
+        }
 
         EventManager.FireEvent("OnFinishScript", error);
     }
 
     /// <summary>
     ///     A convenience function that returns all positions in the walk script.
+    ///     Warning: This method is not extendable at the moment, that means that there can not be
+    ///     a custom implementation of the "move" command. The move command currently always needs to have the arguments
+    ///     XOffset, YOffset, ZOffset, XSector, YSector.
     /// </summary>
     /// <returns></returns>
     public static List<Position> GetWalkScript()
     {
-        if (Commands == null || Commands.Length == 0)
-            return new List<Position>();
+        var walkCommands = Commands.Where(c => c.Trim().StartsWith("move"));
 
-        var walkCommands = Commands.Where(c => !string.IsNullOrWhiteSpace(c) && c.Trim().StartsWith("move", StringComparison.OrdinalIgnoreCase));
-
-        return walkCommands
-            .Select(command => command.Split(new[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries).Skip(1).ToArray())
-            .Select(ParsePosition)
-            .Where(p => p.Region.Id != 0 || p.XOffset != 0 || p.YOffset != 0)
+        return walkCommands.Select(command => command.Split(ArgumentSeparator).Skip(1).ToArray()).Select(ParsePosition)
             .ToList();
     }
 
     /// <summary>
     ///     Parses the position from the given arguments.
-    ///     Supports both 5-argument native RSBot format and 3-argument Silkroad world coordinates format.
     /// </summary>
     /// <param name="args">The arguments.</param>
     /// <returns></returns>
-    public static Position ParsePosition(string[] args)
+    private static Position ParsePosition(string[] args)
     {
-        if (args == null || args.Length < 3)
-            return default;
+        if (!float.TryParse(args[0], out var xOffset)
+            || !float.TryParse(args[1], out var yOffset)
+            || !float.TryParse(args[2], out var zOffset)
+            || !byte.TryParse(args[3], out var xSector)
+            || !byte.TryParse(args[4], out var ySector)
+           )
+            return default; //Invalid format
 
-        var cleaned = args.Select(a => a.Trim().TrimEnd(',')).ToArray();
-
-        // 5-argument native format (xOffset, yOffset, zOffset, xSector, ySector)
-        if (cleaned.Length >= 5 &&
-            float.TryParse(cleaned[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var xOffset) &&
-            float.TryParse(cleaned[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var yOffset) &&
-            float.TryParse(cleaned[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var zOffset) &&
-            byte.TryParse(cleaned[3], out var xSector) &&
-            byte.TryParse(cleaned[4], out var ySector))
-        {
-            return new Position(xSector, ySector, xOffset, yOffset, zOffset);
-        }
-
-        // 3-argument World Coordinates format (x, y, z) from .vb scripts
-        if (float.TryParse(cleaned[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var worldX) &&
-            float.TryParse(cleaned[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var worldY))
-        {
-            float.TryParse(cleaned[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var worldZ);
-            var pos = new Position(worldX, worldY)
-            {
-                ZOffset = worldZ
-            };
-            return pos;
-        }
-
-        return default;
+        return new Position(xSector, ySector, xOffset, yOffset, zOffset);
     }
 
     /// <summary>
@@ -304,39 +356,65 @@ public class ScriptManager
     }
 
     /// <summary>
-    ///     Finds the nearest walk command line.
+    ///     Finds the line index of the 'buy-goods' command if present in the script.
     /// </summary>
-    /// <returns></returns>
-    private static int FindNearestMoveCommandLine()
+    public static int FindBuyGoodsCommandLine()
     {
-        var playerPos = Game.Player.Movement.Source;
+        if (Commands == null) return -1;
+        for (var i = 0; i < Commands.Length; i++)
+        {
+            var cmd = Commands[i].Trim();
+            if (cmd.StartsWith("buy-goods", StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+        return -1;
+    }
+
+    /// <summary>
+    ///     Finds the nearest walk command line at or after a minimum line index.
+    /// </summary>
+    public static int FindNearestMoveCommandLineAfter(int afterLine = 0)
+    {
+        if (Commands == null || Commands.Length == 0) return 0;
 
         var line = -1;
-        var moveCommands = new Dictionary<int, Position>();
+        var allMoves = new Dictionary<int, Position>();
 
         foreach (var command in Commands)
         {
             line++;
-
-            if (string.IsNullOrWhiteSpace(command))
+            if (line < afterLine)
                 continue;
 
-            var trimmed = command.Trim();
-            if (trimmed.StartsWith("//") ||
-                trimmed.StartsWith("#") ||
-                !trimmed.StartsWith("move", StringComparison.OrdinalIgnoreCase))
+            if (command.Trim().StartsWith("//") ||
+                command.Trim().StartsWith("#") ||
+                !command.Trim().StartsWith("move") ||
+                string.IsNullOrWhiteSpace(command))
                 continue;
 
-            var tokens = trimmed.Split(new[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
-            if (tokens.Length < 4) continue;
-            var args = tokens.Skip(1).ToArray();
+            var args = command.Split(ArgumentSeparator, StringSplitOptions.RemoveEmptyEntries).Skip(1).ToArray();
             var curPos = ParsePosition(args);
-            var distance = curPos.DistanceToPlayer();
 
-            if (distance < 150)
-                moveCommands.Add(line, curPos);
+            allMoves[line] = curPos;
         }
 
-        return moveCommands.Count == 0 ? 0 : moveCommands.MinBy(c => c.Value.DistanceToPlayer()).Key;
+        if (allMoves.Count == 0)
+            return Math.Max(0, afterLine);
+
+        // Find the absolute closest forward waypoint in the script
+        var closest = allMoves.MinBy(c => c.Value.DistanceToPlayer());
+
+        Log.Notify($"[Script] تم تحديد أقرب نقطة أمامية على المسار: السطر #{closest.Key} على مسافة {Math.Round(closest.Value.DistanceToPlayer(), 1)} متر.");
+
+        return closest.Key;
+    }
+
+    /// <summary>
+    ///     Finds the nearest walk command line.
+    /// </summary>
+    /// <returns></returns>
+    public static int FindNearestMoveCommandLine()
+    {
+        return FindNearestMoveCommandLineAfter(0);
     }
 }

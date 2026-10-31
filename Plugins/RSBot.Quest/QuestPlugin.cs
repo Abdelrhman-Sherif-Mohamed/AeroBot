@@ -1,4 +1,4 @@
-using System.Windows.Forms;
+﻿using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
@@ -9,11 +9,11 @@ namespace RSBot.Quest;
 
 public class QuestPlugin : IPlugin
 {
-    public string InternalName => "AeroBot.Quest";
+    public string InternalName => "RSBot.QuestLog";
     public string DisplayName => "Quests";
-    public bool DisplayAsTab => true;
-    public int Index => 12;
-    public bool RequireIngame => false;
+    public bool DisplayAsTab => false;
+    public int Index => 0;
+    public bool RequireIngame => true;
 
     public void Initialize()
     {

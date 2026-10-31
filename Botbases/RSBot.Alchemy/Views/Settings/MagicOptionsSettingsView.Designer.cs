@@ -39,7 +39,6 @@ namespace RSBot.Alchemy.Views.Settings
             // 
             // lvMagicOptions
             // 
-            this.lvMagicOptions.BackColor = System.Drawing.SystemColors.Window;
             this.lvMagicOptions.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.lvMagicOptions.CheckBoxes = true;
             this.lvMagicOptions.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
@@ -48,7 +47,6 @@ namespace RSBot.Alchemy.Views.Settings
             this.columnHeader3,
             this.columnHeader4});
             this.lvMagicOptions.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lvMagicOptions.ForeColor = System.Drawing.Color.Black;
             this.lvMagicOptions.FullRowSelect = true;
             this.lvMagicOptions.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.lvMagicOptions.Location = new System.Drawing.Point(0, 0);
@@ -82,7 +80,7 @@ namespace RSBot.Alchemy.Views.Settings
             // MagicOptionsSettingsView
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             this.Controls.Add(this.lvMagicOptions);
             this.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.Name = "MagicOptionsSettingsView";

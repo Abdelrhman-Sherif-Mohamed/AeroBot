@@ -15,7 +15,6 @@ using RSBot.Core.Event;
 using RSBot.General.Components;
 using RSBot.General.Models;
 using SDUI.Controls;
-using SDUI.Helpers;
 
 namespace RSBot.General.Views;
 
@@ -32,11 +31,224 @@ internal partial class Main : DoubleBufferedControl
         CheckForIllegalCrossThreadCalls = false;
 
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
         SubscribeEvents();
+        ApplyGeneralLayout();
 
         //btnStartClient.SetUseAsync(true);
         //btnStartClientless.SetUseAsync(true);
+    }
+
+    private bool _applyingGeneralLayout;
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        ApplyGeneralLayout();
+    }
+
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        ApplyGeneralLayout();
+    }
+
+    private int S(float value)
+    {
+        return (int)Math.Round(value * DeviceDpi / 96f);
+    }
+
+    private void Place(Control control, int x, int y, int width, int height)
+    {
+        if (control == null)
+            return;
+
+        control.AutoSize = false;
+        control.SetBounds(S(x), S(y), Math.Max(1, S(width)), Math.Max(1, S(height)));
+    }
+
+    private static void StyleInnerPanel(System.Windows.Forms.Panel panel)
+    {
+        if (panel == null)
+            return;
+
+        // Plain panels (unlike SDUI panels) have no rounded border or shadow, so
+        // matching the card color makes them disappear into the card surface.
+        panel.BackColor = SDUI.ColorScheme.CardColor;
+    }
+
+    /// <summary>
+    ///     Rebuilds the General page layout for the current surface size. The
+    ///     page uses a fixed two-column grid (cards keep their own padding) so
+    ///     gaps stay identical on every DPI and on both sidebar states.
+    /// </summary>
+    private void ApplyGeneralLayout()
+    {
+        if (_applyingGeneralLayout || IsDisposed || groupBox1 == null)
+            return;
+
+        _applyingGeneralLayout = true;
+        SuspendLayout();
+
+        try
+        {
+            var scale = DeviceDpi / 96f;
+            var width = Math.Max((int)(ClientSize.Width / scale), 780);
+            var height = Math.Max((int)(ClientSize.Height / scale), 545);
+
+            AutoScroll = true;
+            AutoScrollMinSize = new Size(S(780), S(545));
+
+            // Inner panels share the card surface; letting them paint their own
+            // rounded background would create nested boxes inside the card.
+            StyleInnerPanel(panel3);
+            StyleInnerPanel(captchaPanel);
+            StyleInnerPanel(autoLoginTopPanel);
+            panel3.MinimumSize = Size.Empty;
+            groupBox1.AutoSize = false;
+
+            const int margin = 14;
+            const int headerTop = 12;
+            const int headerH = 30;
+            const int columnGap = 14;
+
+            var right = width - margin;
+
+            // ---- Header toolbar: path, client type, version -----------------
+            Place(label1, margin, headerTop, 165, headerH);
+            label1.TextAlign = ContentAlignment.MiddleLeft;
+
+            const int versionW = 58;
+            var versionX = right - versionW;
+            Place(lblVersion, versionX, headerTop, versionW, headerH);
+            lblVersion.TextAlign = ContentAlignment.MiddleRight;
+
+            const int clientComboW = 140;
+            var clientComboX = versionX - 10 - clientComboW;
+            Place(comboBoxClientType, clientComboX, headerTop + 2, clientComboW, headerH - 4);
+
+            const int clientLabelW = 94;
+            var clientLabelX = clientComboX - 6 - clientLabelW;
+            Place(lblClientType, clientLabelX, headerTop, clientLabelW, headerH);
+            lblClientType.TextAlign = ContentAlignment.MiddleLeft;
+
+            const int browseW = 36;
+            var browseX = clientLabelX - 12 - browseW;
+            Place(btnBrowseSilkroadPath, browseX, headerTop + 1, browseW, headerH - 2);
+
+            var pathX = margin + 165 + 8;
+            var pathW = Math.Max(150, browseX - 8 - pathX);
+            Place(txtSilkroadPath, pathX, headerTop, pathW, headerH);
+            txtSilkroadPath.TextAlignment = HorizontalAlignment.Left;
+
+            // ---- Two-column card grid ---------------------------------------
+            const int columnTop = 54;
+            var contentW = width - margin * 2;
+            var leftW = (int)(contentW * 0.53f);
+            var rightW = contentW - leftW - columnGap;
+            var leftX = margin;
+            var rightX = leftX + leftW + columnGap;
+            var bottom = height - margin;
+
+            // Left column: quick actions + automated login
+            const int startCardH = 115;
+            Place(groupBox2, leftX, columnTop, leftW, startCardH);
+
+            var loginY = columnTop + startCardH + 12;
+            var loginH = Math.Max(320, bottom - loginY);
+            Place(groupBox1, leftX, loginY, leftW, loginH);
+
+            const int btnPad = 16;
+            const int btnGap = 10;
+            var btnW = (leftW - btnPad * 2 - btnGap) / 2;
+            const int btnH = 30;
+            Place(btnStartClient, btnPad, 34, btnW, btnH);
+            Place(btnStartClientless, btnPad + btnW + btnGap, 34, btnW, btnH);
+            Place(btnClientHideShow, btnPad, 74, btnW, btnH);
+            Place(btnGoClientless, btnPad + btnW + btnGap, 74, btnW, btnH);
+
+            // Automated login card: accounts and character rows, then options.
+            var panelW = leftW - 6;
+
+            autoLoginTopPanel.Height = S(104);
+            Place(label4, 14, 4, 60, 30);
+            label4.TextAlign = ContentAlignment.MiddleLeft;
+            Place(comboAccounts, 84, 4, panelW - 98, 30);
+            Place(label7, 14, 38, 60, 30);
+            label7.TextAlign = ContentAlignment.MiddleLeft;
+            Place(comboCharacter, 84, 38, panelW - 98, 30);
+            Place(checkEnableAutoLogin, 84, 71, 200, 26);
+            Place(btnAutoLoginSettings, panelW - 14 - 84, 69, 84, 30);
+
+            captchaPanel.Height = S(92);
+            Place(label5, 14, 8, 64, 28);
+            label5.TextAlign = ContentAlignment.MiddleLeft;
+            Place(txtStaticCaptcha, 84, 6, panelW - 98, 30);
+            txtStaticCaptcha.TextAlignment = HorizontalAlignment.Left;
+            Place(checkEnableStaticCaptcha, 84, 40, panelW - 98, 26);
+            Place(label6, 84, 66, panelW - 98, 22);
+            label6.TextAlign = ContentAlignment.MiddleLeft;
+
+            var half = (panelW - 16 - 12) / 2;
+            const int rowH = 28;
+            Place(checkEnableLoginDelay, 8, 4, half, rowH);
+            Place(numLoginDelay, panelW - 8 - 76 - 6 - 72, 4, 72, rowH);
+            Place(lblLoginDelaySeconds, panelW - 8 - 76, 4, 76, rowH);
+            lblLoginDelaySeconds.TextAlign = ContentAlignment.MiddleLeft;
+
+            Place(checkStartBot, 8, 34, half, rowH);
+            Place(checkUseReturnScroll, 8 + half + 12, 34, half, rowH);
+            Place(checkHideClient, 8, 64, half, rowH);
+            Place(checkCharAutoSelect, 8 + half + 12, 64, half, rowH);
+            Place(radioAutoSelectFirst, 8, 94, half, rowH);
+            Place(radioAutoSelectHigher, 8 + half + 12, 94, half, rowH);
+
+            // Right column: client, bot and pending-server settings
+            const int infoCardH = 112;
+            Place(groupBox3, rightX, columnTop, rightW, infoCardH);
+            Place(groupBox4, rightX, columnTop + infoCardH + 12, rightW, infoCardH);
+
+            var queueY = columnTop + infoCardH * 2 + 24;
+            var queueH = Math.Max(190, bottom - queueY);
+            Place(groupBox5, rightX, queueY, rightW, queueH);
+
+            Place(checkStayConnected, 16, 30, rightW - 32, rowH);
+            Place(label2, 18, 62, rightW - 36, 40);
+            label2.TextAlign = ContentAlignment.MiddleLeft;
+
+            Place(checkBoxBotTrayMinimized, 16, 30, rightW - 32, rowH);
+            Place(label8, 18, 62, rightW - 36, 40);
+            label8.TextAlign = ContentAlignment.MiddleLeft;
+
+            const int queueRowH = 28;
+            const int queueBtnH = 32;
+            var queueGap = Math.Max(6, Math.Min(20, (queueH - 30 - 14 - (queueRowH * 4 + queueBtnH)) / 4));
+            var queueStep = queueRowH + queueGap;
+            var rowY = 30;
+
+            Place(checkAutoHidePendingWindow, 16, rowY, rightW - 32, queueRowH);
+            rowY += queueStep;
+            Place(checkEnableQueueLogs, 16, rowY, rightW - 32, queueRowH);
+            rowY += queueStep;
+            Place(checkEnableQueueNotification, 16, rowY, rightW - 32, queueRowH);
+            rowY += queueStep;
+
+            const int queueLabelW = 100;
+            const int queueNumW = 80;
+            var queueLabelX = rightW - 16 - queueLabelW;
+            Place(numQueueLeft, queueLabelX - 6 - queueNumW, rowY, queueNumW, queueRowH);
+            Place(label3, queueLabelX, rowY, queueLabelW, queueRowH);
+            label3.TextAlign = ContentAlignment.MiddleLeft;
+
+            rowY += queueStep;
+            Place(btnShowPending, 16, rowY, rightW - 32, queueBtnH);
+
+            AutoScrollMinSize = new Size(S(width), S(bottom + margin));
+        }
+        finally
+        {
+            ResumeLayout(true);
+            _applyingGeneralLayout = false;
+        }
     }
 
     /// <summary>
@@ -77,7 +289,7 @@ internal partial class Main : DoubleBufferedControl
 
             btnStartClient.Enabled = true;
             btnStartClientless.Enabled = true;
-            btnStartClientless.Text = LanguageManager.GetLang("Start") + " Clientless";
+            btnStartClientless.Text = LanguageManager.GetLang("StartClientless");
             Log.StatusLang("Ready");
             Kernel.Proxy.Shutdown();
         }
@@ -124,7 +336,7 @@ internal partial class Main : DoubleBufferedControl
 
         comboBoxClientType.SelectedIndex = (int)Game.ClientType;
 
-        if (File.Exists(GlobalConfig.Get<string>("RSBot.SilkroadDirectory") + "\\media.pk2"))
+        if (Game.IsValidClientDirectory(GlobalConfig.Get<string>("RSBot.SilkroadDirectory")))
             return;
 
         txtSilkroadPath.BackColor = Color.Red;
@@ -197,7 +409,10 @@ internal partial class Main : DoubleBufferedControl
         {
             var startedResult = await ClientManager.Start();
             if (!startedResult)
+            {
+                OnExitClient();
                 Log.WarnLang("ClientStartingError");
+            }
         });
     }
 
@@ -222,7 +437,7 @@ internal partial class Main : DoubleBufferedControl
     {
         Log.StatusLang("Ready");
         _clientVisible = false;
-        btnStartClient.Text = LanguageManager.GetLang("Start") + " Client";
+        btnStartClient.Text = LanguageManager.GetLang("StartClient");
 
         if (Game.Clientless)
             return;
@@ -259,9 +474,9 @@ internal partial class Main : DoubleBufferedControl
         if (!Game.Clientless)
         {
             btnClientHideShow.Enabled = true;
-            btnClientHideShow.Text = LanguageManager.GetLang("Hide") + " Client";
+            btnClientHideShow.Text = LanguageManager.GetLang("HideClient");
             btnStartClient.Enabled = true;
-            btnStartClient.Text = LanguageManager.GetLang("Kill") + " Client";
+            btnStartClient.Text = LanguageManager.GetLang("KillClient");
             btnGoClientless.Enabled = true;
         }
 
@@ -542,7 +757,7 @@ internal partial class Main : DoubleBufferedControl
 
                 btnStartClient.Enabled = true;
                 btnStartClientless.Enabled = true;
-                btnStartClientless.Text = LanguageManager.GetLang("Start") + " Clientless";
+                btnStartClientless.Text = LanguageManager.GetLang("StartClientless");
 
                 Kernel.Proxy.Shutdown();
             }
@@ -601,13 +816,13 @@ internal partial class Main : DoubleBufferedControl
         {
             _clientVisible = true;
             ClientManager.SetVisible(true);
-            btnClientHideShow.Text = LanguageManager.GetLang("Hide") + " Client";
+            btnClientHideShow.Text = LanguageManager.GetLang("HideClient");
         }
         else
         {
             _clientVisible = false;
             ClientManager.SetVisible(false);
-            btnClientHideShow.Text = LanguageManager.GetLang("Show") + " Client";
+            btnClientHideShow.Text = LanguageManager.GetLang("ShowClient");
         }
     }
 
@@ -638,6 +853,8 @@ internal partial class Main : DoubleBufferedControl
             captchaPanel.Visible = true;
         else
             captchaPanel.Visible = false;
+
+        ApplyGeneralLayout();
     }
 
     /// <summary>

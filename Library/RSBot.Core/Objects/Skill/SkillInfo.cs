@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Components;
 using RSBot.Core.Network;
@@ -51,19 +51,19 @@ public class SkillInfo
         Id = id;
         Enabled = enabled;
 
-        if (Record == null || IsPassive)
+        if (Record == null || IsPassive || Record.Params == null)
             return;
 
         // skill buff duration param: dura
         var index = Record.Params.IndexOf(1685418593);
-        if (index != -1)
+        if (index != -1 && index + 1 < Record.Params.Count)
             _duration = Record.Params[index + 1];
     }
 
     /// <summary>
     ///     Gets the record.
     /// </summary>
-    public RefSkill Record => Game.ReferenceManager.GetRefSkill(Id);
+    public RefSkill Record => Game.ReferenceManager?.GetRefSkill(Id);
 
     /// <summary>
     ///     Gets a value indicating whether this <see cref="SkillInfo" /> is passive.
@@ -71,7 +71,7 @@ public class SkillInfo
     /// <value>
     ///     <c>true</c> if passive; otherwise, <c>false</c>.
     /// </value>
-    public bool IsPassive => Record.Basic_Activity == 0;
+    public bool IsPassive => Record == null || Record.Basic_Activity == 0;
 
     /// <summary>
     ///     Gets a value indicating whether this <see cref="SkillInfo" /> is attack.
@@ -79,7 +79,7 @@ public class SkillInfo
     /// <value>
     ///     <c>true</c> if attack; otherwise, <c>false</c>.
     /// </value>
-    public bool IsAttack => Record.Params.Contains(6386804);
+    public bool IsAttack => Record != null && Record.Params != null && Record.Params.Contains(6386804);
 
     /// <summary>
     ///     Gets a value indicating whether this <see cref="SkillInfo" /> is a DoT.
@@ -87,7 +87,7 @@ public class SkillInfo
     /// <value>
     ///     <c>true</c> if DoT; otherwise, <c>false</c>.
     /// </value>
-    public bool IsDot => Record.Basic_Code.StartsWith("SKILL_EU_WARLOCK_DOTA");
+    public bool IsDot => Record != null && !string.IsNullOrEmpty(Record.Basic_Code) && Record.Basic_Code.StartsWith("SKILL_EU_WARLOCK_DOTA");
 
     /// <summary>
     ///     Gets a value indicating whether this <see cref="SkillInfo" /> is imbue.
@@ -95,7 +95,7 @@ public class SkillInfo
     /// <value>
     ///     <c>true</c> if imbue; otherwise, <c>false</c>.
     /// </value>
-    public bool IsImbue => Record.Basic_Activity == 1 && IsAttack;
+    public bool IsImbue => Record != null && Record.Basic_Activity == 1 && IsAttack;
 
     /// <summary>
     ///     Gets or sets a value indicating whether this instance has cooldown.
@@ -104,7 +104,23 @@ public class SkillInfo
     ///     <c>true</c> if this instance has cooldown; otherwise, <c>false</c>.
     /// </value>
     public bool HasCooldown
-        => Kernel.TickCount - _cooldownTick < Record.Action_ReuseDelay;
+        => Record != null && Record.Action_ReuseDelay > 0 && Kernel.TickCount - _cooldownTick < Record.Action_ReuseDelay;
+
+    /// <summary>
+    ///     Gets the remaining cooldown in seconds.
+    /// </summary>
+    public int RemainingCooldownSeconds
+    {
+        get
+        {
+            if (Record == null || Record.Action_ReuseDelay == 0)
+                return 0;
+
+            var elapsed = Kernel.TickCount - _cooldownTick;
+            var remainingMs = Record.Action_ReuseDelay - elapsed;
+            return remainingMs > 0 ? remainingMs / 1000 : 0;
+        }
+    }
 
     /// <summary>
     ///     Gets or sets a value indicating whether this instance can be used.
@@ -148,10 +164,13 @@ public class SkillInfo
     {
         get
         {
+            if (Record == null)
+                return false;
+
             if (HasCooldown)
                 return false;
 
-            if (Game.Player.Mana < Record.Consume_MP)
+            if (Game.Player == null || Game.Player.Mana < Record.Consume_MP)
                 return false;
 
             if (CanNotBeCasted)
@@ -213,6 +232,9 @@ public class SkillInfo
     /// </returns>
     public bool IsLowLevel()
     {
+        if (Record == null || Game.Player?.Skills == null)
+            return true;
+
         var mastery = Game.Player.Skills.GetMasteryInfoById((uint)Record.ReqCommon_Mastery1);
         if (mastery == null)
             return true;

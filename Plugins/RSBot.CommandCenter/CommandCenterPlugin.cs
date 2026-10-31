@@ -8,7 +8,7 @@ namespace RSBot.CommandCenter;
 public class CommandCenterPlugin : IPlugin
 {
     /// <inheritdoc />
-    public string InternalName => "SonicBot.CommandCenter";
+    public string InternalName => "RSBot.CommandCenter";
 
     /// <inheritdoc />
     public string DisplayName => "Command center";
@@ -26,12 +26,6 @@ public class CommandCenterPlugin : IPlugin
     public void Initialize()
     {
         Log.Notify("[Command Center] Plugin initialized!");
-
-        // On-demand in-game panel (!bot command only, never auto-shows)
-        Components.InGamePanel.GamePanelManager.Initialize();
-
-        // Remote control server for the standalone SonicMini app (Named Pipe)
-        Components.Remote.RemoteServer.Start();
     }
 
     /// <inheritdoc />

@@ -8,10 +8,9 @@ using RSBot.Core.Objects;
 namespace RSBot.Core.Components;
 
 /// <summary>
-///     @ToDo: Currently completely unsupported operations are:
-///     * Socket alchemy
-///     * Dismantle/Disjoint
-///     * Manufacture
+///     Handles the different alchemy operation families supported by the
+///     client protocol: reinforcement, make-stuff (manufacture) and dismantle.
+///     Socket alchemy is not implemented yet.
 /// </summary>
 public class AlchemyManager
 {
@@ -31,12 +30,32 @@ public class AlchemyManager
     public static List<InventoryItem>? ActiveAlchemyItems { get; internal set; }
 
     /// <summary>
+    ///     Gets the operation family that is currently waiting for a server response.
+    /// </summary>
+    public static AlchemyOperation ActiveOperation { get; internal set; }
+
+    /// <summary>
+    ///     Gets the number of result packets expected for the current make-stuff request.
+    /// </summary>
+    public static int ExpectedMakeStuffResponses { get; internal set; }
+
+    /// <summary>
+    ///     Gets the number of make-stuff result packets received so far.
+    /// </summary>
+    public static int CompletedMakeStuffResponses { get; internal set; }
+
+    /// <summary>
     ///     Gets a value indicating whether this instance is fusing.
     /// </summary>
     /// <value>
     ///     <c>true</c> if this instance is fusing; otherwise, <c>false</c>.
     /// </value>
     public static bool IsFusing { get; internal set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether an alchemy operation is currently in progress.
+    /// </summary>
+    public static bool IsBusy => ActiveOperation != AlchemyOperation.None;
 
     #endregion Properties
 
@@ -47,11 +66,187 @@ public class AlchemyManager
     /// </summary>
     public static void CancelPending()
     {
-        var packet = new Packet(0x7150);
-        packet.WriteByte(0x01);
+        if (ActiveOperation == AlchemyOperation.None)
+            return;
+
+        var opcode = ActiveOperation switch
+        {
+            AlchemyOperation.Fuse => (ushort)0x7150,
+            AlchemyOperation.MakeStuff => (ushort)0x7155,
+            _ => (ushort)0
+        };
+
+        if (opcode != 0)
+        {
+            var packet = new Packet(opcode);
+            packet.WriteByte(0x01);
+
+            packet.Lock();
+            Kernel.Proxy.Server.Send(packet);
+        }
+
+        CompleteOperation();
+    }
+
+    /// <summary>
+    ///     Starts a make-stuff operation in "resolve material" mode.
+    /// </summary>
+    /// <param name="materials">The materials staged for the operation.</param>
+    public static bool TryResolveMaterials(IReadOnlyList<InventoryItem> materials)
+    {
+        return TryStartMakeStuff(1, materials, 4);
+    }
+
+    /// <summary>
+    ///     Starts a make-stuff operation in "compound" mode.
+    /// </summary>
+    /// <param name="materials">The material staged for the operation.</param>
+    public static bool TryCompoundMaterials(IReadOnlyList<InventoryItem> materials)
+    {
+        return TryStartMakeStuff(2, materials, 1);
+    }
+
+    /// <summary>
+    ///     Starts a dismantle (disjoin) operation.
+    /// </summary>
+    /// <param name="equipment">The equipment staged for dismantling.</param>
+    public static bool TryDismantle(IReadOnlyList<InventoryItem> equipment)
+    {
+        if (!ValidateItems(equipment, 1, 9, "dismantle"))
+            return false;
+
+        Log.Notify($"[Alchemy] Dismantling {equipment[0].Record.GetRealName()}");
+
+        var packet = new Packet(0x7157);
+        packet.WriteByte((byte)equipment.Count);
+
+        foreach (var item in equipment)
+            packet.WriteByte(item.Slot);
 
         packet.Lock();
         Kernel.Proxy.Server.Send(packet);
+
+        BeginOperation(AlchemyOperation.Dismantle, equipment, 30_000);
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Registers one make-stuff result and returns true when every expected
+    ///     result packet has been received.
+    /// </summary>
+    internal static bool RegisterMakeStuffResponse()
+    {
+        if (ActiveOperation != AlchemyOperation.MakeStuff)
+            return true;
+
+        CompletedMakeStuffResponses++;
+
+        if (CompletedMakeStuffResponses >= ExpectedMakeStuffResponses)
+            return true;
+
+        // Resolving several materials produces one result per component. Reset
+        // the timeout after each component so a long recipe is not cancelled.
+        StartTimer(30_000);
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Tracks a make-stuff request that was sent by the game client.
+    /// </summary>
+    internal static void TrackMakeStuffRequest(IReadOnlyList<InventoryItem> items)
+    {
+        BeginOperation(AlchemyOperation.MakeStuff, items, 30_000);
+    }
+
+    /// <summary>
+    ///     Tracks a dismantle request that was sent by the game client.
+    /// </summary>
+    internal static void TrackDismantleRequest(IReadOnlyList<InventoryItem> items)
+    {
+        BeginOperation(AlchemyOperation.Dismantle, items, 30_000);
+    }
+
+    /// <summary>
+    ///     Clears the active operation and releases the pending timer.
+    /// </summary>
+    internal static void CompleteOperation()
+    {
+        StopTimer();
+
+        ActiveOperation = AlchemyOperation.None;
+        ActiveAlchemyItems = null;
+        ExpectedMakeStuffResponses = 0;
+        CompletedMakeStuffResponses = 0;
+    }
+
+    private static bool TryStartMakeStuff(byte selector, IReadOnlyList<InventoryItem> materials, int maxCount)
+    {
+        if (!ValidateItems(materials, 1, maxCount, "make-stuff"))
+            return false;
+
+        Log.Notify(selector == 1
+            ? $"[Alchemy] Resolving {materials.Count} alchemy material(s)"
+            : "[Alchemy] Compounding an alchemy material");
+
+        var packet = new Packet(0x7155);
+        packet.WriteByte(2); // start
+        packet.WriteByte(selector); // 1 = resolve material, 2 = compound
+        packet.WriteByte((byte)materials.Count);
+
+        foreach (var material in materials)
+            packet.WriteByte(material.Slot);
+
+        packet.Lock();
+        Kernel.Proxy.Server.Send(packet);
+
+        BeginOperation(AlchemyOperation.MakeStuff, materials, 30_000);
+
+        return true;
+    }
+
+    private static void BeginOperation(AlchemyOperation operation, IReadOnlyList<InventoryItem> items, int timeoutMs)
+    {
+        ActiveOperation = operation;
+        ActiveAlchemyItems = new List<InventoryItem>(items);
+        ExpectedMakeStuffResponses = operation == AlchemyOperation.MakeStuff ? items.Count : 0;
+        CompletedMakeStuffResponses = 0;
+
+        StartTimer(timeoutMs);
+    }
+
+    private static bool ValidateItems(IReadOnlyList<InventoryItem> items, int min, int max, string operation)
+    {
+        if (items == null || items.Count < min || items.Count > max)
+        {
+            Log.Warn($"[Alchemy] Invalid {operation} item count.");
+
+            return false;
+        }
+
+        var slots = new HashSet<byte>();
+
+        foreach (var item in items)
+        {
+            if (item == null || !slots.Add(item.Slot))
+            {
+                Log.Warn($"[Alchemy] Invalid {operation} item selection.");
+
+                return false;
+            }
+
+            var current = Game.Player.Inventory.GetItemAt(item.Slot);
+
+            if (current == null || current.ItemId != item.ItemId || current.Amount == 0)
+            {
+                Log.Warn($"[Alchemy] The {operation} item is no longer in the specified slot.");
+
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -179,12 +374,14 @@ public class AlchemyManager
     /// <summary>
     ///     Starts the alchemy timer.
     /// </summary>
-    internal static void StartTimer()
+    internal static void StartTimer(int timeoutMs = 10_000)
     {
+        _fusingTimer?.Dispose();
+        _fusingTimer = null;
+
         IsFusing = true;
 
-        //An alchemy operation should not take longer than 10s
-        _fusingTimer = new Timer(10_000)
+        _fusingTimer = new Timer(timeoutMs)
         {
             AutoReset = false,
             Enabled = false
@@ -212,8 +409,18 @@ public class AlchemyManager
     /// <param name="e">The <see cref="ElapsedEventArgs" /> instance containing the event data.</param>
     private static void FusingActionFusingTimerElapsed(object? sender, ElapsedEventArgs e)
     {
-        StopTimer();
+        Log.Warn("[Alchemy] The alchemy operation timed out.");
+
+        CompleteOperation();
     }
 
     #endregion Methods
+}
+
+public enum AlchemyOperation
+{
+    None,
+    Fuse,
+    MakeStuff,
+    Dismantle
 }

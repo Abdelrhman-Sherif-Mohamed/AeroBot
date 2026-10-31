@@ -11,8 +11,8 @@ internal class StopCommandExecutor : ICommandExecutor
 
     public bool Execute(bool silent)
     {
-        SonicLog.Notify(silent, $"[AeroBot] Stopping bot [{Kernel.Bot?.Botbase.DisplayName}]",
-            "البوت وقف (تقدر تشغله تاني بـ !start)");
+        if (!silent)
+            Game.ShowNotification($"[AeroBot] Stopping bot [{Kernel.Bot?.Botbase.DisplayName}]");
 
         Kernel.Bot?.Stop();
 

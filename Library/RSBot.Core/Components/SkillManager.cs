@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -73,7 +73,7 @@ public static class SkillManager
     /// <summary>
     ///     Is the last action basic skill (Auto attack) <c>true</c>; otherwise <c>false</c>
     /// </summary>
-    public static bool IsLastCastedBasic => _baseSkills.Contains(LastCastedSkillId);
+    public static bool IsLastCastedBasic => _baseSkills != null && _baseSkills.Contains(LastCastedSkillId);
 
     /// <summary>
     ///     Initializes this instance.
@@ -123,14 +123,17 @@ public static class SkillManager
     public static SkillInfo GetNextSkill()
     {
         var entity = Game.SelectedEntity;
-        if (entity == null)
+        if (entity == null || Game.Player == null)
             return null;
 
         var rarity = MonsterRarity.General;
 
         if (entity is SpawnedMonster monster)
-            if (Skills[monster.Rarity].Count > 0)
+            if (Skills != null && Skills.ContainsKey(monster.Rarity) && Skills[monster.Rarity] != null && Skills[monster.Rarity].Count > 0)
                 rarity = monster.Rarity;
+
+        if (Skills == null || !Skills.ContainsKey(rarity) || Skills[rarity] == null || Skills[rarity].Count == 0)
+            return null;
 
         var distance = Game.Player.Movement.Source.DistanceTo(entity.Movement.Source);
 
@@ -138,10 +141,10 @@ public static class SkillManager
         //var weaponRange = 0;
         var closestSkill = default(SkillInfo);
 
-        if (entity.State.HitState == ActionHitStateFlag.KnockDown)
+        if (entity.State != null && entity.State.HitState == ActionHitStateFlag.KnockDown)
         {
             // try to get attack skill for only knockdown states
-            closestSkill = Skills[rarity].Find(p => p.Record.Params.Contains(25697));
+            closestSkill = Skills[rarity].Find(p => p?.Record?.Params != null && p.Record.Params.Contains(25697));
         }
         else if (UseSkillsInOrder || distance < 10)
         {
@@ -155,11 +158,11 @@ public static class SkillManager
                 if (_lastIndex > Skills[rarity].Count - 1)
                     _lastIndex = 0;
 
-                if (!Skills.ContainsKey(rarity) || Skills[rarity].Count < _lastIndex)
+                if (!Skills.ContainsKey(rarity) || Skills[rarity] == null || Skills[rarity].Count <= _lastIndex)
                     continue;
 
                 var selectedSkill = Skills[rarity][_lastIndex];
-                if (!selectedSkill.CanBeCasted)
+                if (selectedSkill == null || selectedSkill.Record == null || !selectedSkill.CanBeCasted)
                     continue;
 
                 closestSkill = selectedSkill;
@@ -178,7 +181,7 @@ public static class SkillManager
             for (var i = 0; i < Skills[rarity].Count; i++)
             {
                 var s = Skills[rarity][i];
-                if (!s.CanBeCasted)
+                if (s == null || s.Record == null || !s.CanBeCasted)
                     continue;
 
                 var difference = Math.Abs(s.Record.Action_Range / 10 - distance /* + weaponRange*/);
@@ -200,8 +203,14 @@ public static class SkillManager
     /// <param name="skill">The using skill</param>
     public static bool CheckSkillRequired(RefSkill skill)
     {
+        if (skill == null)
+            return false;
+
         if (skill.ReqCommon_Mastery1 == 1)
             return true;
+
+        if (Game.Player?.Inventory == null)
+            return false;
 
         InventoryItem requiredItem = null;
         TypeIdFilter filter = null;
@@ -211,22 +220,28 @@ public static class SkillManager
         {
             var list = new List<TypeIdFilter>(8);
 
-            for (var i = 0; i < skill.Params.Count; i++)
+            if (skill.Params != null)
             {
-                var param = skill.Params[i];
-                if (param != 1919250793)
-                    continue;
+                for (var i = 0; i < skill.Params.Count; i++)
+                {
+                    var param = skill.Params[i];
+                    if (param != 1919250793)
+                        continue;
 
-                var paramTypeId3 = (byte)skill.Params[++i];
-                var paramTypeId4 = (byte)skill.Params[++i];
-                list.Add(new TypeIdFilter(3, 1, paramTypeId3, paramTypeId4));
+                    if (i + 2 >= skill.Params.Count)
+                        break;
+
+                    var paramTypeId3 = (byte)skill.Params[++i];
+                    var paramTypeId4 = (byte)skill.Params[++i];
+                    list.Add(new TypeIdFilter(3, 1, paramTypeId3, paramTypeId4));
+                }
             }
 
             if (list.Count == 0)
                 return true;
 
             filter = list.FirstOrDefault(p =>
-                p.TypeID3 == currentWeapon?.Record.TypeID3 && p.TypeID4 == currentWeapon?.Record.TypeID4);
+                currentWeapon?.Record != null && p.TypeID3 == currentWeapon.Record.TypeID3 && p.TypeID4 == currentWeapon.Record.TypeID4);
             if (filter != null)
                 return true;
 
@@ -242,7 +257,7 @@ public static class SkillManager
         }
 
         requiredItem = Game.Player.Inventory.GetItemBest(filter);
-        if (requiredItem == null)
+        if (requiredItem == null || requiredItem.Record == null)
             return false;
 
         var movingSlot = (byte)(requiredItem.Record.TypeID3 == 6 ? 6 : 7);
@@ -265,10 +280,10 @@ public static class SkillManager
 
     public static bool CastSkill(SkillInfo skill, uint targetId = 0)
     {
-        if (!Game.Player.Skills.HasSkill(skill.Id))
+        if (skill?.Record == null || Game.Player?.Skills == null || !Game.Player.Skills.HasSkill(skill.Id))
             return false;
 
-        if (!SpawnManager.TryGetEntity<SpawnedBionic>(targetId, out var entity))
+        if (!SpawnManager.TryGetEntity<SpawnedBionic>(targetId, out var entity) || entity == null || entity.State == null)
             return false;
 
         if (entity.State.LifeState == LifeState.Dead)
@@ -400,7 +415,7 @@ public static class SkillManager
     /// <param name="skillId">The skill identifier.</param>
     public static void CastBuff(SkillInfo skill, uint target = 0, bool awaitBuffResponse = true)
     {
-        if (skill.Id == 0)
+        if (skill?.Record == null || skill.Id == 0)
             return;
 
         /*
@@ -410,7 +425,7 @@ public static class SkillManager
         if (!CheckSkillRequired(skill.Record))
             return;
 
-        Log.Notify($"Casting skill (self-buff) [{skill.Record.GetRealName()}]");
+        Log.Notify($"Casting skill (self-buff) [{skill.Record.GetRealName() ?? skill.Id.ToString()}]");
 
         var packet = new Packet(0x7074);
         packet.WriteByte(1); //Execute
@@ -440,6 +455,15 @@ public static class SkillManager
             return AwaitCallbackResult.ConditionFailed;
         }, 0xB0BD);
 
+        var actionFailCallback = new AwaitCallback(response =>
+        {
+            var result = response.ReadByte();
+            if (result != 0x01)
+                return AwaitCallbackResult.Fail;
+
+            return AwaitCallbackResult.ConditionFailed;
+        }, 0xB070);
+
         var callback = new AwaitCallback(response =>
         {
             return response.ReadByte() == 0x02 && response.ReadByte() == 0x00
@@ -447,15 +471,20 @@ public static class SkillManager
                 : AwaitCallbackResult.ConditionFailed;
         }, 0xB074);
 
-        PacketManager.SendPacket(packet, PacketDestination.Server, asyncCallback, callback);
+        skill.Update();
+
+        PacketManager.SendPacket(packet, PacketDestination.Server, asyncCallback, actionFailCallback, callback);
 
         if (awaitBuffResponse)
-            asyncCallback.AwaitResponse(skill.Record.Action_CastingTime +
-                                        skill.Record.Action_ActionDuration +
-                                        skill.Record.Action_PreparingTime + 1500);
+        {
+            var timeout = Math.Min(1200, Math.Max(400, skill.Record.Action_CastingTime +
+                                                      skill.Record.Action_PreparingTime + 400));
+            asyncCallback.AwaitResponse(timeout);
 
-        if (skill.Record.Basic_Activity != 1 && awaitBuffResponse)
-            callback.AwaitResponse();
+            // If buff was already confirmed added by 0xB0BD, no need to wait for 0xB074
+            if (!asyncCallback.IsCompleted && !actionFailCallback.IsCompleted && skill.Record.Basic_Activity != 1)
+                callback.AwaitResponse(400);
+        }
     }
 
     /// <summary>
@@ -465,10 +494,10 @@ public static class SkillManager
     /// <param name="target"></param>
     public static void CastSkillAt(SkillInfo skill, Position target)
     {
-        if (target.Region == 0 || target.DistanceToPlayer() > 100)
+        if (skill?.Record == null || skill.Id == 0)
             return;
 
-        if (skill.Id == 0)
+        if (target.Region == 0 || target.DistanceToPlayer() > 100)
             return;
 
         if (!CheckSkillRequired(skill.Record))

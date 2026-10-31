@@ -4,12 +4,9 @@ using System.Linq;
 using System.Timers;
 using System.Windows.Forms;
 using RSBot.Core;
-using RSBot.Core.Extensions;
-using RSBot.Core.Objects.Spawn;
 using RSBot.Statistics.Stats;
 using RSBot.Statistics.Stats.Calculators;
 using SDUI.Controls;
-using SDUI.Helpers;
 using CheckBox = SDUI.Controls.CheckBox;
 
 namespace RSBot.Statistics.Views;
@@ -28,7 +25,6 @@ public partial class Main : DoubleBufferedControl
     public Main()
     {
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
     }
 
     /// <summary>
@@ -174,55 +170,6 @@ public partial class Main : DoubleBufferedControl
         try
         {
             UpdateStatistics();
-            UpdateCharacterPanel();
-        }
-        catch
-        {
-        }
-    }
-
-    /// <summary>
-    ///     Updates the character snapshot panel (moved here from the removed sidebar).
-    /// </summary>
-    private void UpdateCharacterPanel()
-    {
-        try
-        {
-            var player = Game.Player;
-            if (player == null || !Game.Ready)
-            {
-                lblCharName.Text = "-";
-                lblCharLevel.Text = "-";
-                lblCharHP.Text = "-";
-                lblCharMP.Text = "-";
-                lblCharExp.Text = "-";
-                lblCharGold.Text = "-";
-                lblCharAttrs.Text = "-";
-                lblCharTarget.Text = "-";
-                return;
-            }
-
-            lblCharName.Text = player.Name;
-            lblCharLevel.Text = $"Lv. {player.Level}";
-            lblCharHP.Text = $"HP: {player.Health:#,#0} / {player.MaximumHealth:#,#0}";
-            lblCharMP.Text = $"MP: {player.Mana:#,#0} / {player.MaximumMana:#,#0}";
-
-            var expMax = Game.ReferenceManager.GetRefLevel(player.Level).Exp_C;
-            var expPct = expMax > 0 ? player.Experience * 100.0 / expMax : 0;
-            lblCharExp.Text = $"EXP: {expPct:0.00}%";
-            lblCharGold.Text = $"Gold: {player.Gold:#,#0}";
-            lblCharAttrs.Text = $"STR {player.Strength} / INT {player.Intelligence} / SP {player.SkillPoints:#,#0}";
-
-            var target = Game.SelectedEntity;
-            if (target == null)
-                lblCharTarget.Text = "Target: -";
-            else if (target is SpawnedPlayer spawnedPlayer)
-                lblCharTarget.Text = $"Target: {spawnedPlayer.Name}";
-            else if (target is SpawnedMonster monster)
-                lblCharTarget.Text =
-                    $"Target: {monster.Record.GetRealName()} [{monster.Rarity.GetName()}] {monster.Health:#,#0}/{monster.MaxHealth:#,#0}";
-            else
-                lblCharTarget.Text = $"Target: {target.Record.GetRealName()}";
         }
         catch
         {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
@@ -131,7 +131,12 @@ public class Action
         action.SerializeDetail(packet);
 
         if (action.TargetId != 0)
+        {
+            if (SpawnManager.TryGetEntity<SpawnedBionic>(action.ExecutorId, out var executor))
+                executor.TargetId = action.TargetId;
+
             EventManager.FireEvent("OnEntityHit", action.Id, action.ExecutorId, action.TargetId, 0, false);
+        }
 
         return action;
     }
@@ -199,24 +204,6 @@ public class Action
 
                         //packet.ReadUShort();
                         //packet.ReadByte();
-
-                        try
-                        {
-                            // Live HP tracking: field-mob HP updates are not
-                            // always sent by the server, so deduct observed
-                            // damage here (authoritative values overwrite).
-                            var selfId = Game.Player?.UniqueId ?? 0;
-                            if (entity != null && damage > 0 && selfId != 0 &&
-                                entity.UniqueId != selfId)
-                            {
-                                entity.Health = Math.Max(0, entity.Health - damage);
-                                if (state.HasFlag(ActionHitStateFlag.Dead))
-                                    entity.Health = 0;
-                            }
-                        }
-                        catch
-                        {
-                        }
 
                         EventManager.FireEvent("OnEntityHit", Id, ExecutorId, uniqueId, damage, critStatus == 0x02);
                     }

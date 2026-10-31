@@ -1,4 +1,4 @@
-﻿using SDUI.Animation;
+using SDUI.Animation;
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -125,7 +125,16 @@ public class Button : System.Windows.Forms.Button
         var graphics = e.Graphics;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-        ButtonRenderer.DrawParentBackground(graphics, ClientRectangle, this);
+        var isTransparentOrEmpty = Color.IsEmpty || Color == Color.Transparent;
+
+        var isLightMode = !ColorScheme.BackColor.IsDark();
+        var isStaleDarkBg = isLightMode && (BackColor == Color.Black || BackColor == Color.FromArgb(0, 0, 0) || BackColor == Color.FromArgb(16, 16, 16));
+
+        if (BackColor != Color.Transparent && !BackColor.IsEmpty && BackColor != SystemColors.Control && BackColor != Control.DefaultBackColor && BackColor.A > 0 && !isStaleDarkBg)
+        {
+            using var bgBrush = new SolidBrush(BackColor);
+            graphics.FillRectangle(bgBrush, ClientRectangle);
+        }
 
         var rectf = ClientRectangle.ToRectangleF();
 
@@ -140,27 +149,51 @@ public class Button : System.Windows.Forms.Button
         rectf.Inflate(-inflate, -inflate);
 
         var color = Color.Empty;
-        if (Color != Color.Transparent)
+        if (!isTransparentOrEmpty && !(isLightMode && (Color == Color.Black || Color == Color.FromArgb(0, 0, 0))))
+        {
             color = Enabled ? Color : Color.Alpha(200);
+        }
+        else if (BackColor != Color.Transparent && BackColor != Control.DefaultBackColor && BackColor != SystemColors.Control && !BackColor.IsEmpty && !isStaleDarkBg)
+        {
+            color = Enabled ? BackColor : BackColor.Alpha(200);
+            isTransparentOrEmpty = false;
+        }
+        else if (ColorScheme.CustomButtonColor.HasValue)
+        {
+            color = Enabled ? ColorScheme.ButtonColor : ColorScheme.ButtonColor.Alpha(200);
+            isTransparentOrEmpty = false;
+        }
         else
-            color = ColorScheme.ForeColor.Alpha(20);
-
+        {
+            // Crisp, adaptive neutral button background:
+            // Dark Mode: deep charcoal surface #1E2636
+            // Light Mode: clean light gray #F3F4F6 (never solid black!)
+            color = ColorScheme.BackColor.IsDark()
+                ? Color.FromArgb(30, 38, 54)
+                : Color.FromArgb(243, 244, 246);
+        }
 
         using var brush = new SolidBrush(color);
         using var outerPen = new Pen(ColorScheme.BorderColor);
 
         using (var path = rectf.Radius(_radius))
         {
-            if (Color == Color.Transparent)
-                graphics.DrawPath(outerPen, path);
-
             graphics.FillPath(brush, path);
+            graphics.DrawPath(outerPen, path);
 
             var animationColor = Color.Transparent;
-            if (Color != Color.Transparent)
-                animationColor = Color.FromArgb((int)(hoverAnimationManager.GetProgress() * 65), color.Determine());
+            if (!isTransparentOrEmpty)
+            {
+                var hColor = ColorScheme.CustomButtonHoverColor ?? color.Brightness(color.IsDark() ? 0.25f : -0.2f);
+                animationColor = Color.FromArgb((int)(hoverAnimationManager.GetProgress() * 80), hColor.Determine());
+            }
             else
-                animationColor = Color.FromArgb((int)(hoverAnimationManager.GetProgress() * color.A), brush.Color);
+            {
+                var hColor = ColorScheme.BackColor.IsDark()
+                    ? Color.FromArgb(45, 56, 78)
+                    : Color.FromArgb(229, 231, 235);
+                animationColor = Color.FromArgb((int)(hoverAnimationManager.GetProgress() * 120), hColor);
+            }
 
             using var b = new SolidBrush(animationColor);
             graphics.FillPath(b, path);
@@ -188,7 +221,24 @@ public class Button : System.Windows.Forms.Button
             }
         }
 
-        var foreColor = Color == Color.Transparent ? ColorScheme.ForeColor : ForeColor;
+        var foreColor = isTransparentOrEmpty ? ColorScheme.ForeColor : ForeColor;
+        if (!isTransparentOrEmpty && ColorScheme.CustomButtonForeColor.HasValue)
+        {
+            foreColor = ColorScheme.ButtonForeColor;
+        }
+        else if (isTransparentOrEmpty)
+        {
+            foreColor = ColorScheme.ForeColor;
+        }
+        else if (foreColor == SystemColors.ControlText || foreColor == Color.Empty)
+        {
+            foreColor = color.IsDark() ? Color.White : Color.FromArgb(17, 24, 39);
+        }
+        else
+        {
+            foreColor = ColorScheme.ResolveTextColor(foreColor);
+        }
+
         if (!Enabled)
             foreColor = Color.Gray;
 
@@ -217,7 +267,7 @@ public class Button : System.Windows.Forms.Button
             textRect.X += 8 + 24 + 4;
         }
 
-        this.DrawString(graphics, TextAlign, foreColor, textRect, AutoEllipsis, UseMnemonic);
+        this.DrawString(graphics, TextAlign, foreColor, textRect, AutoEllipsis, UseMnemonic, noWrap: true);
     }
 
     private Size GetPreferredSize()

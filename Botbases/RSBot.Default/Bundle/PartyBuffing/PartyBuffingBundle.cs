@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RSBot.Core;
@@ -17,7 +17,7 @@ internal class PartyBuffingBundle : IBundle
     /// <summary>
     ///     The buffing party members
     /// </summary>
-    private List<BuffingPartyMember> BuffingPartyMembers;
+    private List<BuffingPartyMember> BuffingPartyMembers = new();
 
     /// <summary>
     ///     Initialize the instance of <seealso cref="PartyBuffingBundle" />
@@ -25,6 +25,7 @@ internal class PartyBuffingBundle : IBundle
     public PartyBuffingBundle()
     {
         EventManager.SubscribeEvent("OnPartyBuffSettingsChanged", OnPartyBuffSettingsChanged);
+        Refresh();
     }
 
     /// <summary>
@@ -37,44 +38,75 @@ internal class PartyBuffingBundle : IBundle
 
         if (Game.Party == null ||
             Game.Party.Members == null ||
-            Game.Player.HasActiveVehicle)
+            Game.Player == null ||
+            Game.Player.InAction ||
+            Game.Player.HasActiveVehicle ||
+            BuffingPartyMembers == null)
             return;
 
-        var selectedGroup = PlayerConfig.Get("RSBot.Party.Buffing.SelectedGroup", "Default");
-
-        var members = Game.Party.Members
-            .Where(p => BuffingPartyMembers.Any(s => s.Group == selectedGroup && s.Name == p.Name));
-        foreach (var member in members)
+        try
         {
-            if (member.Player == null)
-                continue;
+            var selectedGroup = PlayerConfig.Get("RSBot.Party.Buffing.SelectedGroup", "Default");
 
-            var buffingMember = BuffingPartyMembers.Find(p => p.Name == member.Name);
-            if (buffingMember == null)
-                continue;
-
-            if (buffingMember.Buffs.Count == 0)
-                continue;
-
-            Log.Status("Buffing party");
-
-            var activeBuffs = member.Player.State.ActiveBuffs;
-
-            var neededBuffs = buffingMember.Buffs
-                .Where(skillId => !activeBuffs.Any(p => p.Id == skillId ||
-                                                        (Game.ReferenceManager.SkillData.TryGetValue(skillId,
-                                                             out var refSkill) &&
-                                                         refSkill.Action_Overlap == p.Record.Action_Overlap)));
-
-            foreach (var castingBuffId in neededBuffs)
+            var members = Game.Party.Members
+                .Where(p => BuffingPartyMembers.Any(s => s.Group == selectedGroup && s.Name == p.Name));
+            foreach (var member in members)
             {
-                var skill = Game.Player.Skills.GetSkillInfoById(castingBuffId);
-                if (skill == null || skill.HasCooldown)
+                if (member.Player == null || member.Player.State == null)
                     continue;
 
-                if (member.Player != null)
-                    skill.Cast(member.Player.UniqueId, true);
+                var buffingMember = BuffingPartyMembers.Find(p => p.Name == member.Name);
+                if (buffingMember == null || buffingMember.Buffs == null || buffingMember.Buffs.Count == 0)
+                    continue;
+
+                //if party member is dead, dont try to buff
+                var memberHPMP = member.HealthMana.ToString("X2");
+                if (memberHPMP.Length == 0)
+                    continue;
+                int hpPer = Convert.ToByte(memberHPMP[0].ToString(), 16) * 10;
+                if (hpPer == 0)
+                    continue;
+
+                Log.Status($"Buffing party");
+
+                foreach (var buff in buffingMember.Buffs)
+                {
+                    try
+                    {
+                        var skill = Game.Player.Skills?.GetSkillInfoById(buff);
+
+                        var record = skill?.Record;
+                        if (skill == null || record == null || skill.HasCooldown)
+                            continue;
+                        var isActive = member.Player.State.HasActiveBuff(skill, out var info);
+                        if (skill.Isbugged && info != null && info.Isbugged)
+                        {
+                            Log.Notify($"The buff on {member.Name} [{skill.Token}-{record.GetRealName()}] expired");
+
+                            skill.Reset();
+                            continue;
+                        }
+
+                        if (isActive)
+                            continue;
+
+                        if (member.Player != null)
+                        {
+                            Log.Status($"Buffing {record.GetRealName()} party member {member.Name}");
+                            skill.Cast(member.Player.UniqueId, true);
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Debug($"PartyBuffing: skipped buff {buff} ({ex.Message})");
+                    }
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error in PartyBuffingBundle: {ex.Message}");
         }
     }
 

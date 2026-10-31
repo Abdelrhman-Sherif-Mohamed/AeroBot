@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Timers;
@@ -181,7 +181,7 @@ public class SpawnedBionic : SpawnedEntity
     public List<SpawnedBionic> GetAttackers()
     {
         return !SpawnManager.TryGetEntities<SpawnedBionic>(e => e.TargetId == UniqueId, out var attackers)
-            ? null
+            ? new List<SpawnedBionic>()
             : attackers.ToList();
     }
 }

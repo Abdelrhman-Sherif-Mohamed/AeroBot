@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -7,6 +7,8 @@ namespace SDUI.Controls;
 public class TabControl : System.Windows.Forms.TabControl
 {
     private Padding _borderRadius = new System.Windows.Forms.Padding(4);
+    private int _hoveredTabIndex = -1;
+
     public Padding Radius
     {
         get => _borderRadius;
@@ -16,6 +18,7 @@ public class TabControl : System.Windows.Forms.TabControl
             Invalidate();
         }
     }
+
     public TabControl()
     {
         SetStyle(ControlStyles.SupportsTransparentBackColor |
@@ -37,10 +40,73 @@ public class TabControl : System.Windows.Forms.TabControl
     {
         base.CreateHandle();
 
-        if(SizeMode != TabSizeMode.Fixed)
-            ItemSize = new Size(80, 24);
+        if (SizeMode != TabSizeMode.Fixed)
+            ItemSize = new Size(Math.Max(ItemSize.Width, 90), Math.Max(ItemSize.Height, 26));
 
+        Padding = new Point(14, 5);
         Alignment = TabAlignment.Top;
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+
+        if (e.Button == MouseButtons.Left)
+        {
+            for (int i = 0; i < TabCount; i++)
+            {
+                if (GetTabRect(i).Contains(e.Location))
+                {
+                    if (SelectedIndex != i)
+                    {
+                        var cancelArgs = new TabControlCancelEventArgs(TabPages[i], i, false, TabControlAction.Selecting);
+                        OnSelecting(cancelArgs);
+                        if (!cancelArgs.Cancel)
+                        {
+                            SelectedIndex = i;
+                            var actionArgs = new TabControlEventArgs(TabPages[i], i, TabControlAction.Selected);
+                            OnSelected(actionArgs);
+                            Invalidate();
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+
+        int newHover = -1;
+        for (int i = 0; i < TabCount; i++)
+        {
+            if (GetTabRect(i).Contains(e.Location))
+            {
+                newHover = i;
+                break;
+            }
+        }
+
+        if (_hoveredTabIndex != newHover)
+        {
+            _hoveredTabIndex = newHover;
+            Cursor = newHover >= 0 ? Cursors.Hand : Cursors.Default;
+            Invalidate();
+        }
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+
+        if (_hoveredTabIndex != -1)
+        {
+            _hoveredTabIndex = -1;
+            Cursor = Cursors.Default;
+            Invalidate();
+        }
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -60,7 +126,6 @@ public class TabControl : System.Windows.Forms.TabControl
         var r = new RectangleF(0, ItemSize.Height, Width - 1, Height - ItemSize.Height - 1);
         using (var path = r.Radius(SelectedIndex == 0 ? 2 : _borderRadius.Left, _borderRadius.Top, _borderRadius.Right, _borderRadius.Bottom))
         {
-            //graphics.FillPath(backBrush, path);
             graphics.DrawPath(borderBrush, path);
         }
 
@@ -76,12 +141,20 @@ public class TabControl : System.Windows.Forms.TabControl
                 using var path = rect.Radius(4, 4, 0, 0);
                 graphics.FillPath(backBrush, path);
 
-                // Fantasy accent: gold underline under the selected tab
+                // Gold accent underline under the selected tab
                 using var accentBrush = new SolidBrush(ColorScheme.AccentColor);
                 graphics.FillRectangle(accentBrush, rect.X + 4, rect.Bottom - 3, rect.Width - 8, 3);
             }
+            else if (i == _hoveredTabIndex)
+            {
+                var rect = new RectangleF(tabBounds.X - 1, tabBounds.Y - 1, tabBounds.Width + 2, tabBounds.Height - 2);
+                using var path = rect.Radius(4, 4, 0, 0);
+                using var hoverBrush = new SolidBrush(Color.FromArgb(ColorScheme.BackColor.IsDark() ? 25 : 15, ColorScheme.AccentColor));
+                graphics.FillPath(hoverBrush, path);
+            }
 
-            TabPages[i].DrawString(graphics, ColorScheme.ForeColor, textRect);
+            var textColor = (i == SelectedIndex || i == _hoveredTabIndex) ? ColorScheme.ForeColor : Color.Gray;
+            TabPages[i].DrawString(graphics, textColor, textRect);
 
             if (TabPages[i].BackColor != ColorScheme.BackColor)
                 TabPages[i].BackColor = ColorScheme.BackColor;

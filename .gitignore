@@ -13,8 +13,7 @@
 .vscode/
 
 # User data and logs
-Build/User/
-Build/Data/Logs/
+Build/
 *.log
 boot-error.log
 rsbot_download_temp/

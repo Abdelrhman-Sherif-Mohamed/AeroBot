@@ -1,20 +1,23 @@
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Components;
+using RSBot.Core.Event;
 using RSBot.Core.Objects;
 using RSBot.Core.Plugins;
 using RSBot.Trade.Bundle;
+using RSBot.Trade.Components;
 using RSBot.Trade.Components.Scripting;
 
 namespace RSBot.Trade;
 
 public class TradeBotbase : IBotbase
 {
-    public static bool IsActive => (Kernel.Bot?.Botbase.Name == "AeroBot.Trade" || Kernel.Bot?.Botbase.Name == "SonicBot.Trade") && Kernel.Bot.Running;
-    public string Name => "AeroBot.Trade";
+    public static bool IsActive => Kernel.Bot?.Botbase.Name == "RSBot.Trade" && Kernel.Bot.Running;
+    public string Name => "RSBot.Trade";
 
-    public string DisplayName => "Trade";
+    public string DisplayName => "التجارة";
 
     public string TabText => DisplayName;
 
@@ -69,11 +72,78 @@ public class TradeBotbase : IBotbase
     {
         Log.Debug("[Trade] Botbase registered to the kernel!");
 
-        ScriptManager.CommandHandlers.Add(new BuyGoodsScriptCommand());
-        ScriptManager.CommandHandlers.Add(new SellGoodsScriptCommand());
-        ScriptManager.CommandHandlers.Add(new SummonTransportScriptCommand());
+        if (ScriptManager.CommandHandlers.All(h => h.Name != "buy-goods"))
+            ScriptManager.CommandHandlers.Add(new BuyGoodsScriptCommand());
+
+        if (ScriptManager.CommandHandlers.All(h => h.Name != "sell-goods"))
+            ScriptManager.CommandHandlers.Add(new SellGoodsScriptCommand());
+
+        if (ScriptManager.CommandHandlers.All(h => h.Name != "summon-transport"))
+            ScriptManager.CommandHandlers.Add(new SummonTransportScriptCommand());
+
+        EventManager.SubscribeEvent("OnLoadCharacter", OnLoadCharacter);
 
         Bundles.Initialize();
+    }
+
+    /// <summary>
+    ///     Starts the trade bot automatically after the character finished
+    ///     loading, if the user enabled the "start after login" option.
+    /// </summary>
+    private void OnLoadCharacter()
+    {
+        if (!TradeConfig.AutoStartAfterLogin)
+            return;
+
+        if (Kernel.Bot == null || Kernel.Bot.Running)
+            return;
+
+        if (!IsTrader())
+            return;
+
+        // Make sure the trade botbase is the active one, otherwise the auto
+        // start would run whatever botbase the user had selected before.
+        if (Kernel.Bot.Botbase != this)
+        {
+            var registered = Kernel.BotbaseManager?.Bots
+                .FirstOrDefault(b => b.Value.Name == Name).Value;
+
+            if (registered == null)
+                return;
+
+            Kernel.Bot.SetBotbase(registered);
+        }
+
+        Task.Run(async () =>
+        {
+            // Give the client enough time to finish loading the character,
+            // inventory, job information and the surrounding entities.
+            await Task.Delay(4000);
+
+            if (!TradeConfig.AutoStartAfterLogin)
+                return;
+
+            if (Kernel.Bot == null || Kernel.Bot.Running)
+                return;
+
+            if (!Game.Ready || Game.Player == null || !IsTrader())
+                return;
+
+            Log.Notify("[Trade] بدء التجارة تلقائياً بعد تسجيل الدخول...");
+            Kernel.Bot.Start();
+        });
+    }
+
+    /// <summary>
+    ///     Returns a value indicating whether the active character can trade.
+    /// </summary>
+    public static bool IsTrader()
+    {
+        if (Game.Player?.JobInformation is not { Type: JobType.Trade })
+            return false;
+
+        return Game.Player.Inventory?.GetEquippedPartItems()
+            .FirstOrDefault(i => i.Record != null && i.Record.IsJobOutfit) != null;
     }
 
     /// <summary>
@@ -90,15 +160,6 @@ public class TradeBotbase : IBotbase
     /// <returns></returns>
     private bool AssertPlayerIsTrader()
     {
-        if (Game.Player == null)
-            return false;
-
-        if (Game.Player.JobInformation is not { Type: JobType.Trade })
-            return false;
-
-        if (Game.Player.Inventory.GetEquippedPartItems().FirstOrDefault(i => i.Record.IsJobOutfit) == null)
-            return false;
-
-        return true;
+        return IsTrader();
     }
 }

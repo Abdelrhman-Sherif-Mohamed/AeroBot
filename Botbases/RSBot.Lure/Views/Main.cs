@@ -8,7 +8,6 @@ using RSBot.Core.Event;
 using RSBot.Core.Objects;
 using RSBot.Lure.Components;
 using SDUI.Controls;
-using SDUI.Helpers;
 
 namespace RSBot.Lure.Views;
 
@@ -22,7 +21,6 @@ public partial class Main : DoubleBufferedControl
     public Main()
     {
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
         SubscribeEvents();
     }
 
@@ -46,7 +44,7 @@ public partial class Main : DoubleBufferedControl
 
     private void OnLoadCharacter()
     {
-        if (IsDisposed || Disposing)
+        if (IsDisposed || Disposing || !Game.Ready)
             return;
 
         checkUseHowlingShout.Enabled = Game.Player.Race == ObjectCountry.Europe;

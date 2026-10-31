@@ -1,4 +1,4 @@
-using System.Windows.Forms;
+﻿using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
@@ -12,7 +12,7 @@ namespace RSBot.Lure;
 public class LureBotbase : IBotbase
 {
     private bool _interrupted;
-    public string Name => "AeroBot.Lure";
+    public string Name => "RSBot.Lure";
 
     public string DisplayName => "Lure";
 

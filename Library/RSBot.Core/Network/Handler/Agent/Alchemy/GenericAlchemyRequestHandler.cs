@@ -31,7 +31,7 @@ internal static class GenericAlchemyRequestHandler
             return;
         }
 
-        var slots = packet.ReadByteArray(packet.ReadByte());
+        var slots = packet.ReadBytes(packet.ReadByte());
 
         AlchemyManager.ActiveAlchemyItems = new List<InventoryItem>(slots.Length);
 
@@ -45,6 +45,7 @@ internal static class GenericAlchemyRequestHandler
 
         EventManager.FireEvent("OnFuseRequest", action, type);
 
+        AlchemyManager.ActiveOperation = AlchemyOperation.Fuse;
         AlchemyManager.IsFusing = true;
         AlchemyManager.StartTimer();
     }

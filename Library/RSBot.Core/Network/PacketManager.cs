@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -176,6 +176,17 @@ public class PacketManager
         }
 
         SendPacket(packet, destination);
+    }
+
+    /// <summary>
+    /// Clears any callbacks registered for a specific opcode or closed callbacks.
+    /// </summary>
+    public static void ClearCallbacks(ushort opcode)
+    {
+        lock (_lock)
+        {
+            _callbacks.RemoveAll(c => c.ResponseOpcode == opcode || c.IsClosed);
+        }
     }
 
     /// <summary>

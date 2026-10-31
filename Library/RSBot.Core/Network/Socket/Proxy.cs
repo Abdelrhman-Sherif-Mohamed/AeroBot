@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 
 namespace RSBot.Core.Network;
@@ -74,6 +77,8 @@ public class Proxy
         _gatewayIp = gatewayIp;
         _gatewayPort = gatewayPort;
 
+        SessionLog.Write($"Proxy started on 127.0.0.1:{clientPort} -> {gatewayIp}:{gatewayPort} (clientless: {Game.Clientless})");
+
         if (!Game.Clientless)
             CreateNewClientInstance(clientPort);
         else
@@ -102,14 +107,87 @@ public class Proxy
     /// </summary>
     private void ConnectToGatewayserver()
     {
-        Log.Notify($"Connecting to gateway server [{_gatewayIp}:{_gatewayPort}]...");
+        var ports = GetGatewayPortCandidates();
 
-        CreateNewServerInstance();
+        foreach (var port in ports)
+        {
+            //the first attempt may fail because of a short network hickup
+            for (var attempt = 1; attempt <= 2; attempt++)
+            {
+                Log.Notify($"Connecting to gateway server [{_gatewayIp}:{port}]...");
+                SessionLog.Write($"Connecting to gateway server {_gatewayIp}:{port} (attempt {attempt})");
 
-        IsConnectedToAgentserver = false;
-        IsConnectedToGatewayserver = true;
+                CreateNewServerInstance();
 
-        Server.Connect(_gatewayIp, _gatewayPort);
+                IsConnectedToAgentserver = false;
+                IsConnectedToGatewayserver = true;
+
+                Server.Connect(_gatewayIp, port);
+
+                if (Server.IsConnected)
+                    return;
+
+                Thread.Sleep(250);
+            }
+        }
+
+        SessionLog.Write($"Could not connect to any of the gateway ports ({string.Join(", ", ports)})");
+    }
+
+    /// <summary>
+    ///     Gets the gateway ports that should be tried, the configured port comes first.
+    ///     Some clients use more than one gateway port, the loader writes the port the client
+    ///     wanted to use into a small file.
+    /// </summary>
+    private List<ushort> GetGatewayPortCandidates()
+    {
+        var ports = new List<ushort> { _gatewayPort };
+
+        foreach (var port in GetClientGatewayPorts())
+        {
+            if (!ports.Contains(port))
+                ports.Add(port);
+        }
+
+        return ports;
+    }
+
+    /// <summary>
+    ///     Reads the gateway ports the client tried to connect to (written by the loader).
+    /// </summary>
+    private List<ushort> GetClientGatewayPorts()
+    {
+        var ports = new List<ushort>();
+        if (Game.ClientProcessId == 0)
+            return ports;
+
+        try
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"RSBot_{Game.ClientProcessId}.port");
+            if (!File.Exists(path))
+                return ports;
+
+            var data = File.ReadAllBytes(path);
+            File.Delete(path);
+
+            if (data.Length < sizeof(ushort))
+                return ports;
+
+            var port = BitConverter.ToUInt16(data, 0);
+            if (port >= 1024)
+            {
+                SessionLog.Write($"The client requested gateway port {port}");
+                ports.Add(port);
+            }
+
+            return ports;
+        }
+        catch (Exception exception)
+        {
+            SessionLog.Write("Could not read the gateway port of the client", exception);
+
+            return ports;
+        }
     }
 
     /// <summary>
@@ -138,9 +216,9 @@ public class Proxy
         IsConnectedToAgentserver = false;
 
         Server = new Server();
-        Server.OnConnected += Server_OnConnected;
-        Server.OnDisconnected += Server_OnDisconnected;
-        Server.OnPacketReceived += Server_OnPacketReceived;
+        Server.Connected += Server_OnConnected;
+        Server.Disconnected += Server_OnDisconnected;
+        Server.PacketReceived += Server_OnPacketReceived;
     }
 
     /// <summary>
@@ -150,9 +228,9 @@ public class Proxy
     private void CreateNewClientInstance(ushort clientPort)
     {
         Client = new Client();
-        Client.OnConnected += Client_OnConnected;
-        Client.OnPacketReceived += Client_OnPacketReceived;
-        Client.OnDisconnected += Client_OnDisconnected;
+        Client.Connected += Client_OnConnected;
+        Client.PacketReceived += Client_OnPacketReceived;
+        Client.Disconnected += Client_OnDisconnected;
         Client.Listen(clientPort);
     }
 
@@ -162,6 +240,9 @@ public class Proxy
     /// <param name="packet">The packet</param>
     private void HandleReceivedPacket(Packet packet, PacketDestination destination)
     {
+        //if(packet.Opcode != 0x2002)
+         //   Log.Notify(packet.ToString());
+        
         try
         {
             packet = PacketManager.CallHook(packet, destination);
@@ -208,6 +289,7 @@ public class Proxy
     private void Client_OnConnected()
     {
         Log.Notify("A new silkroad client connected.");
+        SessionLog.Write("Client connected to the proxy");
 
         EventManager.FireEvent("OnClientConnected");
 
@@ -222,6 +304,8 @@ public class Proxy
     /// </summary>
     private void Client_OnDisconnected()
     {
+        SessionLog.Write("Client disconnected from the proxy");
+
         ClientConnected = false;
     }
 
@@ -263,6 +347,8 @@ public class Proxy
         _agentIp = ip;
         _agentPort = port;
 
+        SessionLog.Write($"Agent server address received: {ip}:{port}");
+
         ConnectToAgentserver();
     }
 
@@ -274,6 +360,7 @@ public class Proxy
         if (IsConnectedToAgentserver)
         {
             Log.Warn("Disconnected from game server!");
+            SessionLog.Write("Disconnected from the game (agent) server");
 
             IsConnectedToAgentserver = false;
 
@@ -285,6 +372,7 @@ public class Proxy
         else if (IsConnectedToGatewayserver)
         {
             Log.Debug("Disconnected from login server!");
+            SessionLog.Write("Disconnected from the login (gateway) server");
 
             IsConnectedToGatewayserver = false;
 
@@ -298,9 +386,15 @@ public class Proxy
     private void Server_OnConnected()
     {
         if (IsConnectedToGatewayserver)
+        {
+            SessionLog.Write("Connected to the login (gateway) server");
             EventManager.FireEvent("OnGatewayServerConntected");
+        }
         else if (IsConnectedToAgentserver)
+        {
+            SessionLog.Write("Connected to the game (agent) server");
             EventManager.FireEvent("OnAgentServerConnected");
+        }
     }
 
     #endregion Server

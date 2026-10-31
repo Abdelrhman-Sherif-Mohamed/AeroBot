@@ -53,7 +53,7 @@ public class Growth : Cos
         packet.ReadByte(); // inventorySlot
 
         if (string.IsNullOrWhiteSpace(Name))
-            Name = LanguageManager.GetLangBySpecificKey("SonicBot", "LabelPetName");
+            Name = LanguageManager.GetLangBySpecificKey("RSBot", "LabelPetName");
     }
 
     /// <summary>

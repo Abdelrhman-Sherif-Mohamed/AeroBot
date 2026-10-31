@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Components;
@@ -37,22 +37,67 @@ public partial class Character : DoubleBufferedControl
 
     private void OnLevelUp(byte oldLevel)
     {
-        lblLevel.Text = $"lv.{Game.Player.Level}";
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action<byte>(OnLevelUp), oldLevel);
+            return;
+        }
+
+        try
+        {
+            lblLevel.Text = $"lv.{Game.Player?.Level ?? 0}";
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Character] Error on level up: {ex.Message}");
+        }
     }
 
     private void OnInitialized()
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnInitialized));
+            return;
+        }
+
         lblPlayerName.Text = LanguageManager.GetLang("LabelPlayerName");
     }
 
     private void OnUpdateSP()
     {
-        lblSP.Text = Game.Player.SkillPoints.ToString("#,#0");
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnUpdateSP));
+            return;
+        }
+
+        try
+        {
+            lblSP.Text = Game.Player?.SkillPoints.ToString("#,#0") ?? "0";
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Character] Error on update SP: {ex.Message}");
+        }
     }
 
     private void OnUpdateGold()
     {
-        lblGold.Text = Game.Player.Gold.ToString("#,#0");
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnUpdateGold));
+            return;
+        }
+
+        try
+        {
+            lblGold.Text = Game.Player?.Gold.ToString("#,#0") ?? "0";
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Character] Error on update Gold: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -60,29 +105,70 @@ public partial class Character : DoubleBufferedControl
     /// </summary>
     private void OnLoadCharacterStats()
     {
-        lblInt.Text = Game.Player.Intelligence.ToString();
-        lblStr.Text = Game.Player.Strength.ToString();
-
-        if (Game.Player.MaximumHealth == 0)
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnLoadCharacterStats));
             return;
+        }
 
-        if (Game.Player.MaximumMana == 0)
-            return;
+        try
+        {
+            if (Game.Player == null)
+                return;
 
-        progressHP.Maximum = Game.Player.MaximumHealth;
-        progressMP.Maximum = Game.Player.MaximumMana;
-        progressHP.Value = Game.Player.Health;
-        progressMP.Value = Game.Player.Mana;
+            lblInt.Text = Game.Player.Intelligence.ToString();
+            lblStr.Text = Game.Player.Strength.ToString();
+
+            if (Game.Player.MaximumHealth > 0)
+            {
+                progressHP.Maximum = Game.Player.MaximumHealth;
+                progressHP.Value = Math.Clamp(Game.Player.Health, 0, progressHP.Maximum);
+            }
+
+            if (Game.Player.MaximumMana > 0)
+            {
+                progressMP.Maximum = Game.Player.MaximumMana;
+                progressMP.Value = Math.Clamp(Game.Player.Mana, 0, progressMP.Maximum);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Character] Error on load stats: {ex.Message}");
+        }
     }
 
     /// <summary>
     ///     On Exp update
     /// </summary>
-    /// <exception cref="System.NotImplementedException"></exception>
     private void OnExpUpdate()
     {
-        progressEXP.Value = Game.Player.Experience;
-        progressEXP.Maximum = Game.ReferenceManager.GetRefLevel(Game.Player.Level).Exp_C;
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnExpUpdate));
+            return;
+        }
+
+        try
+        {
+            if (Game.Player == null)
+                return;
+
+            var refLevel = Game.ReferenceManager?.GetRefLevel(Game.Player.Level);
+            if (refLevel != null && refLevel.Exp_C > 0)
+            {
+                progressEXP.Maximum = refLevel.Exp_C;
+                progressEXP.Value = Math.Clamp(Game.Player.Experience, 0, progressEXP.Maximum);
+            }
+            else
+            {
+                progressEXP.Maximum = 100;
+                progressEXP.Value = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Character] Error on exp update: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -90,13 +176,29 @@ public partial class Character : DoubleBufferedControl
     /// </summary>
     private void OnLoadCharacter()
     {
-        lblPlayerName.Text = Game.Player.Name;
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnLoadCharacter));
+            return;
+        }
 
-        OnLevelUp(Game.Player.Level);
-        OnLoadCharacterStats();
-        OnExpUpdate();
-        OnUpdateSP();
-        OnUpdateGold();
+        try
+        {
+            if (Game.Player == null)
+                return;
+
+            lblPlayerName.Text = Game.Player.Name;
+
+            OnLevelUp(Game.Player.Level);
+            OnLoadCharacterStats();
+            OnExpUpdate();
+            OnUpdateSP();
+            OnUpdateGold();
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Character] Error on load character: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -104,17 +206,23 @@ public partial class Character : DoubleBufferedControl
     /// </summary>
     private void OnAgentServerDisconnected()
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnAgentServerDisconnected));
+            return;
+        }
+
         lblPlayerName.Text = LanguageManager.GetLang("LabelPlayerName");
         lblLevel.Text = "0";
         lblStr.Text = "0";
         lblInt.Text = "0";
         lblGold.Text = "0";
         lblSP.Text = "0";
+        progressHP.Maximum = 100;
+        progressMP.Maximum = 100;
+        progressEXP.Maximum = 100;
         progressHP.Value = 0;
         progressMP.Value = 0;
         progressEXP.Value = 0;
-        progressHP.Maximum = 0;
-        progressMP.Maximum = 0;
-        progressEXP.Maximum = 0;
     }
 }

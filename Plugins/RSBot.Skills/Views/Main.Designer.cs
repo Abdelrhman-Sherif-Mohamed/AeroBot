@@ -132,12 +132,12 @@
             // 
             checkUseSkillsInOrder.BackColor = System.Drawing.Color.Transparent;
             checkUseSkillsInOrder.Depth = 0;
-            checkUseSkillsInOrder.Location = new System.Drawing.Point(231, 194);
+            checkUseSkillsInOrder.Location = new System.Drawing.Point(231, 178);
             checkUseSkillsInOrder.Margin = new System.Windows.Forms.Padding(0);
             checkUseSkillsInOrder.MouseLocation = new System.Drawing.Point(-1, -1);
             checkUseSkillsInOrder.Name = "checkUseSkillsInOrder";
             checkUseSkillsInOrder.Ripple = true;
-            checkUseSkillsInOrder.Size = new System.Drawing.Size(86, 15);
+            checkUseSkillsInOrder.Size = new System.Drawing.Size(120, 20);
             checkUseSkillsInOrder.TabIndex = 10;
             checkUseSkillsInOrder.Text = "Use in order";
             checkUseSkillsInOrder.UseVisualStyleBackColor = false;
@@ -147,12 +147,12 @@
             // 
             checkBoxNoAttack.BackColor = System.Drawing.Color.Transparent;
             checkBoxNoAttack.Depth = 0;
-            checkBoxNoAttack.Location = new System.Drawing.Point(231, 175);
+            checkBoxNoAttack.Location = new System.Drawing.Point(231, 155);
             checkBoxNoAttack.Margin = new System.Windows.Forms.Padding(0);
             checkBoxNoAttack.MouseLocation = new System.Drawing.Point(-1, -1);
             checkBoxNoAttack.Name = "checkBoxNoAttack";
             checkBoxNoAttack.Ripple = true;
-            checkBoxNoAttack.Size = new System.Drawing.Size(76, 15);
+            checkBoxNoAttack.Size = new System.Drawing.Size(120, 20);
             checkBoxNoAttack.TabIndex = 9;
             checkBoxNoAttack.Text = "No Attack";
             checkBoxNoAttack.UseVisualStyleBackColor = false;
@@ -161,13 +161,14 @@
             // listAttackingSkills
             // 
             listAttackingSkills.BackColor = System.Drawing.Color.White;
+            listAttackingSkills.BorderStyle = System.Windows.Forms.BorderStyle.None;
             listAttackingSkills.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { columnName, columnLevel });
             listAttackingSkills.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             listAttackingSkills.FullRowSelect = true;
             listAttackingSkills.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             listAttackingSkills.Location = new System.Drawing.Point(6, 25);
             listAttackingSkills.Name = "listAttackingSkills";
-            listAttackingSkills.Size = new System.Drawing.Size(315, 146);
+            listAttackingSkills.Size = new System.Drawing.Size(315, 128);
             listAttackingSkills.TabIndex = 8;
             listAttackingSkills.UseCompatibleStateImageBehavior = false;
             listAttackingSkills.View = System.Windows.Forms.View.Details;
@@ -188,7 +189,7 @@
             label2.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             label2.Gradient = new System.Drawing.Color[] { System.Drawing.Color.Gray, System.Drawing.Color.Black };
             label2.GradientAnimation = false;
-            label2.Location = new System.Drawing.Point(9, 183);
+            label2.Location = new System.Drawing.Point(9, 158);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(34, 15);
             label2.TabIndex = 7;
@@ -203,7 +204,7 @@
             comboMonsterType.IntegralHeight = false;
             comboMonsterType.ItemHeight = 17;
             comboMonsterType.Items.AddRange(new object[] { "General (Default)", "Champion", "Giant", "General (Party)", "Champion (Party)", "Giant (Party)", "Elite", "Strong", "Unique", "Event" });
-            comboMonsterType.Location = new System.Drawing.Point(54, 180);
+            comboMonsterType.Location = new System.Drawing.Point(54, 155);
             comboMonsterType.Name = "comboMonsterType";
             comboMonsterType.Radius = 5;
             comboMonsterType.ShadowDepth = 4F;
@@ -275,6 +276,7 @@
             // listBuffs
             // 
             listBuffs.BackColor = System.Drawing.Color.White;
+            listBuffs.BorderStyle = System.Windows.Forms.BorderStyle.None;
             listBuffs.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { columnHeader1, columnHeader2 });
             listBuffs.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             listBuffs.FullRowSelect = true;
@@ -371,7 +373,7 @@
             tabControl1.Controls.Add(tabPage1);
             tabControl1.Controls.Add(tabPage2);
             tabControl1.Dock = System.Windows.Forms.DockStyle.Right;
-            tabControl1.ItemSize = new System.Drawing.Size(80, 24);
+            tabControl1.ItemSize = new System.Drawing.Size(120, 24);
             tabControl1.Location = new System.Drawing.Point(362, 0);
             tabControl1.Name = "tabControl1";
             tabControl1.Radius = new System.Windows.Forms.Padding(4);
@@ -412,12 +414,12 @@
             groupAdvancedSetup.Controls.Add(checkUseTeleportSkill);
             groupAdvancedSetup.Controls.Add(checkUseDefaultAttack);
             groupAdvancedSetup.Controls.Add(checkWarlockMode);
-            groupAdvancedSetup.Location = new System.Drawing.Point(8, 313);
+            groupAdvancedSetup.Location = new System.Drawing.Point(8, 311);
             groupAdvancedSetup.Name = "groupAdvancedSetup";
             groupAdvancedSetup.Padding = new System.Windows.Forms.Padding(3, 10, 3, 3);
             groupAdvancedSetup.Radius = 10;
             groupAdvancedSetup.ShadowDepth = 4;
-            groupAdvancedSetup.Size = new System.Drawing.Size(367, 123);
+            groupAdvancedSetup.Size = new System.Drawing.Size(367, 121);
             groupAdvancedSetup.TabIndex = 14;
             groupAdvancedSetup.TabStop = false;
             groupAdvancedSetup.Text = "Advanced setup";
@@ -430,11 +432,11 @@
             comboTeleportSkill.FormattingEnabled = true;
             comboTeleportSkill.IntegralHeight = false;
             comboTeleportSkill.ItemHeight = 16;
-            comboTeleportSkill.Location = new System.Drawing.Point(141, 88);
+            comboTeleportSkill.Location = new System.Drawing.Point(195, 88);
             comboTeleportSkill.Name = "comboTeleportSkill";
             comboTeleportSkill.Radius = 5;
             comboTeleportSkill.ShadowDepth = 4F;
-            comboTeleportSkill.Size = new System.Drawing.Size(208, 22);
+            comboTeleportSkill.Size = new System.Drawing.Size(154, 22);
             comboTeleportSkill.TabIndex = 9;
             comboTeleportSkill.SelectedIndexChanged += comboTeleportSkill_SelectedIndexChanged;
             // 
@@ -529,7 +531,7 @@
             label4.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             label4.Gradient = new System.Drawing.Color[] { System.Drawing.Color.Gray, System.Drawing.Color.Black };
             label4.GradientAnimation = false;
-            label4.Location = new System.Drawing.Point(243, 36);
+            label4.Location = new System.Drawing.Point(233, 36);
             label4.Name = "label4";
             label4.Size = new System.Drawing.Size(28, 15);
             label4.TabIndex = 3;
@@ -607,11 +609,11 @@
             comboResurrectionSkill.FormattingEnabled = true;
             comboResurrectionSkill.IntegralHeight = false;
             comboResurrectionSkill.ItemHeight = 17;
-            comboResurrectionSkill.Location = new System.Drawing.Point(86, 32);
+            comboResurrectionSkill.Location = new System.Drawing.Point(125, 32);
             comboResurrectionSkill.Name = "comboResurrectionSkill";
             comboResurrectionSkill.Radius = 5;
             comboResurrectionSkill.ShadowDepth = 4F;
-            comboResurrectionSkill.Size = new System.Drawing.Size(255, 23);
+            comboResurrectionSkill.Size = new System.Drawing.Size(216, 23);
             comboResurrectionSkill.TabIndex = 8;
             comboResurrectionSkill.SelectedIndexChanged += comboResurrectionSkill_SelectedIndexChanged;
             // 
@@ -622,7 +624,7 @@
             checkAcceptResurrection.Checked = true;
             checkAcceptResurrection.CheckState = System.Windows.Forms.CheckState.Checked;
             checkAcceptResurrection.Depth = 0;
-            checkAcceptResurrection.Location = new System.Drawing.Point(86, 84);
+            checkAcceptResurrection.Location = new System.Drawing.Point(86, 86);
             checkAcceptResurrection.Margin = new System.Windows.Forms.Padding(0);
             checkAcceptResurrection.MouseLocation = new System.Drawing.Point(-1, -1);
             checkAcceptResurrection.Name = "checkAcceptResurrection";
@@ -651,7 +653,7 @@
             checkResurrectParty.AutoSize = true;
             checkResurrectParty.BackColor = System.Drawing.Color.Transparent;
             checkResurrectParty.Depth = 0;
-            checkResurrectParty.Location = new System.Drawing.Point(86, 59);
+            checkResurrectParty.Location = new System.Drawing.Point(15, 57);
             checkResurrectParty.Margin = new System.Windows.Forms.Padding(0);
             checkResurrectParty.MouseLocation = new System.Drawing.Point(-1, -1);
             checkResurrectParty.Name = "checkResurrectParty";
@@ -716,7 +718,7 @@
             tabControl2.Controls.Add(tabPage3);
             tabControl2.Controls.Add(tabPage4);
             tabControl2.Dock = System.Windows.Forms.DockStyle.Fill;
-            tabControl2.ItemSize = new System.Drawing.Size(80, 24);
+            tabControl2.ItemSize = new System.Drawing.Size(120, 24);
             tabControl2.Location = new System.Drawing.Point(0, 0);
             tabControl2.Name = "tabControl2";
             tabControl2.Radius = new System.Windows.Forms.Padding(4);

@@ -1,4 +1,4 @@
-using RSBot.NavMeshApi.Cells;
+﻿using RSBot.NavMeshApi.Cells;
 using RSBot.NavMeshApi.Edges;
 using RSBot.NavMeshApi.Extensions;
 using RSBot.NavMeshApi.Mathematics;
@@ -407,11 +407,8 @@ public class NavMeshTerrain : NavMesh
         int raycastCount = 0;
         while (true)
         {
-            if (raycastCount++ > 100)
-            {
-                hit = null;
-                return NavMeshRaycastResult.Reached;
-            }
+            //if (raycastCount++ > 100)
+                //throw new Exception("raycastCount (terrain) above 100");
 
             var result = NavMeshHitResult.None;
 
@@ -518,12 +515,6 @@ public class NavMeshTerrain : NavMesh
                 // Transition into neighbor terrain cell if possible
                 prevCell = curCell;
                 curCell = terrainHit.Edge.GetRemoteCell(curCell) as NavMeshCellQuad;
-                if (curCell == null)
-                {
-                    hit = null;
-                    return NavMeshRaycastResult.Reached;
-                }
-
                 if (curCell.NavMesh == this) // cell is within this navmesh
                     continue;
 
@@ -536,10 +527,6 @@ public class NavMeshTerrain : NavMesh
                 hit = null;
                 return NavMeshRaycastResult.Transition;
             }
-
-            // If neither object nor terrain hit was found in this cell, path is clear to destination
-            hit = null;
-            return NavMeshRaycastResult.Reached;
         }
     }
 }

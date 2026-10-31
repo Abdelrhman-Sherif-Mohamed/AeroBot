@@ -13,7 +13,7 @@ namespace SDUI.Helpers
         /// <summary>
         ///     Gap kept between a text control and the next control to its right (px).
         /// </summary>
-        public const int Gap = 8;
+        public const int Gap = 10;
 
         /// <summary>
         ///     Comfortable Arabic line-height (1.5x the natural font line height).
@@ -93,6 +93,79 @@ namespace SDUI.Helpers
             catch
             {
                 return ctl.Width;
+            }
+        }
+
+        private static bool _isShifting;
+
+        /// <summary>
+        ///     Dynamically shifts direct sibling controls on the same horizontal row to the right
+        ///     if an expanding control's new width causes an overlap.
+        /// </summary>
+        public static void ShiftRightSiblingsIfNeeded(Control ctl, int newWidth, int spacing = 8)
+        {
+            if (_isShifting || ctl == null || ctl.Parent == null || ctl.Dock != DockStyle.None)
+                return;
+
+            try
+            {
+                _isShifting = true;
+                var parent = ctl.Parent;
+                int newRight = ctl.Left + newWidth;
+                int requiredEdge = newRight + spacing;
+
+                var collidingSiblings = new System.Collections.Generic.List<Control>();
+                foreach (Control other in parent.Controls)
+                {
+                    if (other == ctl || !other.Visible || other.Dock != DockStyle.None)
+                        continue;
+
+                    // Same horizontal row: centers aligned within 14px (handles labels, checkboxes, and updowns)
+                    int ctlCenterY = ctl.Top + ctl.Height / 2;
+                    int otherCenterY = other.Top + other.Height / 2;
+                    if (Math.Abs(ctlCenterY - otherCenterY) <= 14)
+                    {
+                        if (other.Left >= ctl.Left && other.Left < requiredEdge)
+                        {
+                            collidingSiblings.Add(other);
+                        }
+                    }
+                }
+
+                if (collidingSiblings.Count == 0)
+                    return;
+
+                collidingSiblings.Sort((a, b) => a.Left.CompareTo(b.Left));
+
+                int currentLeft = requiredEdge;
+                foreach (var sib in collidingSiblings)
+                {
+                    if (sib.Left < currentLeft)
+                    {
+                        sib.Left = currentLeft;
+                        int minW = sib.MinimumSize.Width > 0 ? sib.MinimumSize.Width : (sib is NumericUpDown ? 80 : 60);
+                        if (sib.Right > parent.ClientSize.Width - 4)
+                        {
+                            int neededParentWidth = sib.Right + 16;
+                            if (neededParentWidth > parent.Width)
+                            {
+                                parent.Width = neededParentWidth;
+                            }
+                            else if (sib.Width > minW)
+                            {
+                                sib.Width = Math.Max(minW, parent.ClientSize.Width - sib.Left - 4);
+                            }
+                        }
+                        currentLeft = sib.Right + spacing;
+                    }
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _isShifting = false;
             }
         }
     }

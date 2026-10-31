@@ -9,7 +9,7 @@ namespace RSBot.General;
 public class Bootstrap : IPlugin
 {
     /// <inheritdoc />
-    public string InternalName => "SonicBot.General";
+    public string InternalName => "RSBot.General";
 
     /// <inheritdoc />
     public string DisplayName => "General";

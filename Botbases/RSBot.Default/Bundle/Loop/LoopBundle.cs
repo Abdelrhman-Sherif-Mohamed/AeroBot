@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Threading;
 using RSBot.Core;
 using RSBot.Core.Components;
@@ -99,6 +99,15 @@ internal class LoopBundle : IBundle
         if (ScriptManager.Running)
             return;
 
+        //Allow the user to skip the town script (visiting all NPCs in town) so the bot
+        //goes straight to the training area instead of wandering around town.
+        if (PlayerConfig.Get("RSBot.Training.checkSkipTownScript", false))
+        {
+            TownscriptRunning = false;
+            CheckForWalkbackScript(true);
+            return;
+        }
+
         var filename = Path.Combine(ScriptManager.InitialDirectory, "Towns",
             Game.Player.Movement.Source.Region + ".rbs");
 
@@ -144,6 +153,11 @@ internal class LoopBundle : IBundle
         }
 
         TownscriptRunning = false;
+
+        if (PlayerConfig.Get<bool>("RSBot.Inventory.Happy", false) || PlayerConfig.Get<bool>("RSBot.Training.checkHappy", false))
+        {
+            HappyManager.Run(false);
+        }
 
         Invoke();
 

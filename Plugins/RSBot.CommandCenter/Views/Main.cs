@@ -7,7 +7,6 @@ using RSBot.Core;
 using RSBot.Core.Components;
 using SDUI;
 using SDUI.Controls;
-using SDUI.Helpers;
 
 namespace RSBot.CommandCenter.Views;
 
@@ -17,7 +16,6 @@ public partial class Main : DoubleBufferedControl
     public Main()
     {
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
         RefreshView();
     }
 
@@ -57,7 +55,7 @@ public partial class Main : DoubleBufferedControl
                 continue;
 
             lblChatCommandDescriptions.Text +=
-                $"!{commandDescription.Key} (or \\{commandDescription.Key})\t{commandDescription.Value}{Environment.NewLine}";
+                $"\\{commandDescription.Key}\t{commandDescription.Value}{Environment.NewLine}";
         }
     }
 

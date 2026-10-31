@@ -1,10 +1,11 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using RSBot.Core;
 using RSBot.Core.Client;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Plugins;
 using RSBot.Core.Security;
+using RSBot.Views.Controls;
 using RSBot.Views.Dialog;
 using SDUI;
 using SDUI.Controls;
@@ -32,10 +33,8 @@ public partial class Main : UIWindow
     private string _playerName;
     private readonly Dictionary<string, UIWindow> _pluginWindows = new(8);
 
-    private System.Windows.Forms.Timer _subscriptionTimer;
-    private ToolStripStatusLabel _lblSubscriptionStatus;
-    private bool _isExpiredHandled;
-    private int _subTickCount;
+
+
 
     #endregion Members
 
@@ -53,12 +52,15 @@ public partial class Main : UIWindow
 
         Text = "Aerobot - Ultimate Edition";
 
-        // Lock form dimensions and prevent user resizing
-        Resizable = false;
-        MaximizeBox = false;
-        Size = new Size(1300, 820);
-        MinimumSize = new Size(1300, 820);
-        MaximumSize = new Size(1300, 820);
+        // Compact form dimensions (matches 1038 x 593 reference), user can resize freely
+        Resizable = true;
+        MaximizeBox = true;
+        StartPosition = FormStartPosition.CenterScreen;
+        Size = new Size(1038, 755);
+        MinimumSize = new Size(960, 680);
+        MaximumSize = Size.Empty;
+        VerticalTabs = true;
+        WindowPageControl = windowPageControl;
 
         try
         {
@@ -133,8 +135,20 @@ public partial class Main : UIWindow
         stripStatus.ForeColor = ColorScheme.ForeColor;
         lblIngameStatus.ForeColor = ColorScheme.ForeColor;
 
+        if (lstLog != null && !lstLog.IsDisposed)
+        {
+            lstLog.BackColor = BackColor.IsDark() ? Color.FromArgb(15, 23, 42) : Color.FromArgb(255, 255, 255);
+            lstLog.ForeColor = ColorScheme.ForeColor;
+        }
+
         ChangeControlsTheme(this);
+
+
+
         Invalidate(true);
+
+        // Notify plugins and WPF controls of theme change
+        EventManager.FireEvent("OnChangeTheme", BackColor.IsDark());
 
         if (save)
             GlobalConfig.Save();
@@ -153,6 +167,7 @@ public partial class Main : UIWindow
         EventManager.SubscribeEvent("OnLoadCharacter", OnLoadCharacter);
         EventManager.SubscribeEvent("OnStartBot", OnStartBot);
         EventManager.SubscribeEvent("OnStopBot", OnStopBot);
+        EventManager.SubscribeEvent("OnAddLog", OnAddLog);
         EventManager.SubscribeEvent("OnAgentServerDisconnected", OnAgentServerDisconnected);
         EventManager.SubscribeEvent("OnShowScriptRecorder", new Action<int, bool>(OnShowScriptRecorder));
         EventManager.SubscribeEvent("OnAddSidebarElement", new Action<Control>(OnAddSidebarElement));
@@ -194,12 +209,6 @@ public partial class Main : UIWindow
         if (Kernel.Bot.Running)
             return;
 
-        if (!RSBot.Core.Security.PermissionManager.CanUseBotbase(name, out var permReason))
-        {
-            MessageBox.Show(this, permReason, "صلاحيات النسخة المجانية", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-
         var oldBotbaseName = Kernel.Bot?.Botbase?.Name;
         var newBotbase = Kernel.BotbaseManager.Bots.FirstOrDefault(bot => bot.Value.Name == name);
         if (newBotbase.Value == null)
@@ -214,10 +223,11 @@ public partial class Main : UIWindow
         var control = newBotbase.Value.View;
         control.Name = newBotbase.Value.Name;
         control.Text = LanguageManager.GetLangBySpecificKey(newBotbase.Value.Name, "TabText", newBotbase.Value.TabText);
-        control.Enabled = Game.Ready;
+        control.Enabled = true;
         windowPageControl.Controls.Add(control);
         windowPageControl.Controls.SetChildIndex(control, 1);
         ChangeControlsTheme(control);
+
 
         Kernel.Bot?.SetBotbase(newBotbase.Value);
         GlobalConfig.Set("RSBot.BotName", newBotbase.Value.Name);
@@ -252,7 +262,7 @@ public partial class Main : UIWindow
             control.Name = extension.Value.InternalName;
             control.Text = LanguageManager.GetLangBySpecificKey(extension.Value.InternalName, "DisplayName",
                 extension.Value.DisplayName);
-            control.Enabled = !extension.Value.RequireIngame;
+            control.Enabled = true;
             control.Dock = DockStyle.Fill;
 
             windowPageControl.Controls.Add(control);
@@ -265,7 +275,7 @@ public partial class Main : UIWindow
                 extension.Value.DisplayName);
             var menuItem = new ToolStripMenuItem(menuItemText)
             {
-                Enabled = !extension.Value.RequireIngame
+                Enabled = true
             };
             menuItem.Click += PluginMenuItem_Click;
             menuItem.Tag = extension.Value;
@@ -274,18 +284,14 @@ public partial class Main : UIWindow
         }
     }
 
-    /// <summary>
-    ///     Configures the sidebar.
+        /// <summary>
+    ///     Shows or hides the character sidebar.
     /// </summary>
     private void ConfigureSidebar()
     {
         pSidebar.Visible = menuSidebar.Checked;
     }
 
-    /// <summary>
-    ///     Populates the server combobox.
-    /// </summary>
-    /// <param name="info">The information.</param>
     private void PopulateServerCombobox(DivisionInfo info)
     {
         comboServer.Items.Clear();
@@ -370,7 +376,6 @@ public partial class Main : UIWindow
     {
         menuSidebar.Checked = !menuSidebar.Checked;
         GlobalConfig.Set("RSBot.ShowSidebar", menuSidebar.Checked.ToString());
-
         ConfigureSidebar();
     }
 
@@ -404,7 +409,7 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void Main_Load(object sender, EventArgs e)
     {
-        menuSidebar.Checked = GlobalConfig.Get("RSBot.ShowSidebar", true);
+        menuSidebar.Checked = GlobalConfig.Get("RSBot.ShowSidebar", false);
 
         foreach (var item in LanguageManager.GetLanguages())
         {
@@ -413,7 +418,7 @@ public partial class Main : UIWindow
             dropdown.Tag = item.Key;
             languageToolStripMenuItem.DropDownItems.Add(dropdown);
 
-            if (Kernel.Language == dropdown.Text)
+            if (Kernel.Language == dropdown.Tag?.ToString())
                 dropdown.Checked = true;
         }
 
@@ -421,244 +426,22 @@ public partial class Main : UIWindow
         BackColor = ColorScheme.BackColor;
         menuCurrentProfile.Text = "Profile: " + ProfileManager.SelectedProfile;
 
-        // Ensure fixed size and center on screen
-        Size = new Size(1300, 820);
-        MinimumSize = new Size(1300, 820);
-        MaximumSize = new Size(1300, 820);
-        CenterToScreen();
+        VerticalTabs = true;
+        WindowPageControl = windowPageControl;
+
+        Size = new Size(1038, 755);
+        MinimumSize = new Size(960, 680);
+        MaximumSize = Size.Empty;
+        VerticalTabs = true;
+        WindowPageControl = windowPageControl;
+        Resizable = true;
+        MaximizeBox = true;
+        StartPosition = FormStartPosition.CenterScreen;
 
         EventManager.FireEvent("OnInitialized");
-        InitializeSubscriptionUI();
-    }
-
-    private void InitializeSubscriptionUI()
-    {
-        try
-        {
-            _lblSubscriptionStatus = new ToolStripStatusLabel
-            {
-                Alignment = ToolStripItemAlignment.Right,
-                ForeColor = Color.LightGreen,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                IsLink = true,
-                LinkBehavior = LinkBehavior.NeverUnderline,
-                ToolTipText = "انقر لعرض تفاصيل الاشتراك"
-            };
-
-            _lblSubscriptionStatus.Click += (s, e) =>
-            {
-                var curUser = AuthService.Instance.CurrentUser;
-                if (curUser != null && curUser.IsFreeTier)
-                {
-                    var summary = RSBot.Core.Security.PermissionManager.GetPermissionsSummaryArabic();
-                    MessageBox.Show(this, summary, "معلومات وصلاحيات النسخة المجانية", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                bool isUserAdmin = AuthService.Instance.IsAdmin ||
-                                   string.Equals(AuthService.Instance.CurrentUser?.Username, "abdosonek", StringComparison.OrdinalIgnoreCase);
-
-                if (isUserAdmin)
-                {
-                    using var adminDlg = new AdminForm();
-                    adminDlg.ShowDialog(this);
-                }
-                else
-                {
-                    var rem = AuthService.Instance.CurrentUser?.GetFormattedRemainingTime() ?? "غير محدد";
-                    var exp = AuthService.Instance.CurrentUser?.ExpiresAt ?? "غير محدد";
-                    MessageBox.Show(this, $"تفاصيل اشتراك البوت:\n\nاسم الحساب: {AuthService.Instance.CurrentUser?.Username}\nالوقت المتبقي: {rem}\nتاريخ الانتهاء: {exp}", "معلومات الاشتراك", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            };
-
-            stripStatus.Items.Insert(1, _lblSubscriptionStatus);
-            UpdateSubscriptionStatusText();
-
-            // Admin Management in Menu Strip
-            var menuAdminManageAccounts = new ToolStripMenuItem("🛡️ لوحة إدارة الأدمن والاشتراكات (Admin)")
-            {
-                ForeColor = Color.FromArgb(245, 215, 100),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            menuAdminManageAccounts.Click += (s, e) =>
-            {
-                bool isUserAdmin = AuthService.Instance.IsAdmin ||
-                                   string.Equals(AuthService.Instance.CurrentUser?.Username, "abdosonek", StringComparison.OrdinalIgnoreCase);
-
-                if (isUserAdmin)
-                {
-                    using var adminDlg = new AdminForm();
-                    adminDlg.ShowDialog(this);
-                }
-                else
-                {
-                    var pass = InputPrompt.Show("أدخل كلمة مرور الأدمن للوصول إلى لوحة التحكم:", "لوحة تحكم الأدمن", "");
-                    if (pass == "01150238481" || pass == "admin")
-                    {
-                        using var adminDlg = new AdminForm();
-                        adminDlg.ShowDialog(this);
-                    }
-                    else if (!string.IsNullOrWhiteSpace(pass))
-                    {
-                        MessageBox.Show(this, "كلمة المرور غير صحيحة.", "تم رفض الوصول", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }
-                }
-            };
-            bool currentUserIsAdmin = AuthService.Instance.IsAdmin || string.Equals(AuthService.Instance.CurrentUser?.Username, "abdosonek", StringComparison.OrdinalIgnoreCase);
-            menuAdminManageAccounts.Visible = currentUserIsAdmin;
-            menuStrip.Items.Add(menuAdminManageAccounts);
-
-            // Register global event
-            AuthService.OnSubscriptionExpiredEvent += () =>
-            {
-                if (InvokeRequired)
-                    Invoke(new Action(OnSubscriptionExpired));
-                else
-                    OnSubscriptionExpired();
-            };
-
-            // Start subscription monitor timer (checks every 15 seconds)
-            _subscriptionTimer = new System.Windows.Forms.Timer
-            {
-                Interval = 15000
-            };
-            _subscriptionTimer.Tick += async (s, e) =>
-            {
-                UpdateSubscriptionStatusText();
-
-                // 1. Local check
-                if (AuthService.Instance.CurrentUser != null && AuthService.Instance.CurrentUser.IsFreeTier)
-                {
-                    if (RSBot.Core.Security.PermissionManager.IsSessionExpired(out var elapsed, out var sessionLimit))
-                    {
-                        if (Kernel.Bot != null && Kernel.Bot.Running)
-                        {
-                            Kernel.Bot.Stop();
-                            MessageBox.Show(this, $"انتهت مدة الجلسة المسموح بها في النسخة المجانية ({sessionLimit.TotalMinutes} دقيقة)!", "تنبيه النسخة المجانية", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                    }
-                    return;
-                }
-
-                if (AuthService.Instance.CurrentUser != null && AuthService.Instance.CurrentUser.IsExpired)
-                {
-                    OnSubscriptionExpired();
-                    return;
-                }
-
-                // 2. Periodic Firebase check (every ~2 minutes / 8 ticks)
-                _subTickCount++;
-                if (_subTickCount >= 8)
-                {
-                    _subTickCount = 0;
-                    var valid = await AuthService.Instance.CheckCurrentSubscriptionAsync();
-                    if (!valid)
-                    {
-                        OnSubscriptionExpired();
-                    }
-                }
-            };
-            _subscriptionTimer.Start();
-        }
-        catch { }
-    }
-
-    private void UpdateSubscriptionStatusText()
-    {
-        try
-        {
-            if (_lblSubscriptionStatus == null || _lblSubscriptionStatus.IsDisposed)
-                return;
-
-            var user = AuthService.Instance.CurrentUser;
-            if (user == null)
-            {
-                _lblSubscriptionStatus.Text = "⏳ غير مسجل";
-                _lblSubscriptionStatus.ForeColor = Color.LightCoral;
-                return;
-            }
-
-            if (user.IsFreeTier)
-            {
-                _lblSubscriptionStatus.Text = "🆓 النسخة المجانية (Free Tier)";
-                _lblSubscriptionStatus.ForeColor = Color.Cyan;
-                return;
-            }
-
-            if (user.IsLifetime)
-            {
-                _lblSubscriptionStatus.Text = "♾️ اشتراك دائم (Lifetime)";
-                _lblSubscriptionStatus.ForeColor = Color.Aquamarine;
-                return;
-            }
-
-            if (user.IsAdmin)
-            {
-                _lblSubscriptionStatus.Text = "⭐ حساب مسؤول (Admin)";
-                _lblSubscriptionStatus.ForeColor = Color.Gold;
-                return;
-            }
-
-            var rem = user.GetFormattedRemainingTime();
-            _lblSubscriptionStatus.Text = $"⏳ الاشتراك: {rem}";
-
-            if (user.IsExpired)
-            {
-                _lblSubscriptionStatus.ForeColor = Color.LightCoral;
-            }
-            else if (user.RemainingTime.HasValue && user.RemainingTime.Value.TotalHours < 24)
-            {
-                _lblSubscriptionStatus.ForeColor = Color.Orange;
-            }
-            else
-            {
-                _lblSubscriptionStatus.ForeColor = Color.LightGreen;
-            }
-        }
-        catch { }
-    }
-
-    private void OnSubscriptionExpired()
-    {
-        if (_isExpiredHandled)
-            return;
-
-        _isExpiredHandled = true;
-
-        try
-        {
-            _subscriptionTimer?.Stop();
-            _subscriptionTimer?.Dispose();
-        }
-        catch { }
-
-        // Immediately stop bot
-        try
-        {
-            if (Kernel.Bot != null && Kernel.Bot.Running)
-            {
-                Kernel.Bot.Stop();
-            }
-        }
-        catch { }
-
-        // Show subscription expired dialog with WhatsApp info
-        try
-        {
-            using var dlg = new SubscriptionExpiredDialog(shouldExitOnClose: true);
-            dlg.ShowDialog(this);
-        }
-        catch { }
-
-        Environment.Exit(0);
     }
 
     /// <summary>
-    ///     Handles the Click event of the MenuItem control.
-    /// </summary>
-    /// <param name="sender">The source of the event.</param>
-    /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
-    /// <exception cref="System.NotImplementedException"></exception>
     private void LanguageDropdown_Click(object sender, EventArgs e)
     {
         var dropdown = sender as ToolStripMenuItem;
@@ -693,6 +476,11 @@ public partial class Main : UIWindow
         }
 
         LanguageManager.Translate(this, Kernel.Language);
+        
+        btnStartBot.Text = Kernel.Language == "ar_AR" ? "شغل البوت" : "Start Bot";
+        btnStopBot.Text = Kernel.Language == "ar_AR" ? "وقف البوت" : "Stop Bot";
+        btnShowClient.Text = Kernel.Language == "ar_AR" ? "إظهار الكلاينت" : "Show Client";
+        btnClearLog.Text = Kernel.Language == "ar_AR" ? "مسح السجلات" : "Clear Logs";
 
         dropdown.Checked = true;
 
@@ -817,23 +605,27 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void Main_Resize(object sender, EventArgs e)
     {
-        if (WindowState != FormWindowState.Minimized)
+        if (WindowState == FormWindowState.Minimized)
+        {
+            if (!GlobalConfig.Get<bool>("RSBot.General.TrayWhenMinimize"))
+                return;
+
+            notifyIcon.Visible = true;
+            notifyIcon.ShowBalloonTip(1000);
+
+            Hide();
             return;
+        }
 
-        if (!GlobalConfig.Get<bool>("RSBot.General.TrayWhenMinimize"))
-            return;
+        
 
-        notifyIcon.Visible = true;
-        notifyIcon.ShowBalloonTip(1000);
-
-        Hide();
     }
 
-    /// <summary>
-    ///     Handles the Click event of the menuItemThis control.
-    /// </summary>
-    /// <param name="sender">The source of the event.</param>
-    /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
+    protected override void OnShown(EventArgs e)
+    {
+        base.OnShown(e);
+    }
+
     private void menuItemThis_Click(object sender, EventArgs e)
     {
         new AboutDialog().ShowDialog();
@@ -1062,7 +854,7 @@ public partial class Main : UIWindow
     /// <param name="sender">The source of the event.</param>
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     /// <exception cref="System.NotImplementedException"></exception>
-    private void Item_Click(object? sender, EventArgs e)
+    private void Item_Click(object sender, EventArgs e)
     {
         var item = sender as ToolStripMenuItem;
         SelectBotbase(item.Name);
@@ -1080,6 +872,7 @@ public partial class Main : UIWindow
 
             control.Enabled = false;
             control.Controls["overlay"].Show();
+
         }
 
         var disconnectedText = LanguageManager.GetLang("Disconnected");
@@ -1159,4 +952,101 @@ public partial class Main : UIWindow
     }
 
     #endregion Core events
+    #region Bottom Panel Controls and Logging
+
+    private void btnStartBot_Click(object sender, EventArgs e)
+    {
+        StartBot();
+    }
+
+    private void btnStopBot_Click(object sender, EventArgs e)
+    {
+        StopBot();
+    }
+
+    private void btnShowClient_Click(object sender, EventArgs e)
+    {
+        ClientManager.Show();
+    }
+
+    private void btnClearLog_Click(object sender, EventArgs e)
+    {
+        lstLog?.Items.Clear();
+    }
+
+    private void StartBot()
+    {
+        if (Kernel.Proxy == null || !Kernel.Proxy.IsConnectedToAgentserver)
+            return;
+
+        if (Kernel.Bot == null)
+        {
+            Log.NotifyLang("NotifyPleaseSelectProperBotBase");
+            return;
+        }
+
+        if (Game.Player == null)
+        {
+            Log.WarnLang("NotifyPlayerWasNull");
+            return;
+        }
+
+        if (!Kernel.Bot.Running)
+        {
+            Kernel.Bot.Start();
+            Log.StatusLang("Running");
+        }
+    }
+
+    private void StopBot()
+    {
+        if (Kernel.Bot != null && Kernel.Bot.Running)
+        {
+            Log.NotifyLang("StopingBot", Kernel.Bot.Botbase.DisplayName);
+            Kernel.Bot.Stop();
+            Log.StatusLang("Ready");
+        }
+    }
+
+    private void OnAddLog(object[] args)
+    {
+        if (args == null || args.Length == 0 || IsDisposed || !IsHandleCreated)
+            return;
+
+        var message = args[0]?.ToString() ?? string.Empty;
+        var level = args.Length > 1 && args[1] is LogLevel l ? l : LogLevel.Notify;
+
+        try
+        {
+            BeginInvoke((MethodInvoker)delegate
+            {
+                if (lstLog == null || lstLog.IsDisposed)
+                    return;
+
+                var timeStr = DateTime.Now.ToString("[HH:mm:ss]");
+                var levelStr = $"<{level}>";
+                var item = new ListViewItem(timeStr);
+                item.SubItems.Add(levelStr);
+                item.SubItems.Add(message);
+
+                if (level == LogLevel.Error)
+                    item.ForeColor = Color.FromArgb(239, 68, 68);
+                else if (level == LogLevel.Warning)
+                    item.ForeColor = Color.FromArgb(245, 158, 11);
+                else if (level == LogLevel.Notify)
+                    item.ForeColor = BackColor.IsDark() ? Color.FromArgb(52, 211, 153) : Color.FromArgb(16, 149, 90);
+
+                lstLog.Items.Add(item);
+
+                if (lstLog.Items.Count > 1000)
+                    lstLog.Items.RemoveAt(0);
+
+                lstLog.EnsureVisible(lstLog.Items.Count - 1);
+            });
+        }
+        catch { }
+    }
+
+    #endregion
+
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -10,15 +10,17 @@ using RSBot.Alchemy.Client.ReferenceObjects;
 using RSBot.Alchemy.Helper;
 using RSBot.Core;
 using RSBot.Core.Client.ReferenceObjects;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
 using RSBot.Core.Objects.Item;
+using SDUI;
 using SDUI.Controls;
 
 namespace RSBot.Alchemy.Views.Settings;
 
 [ToolboxItem(false)]
-public partial class MagicOptionsSettingsView : DoubleBufferedControl
+public partial class MagicOptionsSettingsView : UserControl
 {
     #region Members
 
@@ -36,6 +38,7 @@ public partial class MagicOptionsSettingsView : DoubleBufferedControl
         CheckForIllegalCrossThreadCalls = false;
 
         InitializeComponent();
+        DoubleBuffered = true;
 
         EventManager.SubscribeEvent("OnEnterGame", SubscribeMainFormEvents);
     }
@@ -48,6 +51,8 @@ public partial class MagicOptionsSettingsView : DoubleBufferedControl
         public RefMagicOpt? MagicOption { get; set; }
 
         public MagicOptionInfo? MagicOptionInfo { get; set; }
+
+        public bool CanBeIncreased { get; set; }
     }
 
     #region Events
@@ -87,8 +92,7 @@ public partial class MagicOptionsSettingsView : DoubleBufferedControl
     {
         var tag = e.Item.Tag as MagicStoneListViewItemTag;
 
-        if ((tag.MagicOptionInfo != null &&
-             tag?.MagicOptionInfo?.Value >= tag?.MagicOptionInfo?.Record?.GetMaxValue()) || tag.Item == null)
+        if (tag == null || !tag.CanBeIncreased || tag.Item == null)
         {
             e.Item.Checked = false;
 
@@ -108,7 +112,12 @@ public partial class MagicOptionsSettingsView : DoubleBufferedControl
     public void PopulateListView()
     {
         if (Globals.View.SelectedItem == null)
+        {
+            if (lvMagicOptions != null)
+                lvMagicOptions.Items.Clear();
+
             return;
+        }
 
         try
         {
@@ -178,7 +187,8 @@ public partial class MagicOptionsSettingsView : DoubleBufferedControl
                     {
                         Item = matchingMagicStones.FirstOrDefault(),
                         MagicOption = assignment,
-                        MagicOptionInfo = currentMagicOptionInfo
+                        MagicOptionInfo = currentMagicOptionInfo,
+                        CanBeIncreased = canBeIncreased
                     },
                     ForeColor = canBeIncreased ? Color.Green : Color.Red
                 };
@@ -237,6 +247,97 @@ public partial class MagicOptionsSettingsView : DoubleBufferedControl
         {
             Log.Warn($"[Alchemy] Unhandled exception while reloading magic options configuration: {e.Message}");
         }
+    }
+
+    /// <summary>
+    ///     Checks every blues row that can still be increased.
+    /// </summary>
+    public void SelectAll()
+    {
+        if (lvMagicOptions == null || lvMagicOptions.Items.Count == 0)
+            return;
+
+        _reloadConfig = false;
+
+        try
+        {
+            lvMagicOptions.BeginUpdate();
+
+            foreach (ListViewItem item in lvMagicOptions.Items)
+            {
+                if (item.Tag is MagicStoneListViewItemTag tag && tag.CanBeIncreased && tag.Item != null)
+                    item.Checked = true;
+            }
+
+            lvMagicOptions.EndUpdate();
+        }
+        finally
+        {
+            _reloadConfig = true;
+        }
+
+        ReloadConfig();
+    }
+
+    public void ApplyLocalization()
+    {
+        if (lvMagicOptions == null)
+            return;
+
+        columnHeader1.Text = T("Alchemy.Settings.BlueOption", "Option", "الخاصية");
+        columnHeader2.Text = T("Alchemy.Settings.BlueCurrent", "Current", "الحالي");
+        columnHeader3.Text = T("Alchemy.Settings.BlueMax", "Max", "الأقصى");
+        columnHeader4.Text = T("Alchemy.Settings.BlueStones", "Num. Stones", "عدد الأحجار");
+    }
+
+    public void ApplyTheme()
+    {
+        if (lvMagicOptions == null)
+            return;
+
+        lvMagicOptions.BackColor = ColorScheme.TableBackColor;
+        lvMagicOptions.ForeColor = ColorScheme.ForeColor;
+
+        ApplyColumnWidths();
+    }
+
+    private void ApplyColumnWidths()
+    {
+        if (lvMagicOptions == null)
+            return;
+
+        var width = lvMagicOptions.ClientSize.Width;
+        if (width <= 200)
+            return;
+
+        columnHeader1.Width = (int)(width * 0.42);
+        columnHeader2.Width = (int)(width * 0.17);
+        columnHeader3.Width = (int)(width * 0.17);
+        columnHeader4.Width = Math.Max(60, width - columnHeader1.Width - columnHeader2.Width -
+                                           columnHeader3.Width - 24);
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        ApplyColumnWidths();
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+
+        if (Visible)
+            ApplyColumnWidths();
+    }
+
+    private static string T(string key, string english, string arabic)
+    {
+        var value = LanguageManager.GetLangBySpecificKey("RSBot.Alchemy", key, string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+            return value;
+
+        return Kernel.Language == "ar_AR" ? arabic : english;
     }
 
     #endregion Methods

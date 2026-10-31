@@ -1,4 +1,4 @@
-﻿using SDUI.Helpers;
+using SDUI.Helpers;
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -14,6 +14,10 @@ public class UIWindowBase : Form
     private bool right = false;
     private Point location;
 
+    /// <summary>
+    /// Gets or sets whether the form borders can be resized by the user.
+    /// </summary>
+    public bool Resizable { get; set; } = true;
 
     public int DwmMargin
     {
@@ -146,7 +150,7 @@ public class UIWindowBase : Form
         {
             case WM_NCHITTEST:
                 {
-                    if (WindowState != FormWindowState.Maximized)
+                    if (WindowState != FormWindowState.Maximized && Resizable)
                     {
                         int gripDist = 10;
                         
@@ -275,38 +279,196 @@ public class UIWindowBase : Form
 
     public void ChangeControlsTheme(Control control)
     {
-        control.Enabled = false;
+        if (control == null)
+            return;
 
         var isDark = ColorScheme.BackColor.IsDark();
-        if (control is ListView)
-        {
-            if (WindowsHelper.IsModern)
-            {
-                SendMessage(control.Handle, 0x0127, (1 << 16) | (1 & 0xffff), 0);
+        var fore = ColorScheme.ForeColor;
+        var back = ColorScheme.BackColor;
+        var card = ColorScheme.CardColor;
+        var card2 = ColorScheme.CardColor2;
+        var border = ColorScheme.BorderColor;
+        var inputBg = ColorScheme.InputBackColor;
 
-                AllowDarkModeForWindow(control.Handle, true);
-            }
-        }
-
-        if (control is RichTextBox || control is ListBox)
+        if (control is ListView lv)
         {
             try
             {
-                control.BackColor = ColorScheme.BackColor;
-                control.ForeColor = ColorScheme.ForeColor;
+                lv.BackColor = ColorScheme.TableBackColor;
+                lv.ForeColor = fore;
+                if (WindowsHelper.IsModern)
+                {
+                    SendMessage(control.Handle, 0x0127, (1 << 16) | (1 & 0xffff), 0);
+                    AllowDarkModeForWindow(control.Handle, isDark);
+                    SetWindowTheme(control.Handle, isDark ? "DarkMode_Explorer" : "Explorer", null);
+                }
+
+                lv.ApplyNativeTheme();
             }
-            catch (Exception)
+            catch { }
+        }
+        else if (control is RichTextBox || control is ListBox || control is TreeView)
+        {
+            try
             {
+                control.BackColor = ColorScheme.TableBackColor;
+                control.ForeColor = fore;
+                if (control is ListBox lb)
+                    lb.BorderStyle = BorderStyle.FixedSingle;
+
             }
+            catch { }
+        }
+        else if (control is System.Windows.Forms.ListView sysLv)
+        {
+            try
+            {
+                sysLv.BackColor = ColorScheme.TableBackColor;
+                sysLv.ForeColor = fore;
+
+            }
+            catch { }
+        }
+        else if (control is SDUI.Controls.Button sduiBtn)
+        {
+            sduiBtn.ForeColor = fore;
+            sduiBtn.BackColor = Color.Transparent;
+            sduiBtn.Color = Color.Transparent;
+            sduiBtn.Invalidate();
+        }
+        else if (control is System.Windows.Forms.Button sysBtn)
+        {
+            try
+            {
+                sysBtn.UseVisualStyleBackColor = false;
+                sysBtn.FlatStyle = FlatStyle.Flat;
+                sysBtn.BackColor = isDark ? card2 : Color.FromArgb(243, 244, 246);
+                sysBtn.ForeColor = fore;
+                sysBtn.FlatAppearance.BorderColor = border;
+                sysBtn.FlatAppearance.BorderSize = 1;
+                sysBtn.FlatAppearance.MouseOverBackColor = isDark ? card : Color.FromArgb(229, 231, 235);
+                sysBtn.FlatAppearance.MouseDownBackColor = isDark ? border : Color.FromArgb(209, 213, 219);
+                sysBtn.Invalidate();
+            }
+            catch { }
+        }
+        else if (control is SDUI.Controls.CheckBox sduiChk)
+        {
+            sduiChk.ForeColor = fore;
+            sduiChk.BackColor = Color.Transparent;
+            sduiChk.UseVisualStyleBackColor = false;
+            sduiChk.Invalidate();
+        }
+        else if (control is System.Windows.Forms.CheckBox sysChk)
+        {
+            try
+            {
+                sysChk.ForeColor = fore;
+                sysChk.BackColor = Color.Transparent;
+                sysChk.FlatStyle = FlatStyle.Flat;
+                sysChk.FlatAppearance.BorderColor = border;
+                sysChk.UseVisualStyleBackColor = false;
+                sysChk.Invalidate();
+            }
+            catch { }
+        }
+        else if (control is SDUI.Controls.Radio sduiRadio)
+        {
+            sduiRadio.ForeColor = fore;
+            sduiRadio.BackColor = Color.Transparent;
+            sduiRadio.UseVisualStyleBackColor = false;
+            sduiRadio.Invalidate();
+        }
+        else if (control is System.Windows.Forms.RadioButton sysRb)
+        {
+            try
+            {
+                sysRb.ForeColor = fore;
+                sysRb.BackColor = Color.Transparent;
+                sysRb.FlatStyle = FlatStyle.Flat;
+                sysRb.FlatAppearance.BorderColor = border;
+                sysRb.Invalidate();
+            }
+            catch { }
+        }
+        else if (control is SDUI.Controls.GroupBox sduiGb)
+        {
+            sduiGb.ForeColor = fore;
+            sduiGb.BackColor = Color.Transparent;
+            sduiGb.Invalidate();
+        }
+        else if (control is System.Windows.Forms.GroupBox sysGb)
+        {
+            sysGb.ForeColor = fore;
+            sysGb.BackColor = Color.Transparent;
+            sysGb.Invalidate();
+        }
+        else if (control is SDUI.Controls.Panel sduiPnl)
+        {
+            sduiPnl.BackColor = Color.Transparent;
+            sduiPnl.ForeColor = fore;
+            sduiPnl.Invalidate();
+        }
+        else if (control is System.Windows.Forms.Panel sysPnl)
+        {
+            sysPnl.BackColor = Color.Transparent;
+            sysPnl.ForeColor = fore;
+            sysPnl.Invalidate();
+        }
+        else if (control is SDUI.Controls.Label sduiLbl)
+        {
+            sduiLbl.ForeColor = fore;
+            sduiLbl.BackColor = Color.Transparent;
+            sduiLbl.Invalidate();
+        }
+        else if (control is System.Windows.Forms.Label sysLbl)
+        {
+            sysLbl.ForeColor = fore;
+            sysLbl.BackColor = Color.Transparent;
+            sysLbl.Invalidate();
+        }
+        else if (control is SDUI.Controls.TextBox sduiTxt)
+        {
+            sduiTxt.BackColor = inputBg;
+            sduiTxt.ForeColor = fore;
+            sduiTxt.Invalidate();
+        }
+        else if (control is System.Windows.Forms.TextBox sysTxt)
+        {
+            sysTxt.BackColor = inputBg;
+            sysTxt.ForeColor = fore;
+            sysTxt.BorderStyle = BorderStyle.FixedSingle;
+            sysTxt.Invalidate();
+        }
+        else if (control is SDUI.Controls.ComboBox sduiCmb)
+        {
+            sduiCmb.BackColor = inputBg;
+            sduiCmb.ForeColor = fore;
+            sduiCmb.Invalidate();
+        }
+        else if (control is System.Windows.Forms.ComboBox sysCmb)
+        {
+            sysCmb.BackColor = inputBg;
+            sysCmb.ForeColor = fore;
+            sysCmb.Invalidate();
         }
 
-        WindowsHelper.UseImmersiveDarkMode(control.Handle, isDark);
+        // Only apply immersive dark mode to top-level Form window handle, NOT child controls
+        if (control is Form form)
+        {
+            try
+            {
+                WindowsHelper.UseImmersiveDarkMode(form.Handle, isDark);
+            }
+            catch { }
+        }
+
+        control.Invalidate(true);
 
         foreach (Control subControl in control.Controls)
         {
             ChangeControlsTheme(subControl);
         }
-        control.Enabled = true;
     }
 
     protected override void OnHandleCreated(EventArgs e)

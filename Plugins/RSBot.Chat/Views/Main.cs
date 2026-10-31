@@ -5,7 +5,6 @@ using RSBot.Core;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
 using SDUI.Controls;
-using SDUI.Helpers;
 
 namespace RSBot.Chat.Views;
 
@@ -16,7 +15,6 @@ public partial class Main : DoubleBufferedControl
     {
         CheckForIllegalCrossThreadCalls = false;
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
 
         SubscribeEvents();
     }

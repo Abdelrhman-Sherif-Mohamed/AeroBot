@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -112,7 +112,7 @@ public static class ShoppingManager
     /// </summary>
     public static void Run(string npcCodeName)
     {
-        if (!Enabled || !RSBot.Core.Security.PermissionManager.CanUseTownLoop)
+        if (!Enabled)
         {
             Finished = true;
             return;
@@ -433,14 +433,16 @@ public static class ShoppingManager
     /// <param name="npcCodeName">Name of the NPC code.</param>
     public static void SelectNPC(string npcCodeName)
     {
-        if (SelectedEntity != null && SelectedEntity.Record.CodeName == npcCodeName)
+        if (SelectedEntity != null && string.Equals(SelectedEntity.Record?.CodeName, npcCodeName, StringComparison.OrdinalIgnoreCase))
             return;
 
-        if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record.CodeName == npcCodeName, out var entity))
+        if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, npcCodeName, StringComparison.OrdinalIgnoreCase), out var entity))
         {
-            Log.Warn("Cannot access the NPC [" + npcCodeName + "] because it does not exist nearby.");
-
-            return;
+            if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && (p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) || p.Record.CodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase)), out entity))
+            {
+                Log.Warn("Cannot access the NPC [" + npcCodeName + "] because it does not exist nearby.");
+                return;
+            }
         }
 
         entity.TrySelect();
@@ -512,14 +514,16 @@ public static class ShoppingManager
     /// <param name="option"></param>
     public static void ChooseTalkOption(string npcCodeName, TalkOption option)
     {
-        if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record.CodeName == npcCodeName, out var entity))
+        if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, npcCodeName, StringComparison.OrdinalIgnoreCase), out var entity))
         {
-            Log.Debug("Cannot access the NPC [" + npcCodeName + "] because it does not exist nearby.");
-
-            return;
+            if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && (p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) || p.Record.CodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase)), out entity))
+            {
+                Log.Debug("Cannot access the NPC [" + npcCodeName + "] because it does not exist nearby.");
+                return;
+            }
         }
 
-        SelectNPC(npcCodeName);
+        SelectNPC(entity.Record.CodeName);
         //CloseShop();
 
         var packet = new Packet(0x7046);

@@ -1,18 +1,22 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using RSBot.Core.Extensions;
 using RSBot.Core.Objects;
+using SDUI;
 using SDUI.Controls;
 
 namespace RSBot.Alchemy.Views.Settings;
 
 [ToolboxItem(false)]
-public partial class AttributeInfoPanel : DoubleBufferedControl
+public partial class AttributeInfoPanel : UserControl
 {
     public delegate void OnChangedEventHandler(bool @checked, int maxValue);
+
+    private readonly bool _hasStones;
 
     /// <summary>
     ///     Gets the current attribute.
@@ -40,6 +44,7 @@ public partial class AttributeInfoPanel : DoubleBufferedControl
         CheckForIllegalCrossThreadCalls = false;
 
         InitializeComponent();
+        DoubleBuffered = true;
 
         AttributeGroup = group;
         Stones = stones;
@@ -49,6 +54,7 @@ public partial class AttributeInfoPanel : DoubleBufferedControl
         SetMaxValue(maxValue);
 
         var totalAmount = stones == null || !stones.Any() ? 0 : stones.Sum(i => i.Amount);
+        _hasStones = totalAmount > 0;
 
         if (totalAmount == 0)
         {
@@ -75,6 +81,8 @@ public partial class AttributeInfoPanel : DoubleBufferedControl
             lblFinished.Show();
         else
             lblFinished.Hide();
+
+        ApplyPanelLayout();
     }
 
     public event OnChangedEventHandler OnChange;
@@ -131,6 +139,14 @@ public partial class AttributeInfoPanel : DoubleBufferedControl
     public int MaxValue => GetMaxValue();
 
     /// <summary>
+    ///     Gets a value indicating whether this row still has stones and can be
+    ///     selected by the bulk actions.
+    /// </summary>
+    public bool CanBeSelected =>
+        _hasStones && checkSelected.Enabled &&
+        GetMaxValue() > _currentAttribute.GetPercentage(_currentAttributeSlot);
+
+    /// <summary>
     ///     Gets or sets the attribute group.
     /// </summary>
     /// <value>
@@ -167,7 +183,7 @@ public partial class AttributeInfoPanel : DoubleBufferedControl
         };
     }
 
-    private void SetMaxValue(int maxValue)
+    public void SetMaxValue(int maxValue)
     {
         switch (maxValue)
         {
@@ -198,6 +214,47 @@ public partial class AttributeInfoPanel : DoubleBufferedControl
 
         if (GetMaxValue() <= _currentAttribute.GetPercentage(_currentAttributeSlot))
             checkSelected.Checked = false;
+    }
+
+    public void ApplyLocalization()
+    {
+        // The row caption is the game's own attribute translation. The combo
+        // values stay numeric because they represent percentages.
+    }
+
+    public void ApplyTheme()
+    {
+        var foreColor = ColorScheme.ForeColor;
+
+        checkSelected.ForeColor = foreColor;
+        comboMaxValue.BackColor = ColorScheme.InputBackColor;
+        comboMaxValue.ForeColor = foreColor;
+        lblItemAmount.ForeColor = ColorScheme.BackColor.IsDark()
+            ? Color.FromArgb(168, 184, 204)
+            : Color.FromArgb(90, 104, 124);
+        lblFinished.ForeColor = ColorScheme.BackColor.IsDark()
+            ? Color.FromArgb(52, 211, 153)
+            : Color.FromArgb(5, 150, 105);
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        ApplyPanelLayout();
+    }
+
+    private void ApplyPanelLayout()
+    {
+        if (IsDisposed || checkSelected == null || Width < 120)
+            return;
+
+        const int pad = 12;
+        var right = Width - pad;
+
+        checkSelected.SetBounds(pad, 9, Math.Max(140, Width - 310), 24);
+        comboMaxValue.SetBounds(Math.Max(pad + 150, right - 246), 6, 110, 27);
+        lblItemAmount.SetBounds(Math.Max(pad + 270, right - 126), 8, 50, 22);
+        lblFinished.SetBounds(Math.Max(pad + 320, right - 66), 3, 34, 28);
     }
 
     #endregion Methods

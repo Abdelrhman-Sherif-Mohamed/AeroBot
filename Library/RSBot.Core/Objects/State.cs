@@ -156,7 +156,14 @@ public class State
     /// <returns></returns>
     public bool HasActiveBuff(SkillInfo skill, out SkillInfo buff)
     {
+        if (ActiveBuffs == null || skill?.Record == null)
+        {
+            buff = null;
+            return false;
+        }
+
         buff = ActiveBuffs.Find(p =>
+            p != null && p.Record != null &&
             p.Record.Action_Overlap == skill.Record.Action_Overlap &&
             p.Record.Basic_Activity == skill.Record.Basic_Activity);
 
@@ -167,20 +174,13 @@ public class State
     ///     Gets the active buff by skill identifier.
     /// </summary>
     /// <returns></returns>
-    public bool TryGetActiveBuff(uint token, out SkillInfo buff)
-    {
-        buff = ActiveBuffs.Find(p => p.Token == token);
-
-        return buff != null;
-    }
+    public bool TryGetActiveBuff(uint token, out SkillInfo buff) { if (ActiveBuffs == null) { buff = null; return false; } buff = ActiveBuffs.Find(p => p != null && p.Token == token); return buff != null; }
 
     /// <summary>
     ///     Gets the active buff by skill identifier.
     /// </summary>
     /// <returns></returns>
-    public bool TryRemoveActiveBuff(uint token, out SkillInfo removedBuff)
-    {
-        removedBuff = ActiveBuffs.Find(p => p.Token == token);
+    public bool TryRemoveActiveBuff(uint token, out SkillInfo removedBuff) { if (ActiveBuffs == null) { removedBuff = null; return false; } removedBuff = ActiveBuffs.Find(p => p != null && p.Token == token);
         if (removedBuff == null)
             return false;
 
@@ -191,6 +191,6 @@ public class State
     ///     Checks two active DoTs.
     /// </summary>
     /// <returns></returns>
-    public bool HasTwoDots() => ActiveBuffs.Count(b => b.IsDot) >= 2;
+    public bool HasTwoDots() => ActiveBuffs != null && ActiveBuffs.Count(b => b != null && b.IsDot) >= 2;
     
 }

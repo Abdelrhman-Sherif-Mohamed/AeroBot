@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Components;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects.Skill;
 using RSBot.Core.Objects.Spawn;
@@ -21,26 +21,26 @@ internal class ActionBuffAddResponse : IPacketHandler
 
 
         var buff = new SkillInfo(skillId, token);
-        if (targetId == Game.Player.UniqueId)
+        if (Game.Player != null && targetId == Game.Player.UniqueId)
         {
-            var playerBuff = Game.Player.Skills.GetSkillInfoById(buff.Id);
+            var playerBuff = Game.Player.Skills?.GetSkillInfoById(buff.Id);
             if (playerBuff != null)
             {
                 buff = playerBuff;
                 playerBuff.Token = token;
             }
 
-            Game.Player.State.ActiveBuffs.Add(buff);
+            Game.Player.State?.ActiveBuffs?.Add(buff);
 
             EventManager.FireEvent("OnAddBuff", buff);
 
-            Log.Notify($"Buff [{buff.Record.GetRealName()}] added.");
+            Log.Notify($"Buff [{buff.Record?.GetRealName() ?? buff.Id.ToString()}] added.");
 
             return;
         }
 
-        if (SpawnManager.TryGetEntity<SpawnedBionic>(targetId, out var entity))
-            entity.State.ActiveBuffs.Add(buff);
+        if (SpawnManager.TryGetEntity<SpawnedBionic>(targetId, out var entity) && entity?.State != null)
+            entity.State.ActiveBuffs?.Add(buff);
     }
 
     #region Properites

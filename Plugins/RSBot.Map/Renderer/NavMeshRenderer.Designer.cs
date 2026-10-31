@@ -32,7 +32,8 @@ partial class NavMeshRenderer
     private void InitializeComponent()
     {
         components = new System.ComponentModel.Container();
-        contextRenderSettings = new ContextMenuStrip(components);
+        contextRenderSettings = new SDUI.Controls.ContextMenuStrip();
+        components.Add(contextRenderSettings);
         displayToolStripMenuItem = new ToolStripMenuItem();
         regionIDToolStripMenuItem = new ToolStripMenuItem();
         regionBorderToolStripMenuItem = new ToolStripMenuItem();

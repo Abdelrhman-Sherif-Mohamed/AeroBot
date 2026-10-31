@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Components;
@@ -33,6 +33,12 @@ public partial class Entity : DoubleBufferedControl
 
     private void OnInitialized()
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnInitialized));
+            return;
+        }
+
         lblEntityName.Text = LanguageManager.GetLang("LabelEntityName");
     }
 
@@ -41,26 +47,45 @@ public partial class Entity : DoubleBufferedControl
     /// </summary>
     private void OnSelectEntity(SpawnedBionic entity)
     {
-        lblType.Text = string.Empty;
-        if (entity is SpawnedPlayer player)
-            lblEntityName.Text = player.Name;
-        else
-            lblEntityName.Text = entity.Record.GetRealName();
-
-        if (entity is SpawnedMonster monster)
+        if (InvokeRequired)
         {
-            progressHP.Value = monster.Health;
-            progressHP.Maximum = monster.MaxHealth;
-
-            lblType.Text = monster.Rarity.GetName();
+            BeginInvoke(new Action<SpawnedBionic>(OnSelectEntity), entity);
+            return;
         }
-        else
-        {
-            progressHP.Value = 100;
-            progressHP.Maximum = 100;
 
-            if (Game.Player.State.DialogState is { IsInDialog: true })
-                lblType.Text = "<in conversation>";
+        try
+        {
+            if (entity == null)
+            {
+                Clear();
+                return;
+            }
+
+            lblType.Text = string.Empty;
+            if (entity is SpawnedPlayer player)
+                lblEntityName.Text = player.Name;
+            else
+                lblEntityName.Text = entity.Record?.GetRealName() ?? "Unknown";
+
+            if (entity is SpawnedMonster monster)
+            {
+                progressHP.Maximum = Math.Max(1, monster.MaxHealth);
+                progressHP.Value = Math.Clamp(monster.Health, 0, progressHP.Maximum);
+
+                lblType.Text = monster.Rarity.GetName();
+            }
+            else
+            {
+                progressHP.Maximum = 100;
+                progressHP.Value = 100;
+
+                if (Game.Player?.State?.DialogState is { IsInDialog: true })
+                    lblType.Text = "<in conversation>";
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Entity] Error on select entity: {ex.Message}");
         }
     }
 
@@ -69,20 +94,33 @@ public partial class Entity : DoubleBufferedControl
     /// </summary>
     private void OnUpdateEntityHp(SpawnedBionic entity)
     {
-        if (Game.SelectedEntity?.UniqueId != entity.UniqueId)
-            return;
-
-        if (!entity.HasHealth)
+        if (InvokeRequired)
         {
-            progressHP.Value = 100;
-            progressHP.Maximum = 100;
+            BeginInvoke(new Action<SpawnedBionic>(OnUpdateEntityHp), entity);
             return;
         }
 
-        if (entity is SpawnedMonster monster)
+        try
         {
-            progressHP.Value = monster.Health;
-            progressHP.Maximum = monster.MaxHealth;
+            if (entity == null || Game.SelectedEntity?.UniqueId != entity.UniqueId)
+                return;
+
+            if (!entity.HasHealth)
+            {
+                progressHP.Maximum = 100;
+                progressHP.Value = 100;
+                return;
+            }
+
+            if (entity is SpawnedMonster monster)
+            {
+                progressHP.Maximum = Math.Max(1, monster.MaxHealth);
+                progressHP.Value = Math.Clamp(monster.Health, 0, progressHP.Maximum);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Entity] Error on update HP: {ex.Message}");
         }
     }
 
@@ -91,6 +129,12 @@ public partial class Entity : DoubleBufferedControl
     /// </summary>
     private void OnDeselectEntity()
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnDeselectEntity));
+            return;
+        }
+
         Clear();
     }
 
@@ -99,6 +143,12 @@ public partial class Entity : DoubleBufferedControl
     /// </summary>
     private void OnKillSelectedEnemy()
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnKillSelectedEnemy));
+            return;
+        }
+
         Clear();
     }
 
@@ -107,6 +157,12 @@ public partial class Entity : DoubleBufferedControl
     /// </summary>
     private void OnAgentServerDisconnected()
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnAgentServerDisconnected));
+            return;
+        }
+
         Clear();
     }
 
@@ -115,9 +171,15 @@ public partial class Entity : DoubleBufferedControl
     /// </summary>
     private void Clear()
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(Clear));
+            return;
+        }
+
         lblEntityName.Text = LanguageManager.GetLang("LabelEntityName");
-        progressHP.Value = 0;
         progressHP.Maximum = 100;
+        progressHP.Value = 0;
         lblType.Text = "";
     }
 }

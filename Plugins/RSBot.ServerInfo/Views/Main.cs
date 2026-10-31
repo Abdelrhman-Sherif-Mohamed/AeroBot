@@ -2,7 +2,6 @@
 using System.Windows.Forms;
 using RSBot.General.Components;
 using SDUI.Controls;
-using SDUI.Helpers;
 
 namespace RSBot.ServerInfo.Views;
 
@@ -13,7 +12,6 @@ public partial class Main : DoubleBufferedControl
     {
         CheckForIllegalCrossThreadCalls = false;
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
 
         UpdateServerInfo();
     }

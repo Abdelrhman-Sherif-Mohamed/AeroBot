@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows.Forms;
@@ -7,7 +7,6 @@ using RSBot.Core.Event;
 using RSBot.Core.Objects.Quests;
 using SDUI;
 using SDUI.Controls;
-using SDUI.Helpers;
 
 namespace RSBot.Quest.Views;
 
@@ -21,7 +20,6 @@ public partial class Main : DoubleBufferedControl
     {
         CheckForIllegalCrossThreadCalls = false;
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
 
         SubscribeEvents();
         ApplyTheme();
@@ -31,7 +29,6 @@ public partial class Main : DoubleBufferedControl
     {
         treeQuests.BackColor = ColorScheme.BackColor;
         treeQuests.ForeColor = ColorScheme.ForeColor;
-        treeQuests.LineColor = ColorScheme.BorderColor;
     }
 
     private void SubscribeEvents()
@@ -50,48 +47,31 @@ public partial class Main : DoubleBufferedControl
             treeQuests.Invoke(() =>
             {
                 treeQuests.Nodes.Clear();
+                foreach (var activeQuest in Game.Player.QuestLog.ActiveQuests)
+                {
+                    var node = CreateNode(activeQuest.Value);
+                    node.Tag = activeQuest.Key;
 
-                if (Game.Player == null)
-                {
-                    treeQuests.Nodes.Add(new TreeNode("من فضلك ادخل إلى اللعبة لعرض المهام (Please enter game)"));
-                    return;
-                }
+                    node.ContextMenuStrip = contextQuest;
 
-                if (Game.Player.QuestLog?.ActiveQuests == null || Game.Player.QuestLog.ActiveQuests.Count == 0)
-                {
-                    treeQuests.Nodes.Add(new TreeNode("لا توجد مهام نشطة حالياً (No active quests)"));
-                }
-                else
-                {
-                    foreach (var activeQuest in Game.Player.QuestLog.ActiveQuests)
-                    {
-                        var node = CreateNode(activeQuest.Value);
-                        node.Tag = activeQuest.Key;
-                        node.ContextMenuStrip = contextQuest;
-                        treeQuests.Nodes.Add(node);
-                    }
+                    treeQuests.Nodes.Add(node);
                 }
 
                 if (!checkShowCompleted.Checked) return;
 
-                if (Game.Player.QuestLog?.CompletedQuests != null && Game.Player.QuestLog.CompletedQuests.Length > 0)
+                var completedNode = new TreeNode("Completed");
+                foreach (var questId in Game.Player.QuestLog.CompletedQuests)
                 {
-                    var completedNode = new TreeNode("المهام المكتملة (Completed Quests)");
-                    foreach (var questId in Game.Player.QuestLog.CompletedQuests)
-                    {
-                        var quest = Game.ReferenceManager.GetRefQuest(questId);
-                        if (quest != null)
-                        {
-                            var node = new TreeNode($"{quest.GetTranslatedName()} (lv. {quest.Level})");
-                            completedNode.Nodes.Add(node);
-                        }
-                    }
+                    var quest = Game.ReferenceManager.GetRefQuest(questId);
 
-                    treeQuests.Nodes.Add(completedNode);
+                    var node = new TreeNode($"{quest.GetTranslatedName()} (lv. {quest.Level})");
+                    completedNode.Nodes.Add(node);
                 }
+
+                treeQuests.Nodes.Add(completedNode);
             });
         }
-        catch
+        catch (Exception e)
         {
             // ignored
         }
@@ -117,11 +97,8 @@ public partial class Main : DoubleBufferedControl
             foreach (var npcId in quest.Npcs)
             {
                 var npc = Game.ReferenceManager.GetRefObjChar(npcId);
-                if (npc != null)
-                {
-                    var npcName = Game.ReferenceManager.GetTranslation(npc.NameStrID);
-                    npcNode.Nodes.Add(npcName);
-                }
+                var npcName = Game.ReferenceManager.GetTranslation(npc.NameStrID);
+                npcNode.Nodes.Add(npcName);
             }
 
             node.Nodes.Add(npcNode);
@@ -132,22 +109,22 @@ public partial class Main : DoubleBufferedControl
         if (quest.Quest.Reward != null)
         {
             if (quest.Quest.Reward.Exp > 0)
-                rewardNode.Nodes.Add($"Exp: {quest.Quest.Reward.Exp:N0}");
+                rewardNode.Nodes.Add($"Exp: {quest.Quest.Reward.Exp}");
 
             if (quest.Quest.Reward.Gold > 0)
-                rewardNode.Nodes.Add($"Gold: {quest.Quest.Reward.Gold:N0}");
+                rewardNode.Nodes.Add($"Gold: {quest.Quest.Reward.Gold}");
 
             if (quest.Quest.Reward.SP > 0)
-                rewardNode.Nodes.Add($"Skill Points (SP): {quest.Quest.Reward.SP:N0}");
+                rewardNode.Nodes.Add($"Skill points: {quest.Quest.Reward.Gold}");
 
-            if (quest.Quest.Reward.SPExp > 0)
-                rewardNode.Nodes.Add($"Skill Exp: {quest.Quest.Reward.SPExp:N0}");
+            if (quest.Quest.Reward.SP > 0)
+                rewardNode.Nodes.Add($"Skill Exp: {quest.Quest.Reward.Gold}");
 
             if (quest.Quest.Reward.InventorySlots > 0)
-                rewardNode.Nodes.Add($"Inv. Slots: {quest.Quest.Reward.InventorySlots}");
+                rewardNode.Nodes.Add($"Inv. slots: {quest.Quest.Reward.Gold}");
 
             if (quest.Quest.Reward.Hwan > 0)
-                rewardNode.Nodes.Add($"Hwan: {quest.Quest.Reward.Hwan}");
+                rewardNode.Nodes.Add($"Hwan: {quest.Quest.Reward.Gold}");
         }
 
         if (quest.Quest.RewardItems != null && quest.Quest.RewardItems.Any())
@@ -174,9 +151,9 @@ public partial class Main : DoubleBufferedControl
                 var objectiveName = Game.ReferenceManager.GetTranslation(objective.NameStrId);
                 var objectiveSubNode = new TreeNode(objectiveName);
                 if (objective.InProgress)
-                    objectiveSubNode.Nodes.Add("Status: In progress (قيد التنفيذ)");
+                    objectiveSubNode.Nodes.Add("Status: In progress");
                 else
-                    objectiveSubNode.Nodes.Add("Status: Complete (مكتمل)");
+                    objectiveSubNode.Nodes.Add("Status: Complete");
 
                 foreach (var task in objective.Tasks)
                 {
@@ -197,29 +174,24 @@ public partial class Main : DoubleBufferedControl
         switch (status)
         {
             case QuestStatus.Cancelled:
-                return "Cancelled (ملغاة)";
+                return "Cancelled";
             case QuestStatus.Completed:
             case QuestStatus.CompletedXTimes:
-                return "Completed (مكتملة)";
+                return "Completed";
             case QuestStatus.CompletedButNotSupplied:
             case QuestStatus.CompletedByUserButNotSupplied:
-                return "Ready for delivery (جاهزة للتسليم)";
+                return "Ready for delivery";
             case QuestStatus.Initialized:
             case QuestStatus.StartedByUser:
-                return "In progress (قيد التنفيذ)";
+                return "In progress";
             case QuestStatus.Unavailable:
-                return "Unavailable (غير متاحة)";
+                return "Unavailable";
             default:
                 return status.ToString();
         }
     }
 
     private void checkShowCompleted_CheckedChanged(object sender, EventArgs e)
-    {
-        RefreshQuestList();
-    }
-
-    private void btnRefresh_Click(object sender, EventArgs e)
     {
         RefreshQuestList();
     }
@@ -231,16 +203,13 @@ public partial class Main : DoubleBufferedControl
 
     private void watchQuestToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        if (treeQuests.SelectedNode?.Tag == null || !uint.TryParse(treeQuests.SelectedNode.Tag.ToString(), out var questId))
+        if (!uint.TryParse(treeQuests.SelectedNode?.Tag.ToString(), out var questId))
             return;
 
-        if (View.SidebarElement != null)
-        {
-            if (View.SidebarElement.HasQuest(questId))
-                View.SidebarElement.RemoveQuest(questId);
-            else
-                View.SidebarElement.AddQuest(questId);
-        }
+        if (View.SidebarElement.HasQuest(questId))
+            View.SidebarElement.RemoveQuest(questId);
+        else
+            View.SidebarElement.AddQuest(questId);
     }
 
     private void treeQuests_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
@@ -250,15 +219,14 @@ public partial class Main : DoubleBufferedControl
 
     private void abandonToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        if (treeQuests.SelectedNode?.Tag == null || !uint.TryParse(treeQuests.SelectedNode.Tag.ToString(), out var questId))
+        if (!uint.TryParse(treeQuests.SelectedNode?.Tag.ToString(), out var questId))
             return;
 
-        if (Game.Player?.QuestLog?.ActiveQuests == null || !Game.Player.QuestLog.ActiveQuests.TryGetValue(questId, out var activeQuest))
+        if (!Game.Player.QuestLog.ActiveQuests.TryGetValue(questId, out var activeQuest))
             return;
 
-        var questTitle = activeQuest.Quest?.GetTranslatedName() ?? $"Quest {questId}";
-        if (MessageBox.Show($"هل أنت متأكد من رغبتك في إلغاء المهمة [{questTitle}]؟\n(Do you really want to abandon this quest?)",
-                "إلغاء المهمة - Abandon Quest", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+        if (MessageBox.Show($"Do you really want to abandon the quest [{activeQuest.Quest.GetTranslatedName()}]?",
+                "Abandon quest", MessageBoxButtons.YesNo) == DialogResult.Yes)
             Game.Player.QuestLog.AbandonQuest(questId);
     }
 }

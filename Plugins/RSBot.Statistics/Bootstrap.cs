@@ -9,7 +9,7 @@ namespace RSBot.Statistics;
 public class Bootstrap : IPlugin
 {
     /// <inheritdoc />
-    public string InternalName => "SonicBot.Statistics";
+    public string InternalName => "RSBot.Statistics";
 
     /// <inheritdoc />
     public string DisplayName => "Statistics";

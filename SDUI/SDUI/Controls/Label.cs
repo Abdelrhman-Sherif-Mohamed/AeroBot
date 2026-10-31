@@ -38,6 +38,17 @@ public class Label : System.Windows.Forms.Label
     public Label()
     {
         SetStyle(ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor | ControlStyles.OptimizedDoubleBuffer, true);
+
+        // Labels are drawn directly on whatever surface their parent paints
+        // (cards, panels, gradients). An opaque inherited BackColor would be
+        // painted as a dark rectangle behind the text.
+        BackColor = Color.Transparent;
+    }
+
+    protected override void OnParentBackColorChanged(EventArgs e)
+    {
+        base.OnParentBackColorChanged(e);
+        Invalidate();
     }
 
     protected override void OnSizeChanged(EventArgs e)
@@ -75,18 +86,39 @@ public class Label : System.Windows.Forms.Label
     ///     control to the right; longer text wraps onto extra lines and the height
     ///     grows so descriptive text flows instead of truncating with "...".
     /// </summary>
+    private bool _isFittingText;
+
     private void FitTextToContent()
     {
-        if (!IsHandleCreated)
+        // Only auto-fit controls that actually opted into automatic sizing.
+        // Fixed-layout pages rely on their explicit bounds and must never be
+        // resized or pushed around by text measurement at runtime.
+        if (DesignMode || _isFittingText || !IsHandleCreated || !AutoSize || Dock != DockStyle.None)
             return;
 
         try
         {
-            if (AutoSize && !string.IsNullOrEmpty(Text))
+            _isFittingText = true;
+            if (!string.IsNullOrEmpty(Text))
             {
-                var need = TextLayout.AutoWidth(this, Text, 16);
-                if (need > Width)
+                var textWidth = TextRenderer.MeasureText(Text, Font).Width;
+                int extraPadding = DrawingExtensions.HasArabic(Text) ? (int)(textWidth * 0.25f) + 16 : 14;
+                var need = textWidth + extraPadding;
+
+                if (Parent != null)
+                {
+                    var maxLimit = Math.Max(Width, Parent.ClientSize.Width - Left - 4);
+                    var targetWidth = Math.Min(need, maxLimit);
+                    if (targetWidth > Width)
+                    {
+                        TextLayout.ShiftRightSiblingsIfNeeded(this, targetWidth, 8);
+                        Width = targetWidth;
+                    }
+                }
+                else if (need > Width)
+                {
                     Width = need;
+                }
 
                 using var g = CreateGraphics();
                 var usableWidth = Math.Max(1, Width - 4);
@@ -102,12 +134,19 @@ public class Label : System.Windows.Forms.Label
         catch
         {
         }
+        finally
+        {
+            _isFittingText = false;
+        }
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        ButtonRenderer.DrawParentBackground(e.Graphics, ClientRectangle, this);
-        e.Graphics.FillRectangle(BackColor.Brush(), ClientRectangle);
+        if (BackColor != Color.Transparent && !BackColor.IsEmpty && BackColor.A > 0)
+        {
+            using var bgBrush = new SolidBrush(BackColor);
+            e.Graphics.FillRectangle(bgBrush, ClientRectangle);
+        }
 
         if (GradientAnimation)
             Angle = Angle % 360 + 1;
@@ -117,12 +156,18 @@ public class Label : System.Windows.Forms.Label
 
         if (ApplyGradient)
         {
-            using var brush = new LinearGradientBrush(ClientRectangle, _gradient[0], _gradient[1], Angle/*LinearGradientMode.Horizontal */);
+            var c1 = ColorScheme.ResolveTextColor(_gradient[0]);
+            var c2 = ColorScheme.ResolveTextColor(_gradient[1]);
+            using var brush = new LinearGradientBrush(ClientRectangle, c1, c2, Angle/*LinearGradientMode.Horizontal */);
 
             using var format = this.CreateStringFormat(TextAlign, AutoEllipsis, UseMnemonic);
             e.Graphics.DrawString(Text, Font, brush, ClientRectangle, format);
         }
         else
-            this.DrawString(e.Graphics, TextAlign, ColorScheme.ForeColor, AutoEllipsis, UseMnemonic, noWrap: true);
+        {
+            var foreColor = ColorScheme.ResolveTextColor(ForeColor);
+            bool singleLine = Height <= Font.Height * 1.6f;
+            this.DrawString(e.Graphics, TextAlign, foreColor, AutoEllipsis, UseMnemonic, noWrap: singleLine);
+        }
     }
 }

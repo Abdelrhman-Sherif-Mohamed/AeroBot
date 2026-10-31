@@ -8,7 +8,7 @@ namespace RSBot.ServerInfo;
 public class ServerInfo : IPlugin
 {
     /// <inheritdoc />
-    public string InternalName => "SonicBot.ServerInfo";
+    public string InternalName => "RSBot.ServerInfo";
 
     /// <inheritdoc />
     public string DisplayName => "Server Information";

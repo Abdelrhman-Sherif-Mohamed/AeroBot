@@ -1,0 +1,30 @@
+using System.Windows.Forms;
+using RSBot.Core;
+using RSBot.Core.Components;
+using RSBot.Core.Plugins;
+
+namespace Wolves.Stall;
+
+public class Bootstrap : IPlugin
+{
+    public string InternalName => "Wolves.Stall";
+
+    public string DisplayName => "المتجر";
+
+    public bool DisplayAsTab => true;
+
+    public int Index => 9;
+
+    public bool RequireIngame => true;
+
+    public void Initialize()
+    {
+    }
+
+    public Control View => Views.Main.Instance;
+
+    public void Translate()
+    {
+        LanguageManager.Translate(View, Kernel.Language);
+    }
+}

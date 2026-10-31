@@ -1,9 +1,12 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Components.Scripting;
 using RSBot.Core.Objects;
+using RSBot.Core.Objects.Spawn;
 
 namespace RSBot.Trade.Components.Scripting;
 
@@ -54,6 +57,16 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             return false;
         }
 
+        // Check if transport already has specialty goods loaded
+        var transportHasGoods = Game.Player.JobTransport.Inventory != null &&
+                                Game.Player.JobTransport.Inventory.Any(i => i != null && i.Record != null && i.Amount > 0);
+
+        if (transportHasGoods && !TradeConfig.SellGoods)
+        {
+            Log.Notify("[Trade] الجمل يحتوي بالفعل على بضاعة تجارة! تم تخطي الشراء والمتابعة فوراً نحو الوجهة.");
+            return true;
+        }
+
         if (!TradeConfig.SellGoods && !TradeConfig.BuyGoods)
             return true;
 
@@ -70,6 +83,18 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
             if (Game.SelectedEntity == null)
             {
+                // Fallback: search for NPC directly and select
+                if (SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, codeName, StringComparison.OrdinalIgnoreCase), out var npc) ||
+                    SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && (p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) || p.Record.CodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase)), out npc))
+                {
+                    npc.TrySelect();
+                    Thread.Sleep(300);
+                    ShoppingManager.ChooseTalkOption(npc.Record.CodeName, TalkOption.Trade);
+                }
+            }
+
+            if (Game.SelectedEntity == null)
+            {
                 Log.Warn("[Script] Can not buy items: Not in dialog with an NPC.");
 
                 return false;
@@ -81,7 +106,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
             Log.Notify($"[Script] Purchasing goods from {Game.SelectedEntity.Record.GetRealName()}...");
 
-            BuyGoods(arguments);
+            BuyGoods();
 
             ShoppingManager.CloseShop();
 
@@ -132,19 +157,10 @@ internal class BuyGoodsScriptCommand : IScriptCommand
     /// <summary>
     ///     Buys specialty goods from the selected merchant.
     /// </summary>
-    private void BuyGoods(string[] arguments = null)
+    private void BuyGoods()
     {
         if (!TradeConfig.BuyGoods)
             return;
-
-        var targetQuantity = TradeConfig.BuyGoodsQuantity;
-        if (arguments != null && arguments.Length > 1)
-        {
-            if (arguments[1].Equals("Full", System.StringComparison.OrdinalIgnoreCase))
-                targetQuantity = 0; // 0 = fill to maximum capacity
-            else if (int.TryParse(arguments[1], out var parsedQty))
-                targetQuantity = parsedQty;
-        }
 
         var shopGroup = Game.ReferenceManager.GetRefShopGroup(Game.SelectedEntity?.Record.CodeName);
         if (shopGroup == null)
@@ -180,28 +196,44 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             return;
         }
 
-        var bought = 0;
-        var maxSteps = Game.Player.JobTransport.Inventory.Capacity;
-        var existingItemsCount = Game.Player.JobTransport.Inventory.GetSumAmount(packageItem.RefItemCodeName);
-        while (!Game.Player.JobTransport.Inventory.Full
-               && (existingItemsCount < targetQuantity || targetQuantity == 0))
+        var maxStack = packageItem.RefItem.MaxStack > 0 ? packageItem.RefItem.MaxStack : 1000;
+        // If BuyGoodsQuantity is 0, target is at least 5 slots (5-star trade cargo: 5000 units) or full inventory capacity
+        var targetQuantity = TradeConfig.BuyGoodsQuantity > 0
+            ? TradeConfig.BuyGoodsQuantity
+            : Math.Max(5000, (Game.Player.JobTransport?.Inventory?.Capacity ?? 5) * maxStack);
+
+        var safetyLimit = 25;
+        while (safetyLimit-- > 0)
         {
-            //Avoid endless loop
-            if (--maxSteps == 0)
+            var transport = Game.Player.JobTransport;
+            if (transport?.Inventory == null)
                 break;
 
-            var buyNextQty = packageItem.RefItem.MaxStack;
-            if (buyNextQty == 0)
+            if (transport.Inventory.Full)
+            {
+                Log.Notify("[Trade] حقيبة الجمل ممتلئة بالكامل بجميع خانات البضاعة!");
                 break;
+            }
 
-            if (targetQuantity > 0 && bought + buyNextQty > targetQuantity)
-                buyNextQty = targetQuantity - bought;
+            var currentQuantity = transport.Inventory.GetSumAmount(packageItem.RefItemCodeName);
+            if (currentQuantity >= targetQuantity)
+            {
+                Log.Notify($"[Trade] تم شراء كامل بضاعة التجارة بنجاح ({currentQuantity} وحدة - حمولة 5 نجوم مكتملة)!");
+                break;
+            }
 
-            ShoppingManager.PurchaseItem(Game.Player.JobTransport, tabIndex, item.SlotIndex, (ushort)buyNextQty);
+            var buyNextQty = maxStack;
+            if (currentQuantity + buyNextQty > targetQuantity)
+                buyNextQty = targetQuantity - currentQuantity;
 
-            bought += buyNextQty;
-            existingItemsCount = Game.Player.JobTransport.Inventory.GetSumAmount(packageItem.RefItemCodeName);
+            Log.Notify($"[Trade] شراء بضاعة خاصة: حزمة من {buyNextQty} (الإجمالي الحالي: {currentQuantity}/{targetQuantity})...");
+
+            ShoppingManager.PurchaseItem(transport, tabIndex, item.SlotIndex, (ushort)buyNextQty);
+
+            System.Threading.Thread.Sleep(350); // Intentionally wait so server responds and inventory count updates
         }
+
+        Log.Notify($"[Trade] اكتمال عملية الشراء. إجمالي البضاعة المحمّلة بالجمل: {Game.Player.JobTransport?.Inventory?.GetSumAmount(packageItem.RefItemCodeName)} وحدة (5 نجوم كاملة).");
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-﻿using SDUI.Controls.Subclasses;
+using SDUI.Controls.Subclasses;
 using SDUI.Helpers;
 using System;
 using System.Drawing;
@@ -27,11 +27,13 @@ public class ListView : System.Windows.Forms.ListView
         : base()
     {
         SetStyle(
-            ControlStyles.Opaque |
             ControlStyles.AllPaintingInWmPaint |
-            ControlStyles.ResizeRedraw |
             ControlStyles.OptimizedDoubleBuffer |
             ControlStyles.EnableNotifyMessage, true);
+
+        DoubleBuffered = true;
+        BackColor = ColorScheme.TableBackColor;
+        ForeColor = ColorScheme.ForeColor;
 
         LvwColumnSorter = new ListViewColumnSorter();
         ListViewItemSorter = LvwColumnSorter;
@@ -40,6 +42,7 @@ public class ListView : System.Windows.Forms.ListView
         UpdateStyles();
 
         _headerSubClass = new();
+
     }
 
     protected override void OnSelectedIndexChanged(EventArgs e)
@@ -57,7 +60,6 @@ public class ListView : System.Windows.Forms.ListView
     protected override void OnMouseWheel(MouseEventArgs e)
     {
         base.OnMouseWheel(e);
-        Invalidate();
     }
 
     /// <summary>
@@ -68,10 +70,54 @@ public class ListView : System.Windows.Forms.ListView
     {
         base.OnHandleCreated(e);
 
+        BackColor = ColorScheme.TableBackColor;
+        ForeColor = ColorScheme.ForeColor;
 
         WindowsHelper.UseImmersiveDarkMode(Handle, ColorScheme.BackColor.IsDark());
-        _headerSubClass.AssignHandle(this.Handle);
+        _headerSubClass.AssignHandle(this);
         SendMessage(Handle, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_DOUBLEBUFFER, LVS_EX_DOUBLEBUFFER);
+
+        ApplyNativeTheme();
+    }
+
+    protected override void OnBackColorChanged(EventArgs e)
+    {
+        base.OnBackColorChanged(e);
+        ApplyNativeTheme();
+    }
+
+    /// <summary>
+    ///     Applies the active theme directly to the native list view. The
+    ///     standard BackColor/ForeColor properties alone are not enough for an
+    ///     empty (or disabled) list body.
+    /// </summary>
+    internal void ApplyNativeTheme()
+    {
+        if (!IsHandleCreated)
+            return;
+
+        try
+        {
+            // An unthemed list view ignores LVM_SETBKCOLOR for empty bodies
+            // and falls back to the system button face. Activating the native
+            // Explorer theme makes the list honor the colors below.
+            SetWindowTheme(Handle, "Explorer", null);
+
+            SendMessage(Handle, 0x1001, IntPtr.Zero, (IntPtr)ColorTranslator.ToWin32(ColorScheme.TableBackColor));
+            SendMessage(Handle, 0x1024, IntPtr.Zero, (IntPtr)ColorTranslator.ToWin32(ColorScheme.ForeColor));
+            SendMessage(Handle, 0x1026, IntPtr.Zero, (IntPtr)ColorTranslator.ToWin32(ColorScheme.TableBackColor));
+
+            var header = SendMessage(Handle, LVM_GETHEADER, IntPtr.Zero, IntPtr.Zero);
+            if (header != IntPtr.Zero && WindowsHelper.IsModern)
+            {
+                AllowDarkModeForWindow(header, ColorScheme.BackColor.IsDark());
+                SetWindowTheme(header, ColorScheme.BackColor.IsDark() ? "DarkMode_ItemsView" : "ItemsView", null);
+            }
+        }
+        catch
+        {
+            // Native theming must never break the page.
+        }
     }
 
     protected override void OnNotifyMessage(Message m)
@@ -166,8 +212,87 @@ public class ListView : System.Windows.Forms.ListView
         return -1;
     }
 
+    private void PaintClientBackground()
+    {
+        if (!IsHandleCreated || IsDisposed)
+            return;
+
+        try
+        {
+            var fill = ClientRectangle;
+            if (fill.Width <= 0 || fill.Height <= 0)
+                return;
+
+            if (Items.Count > 0)
+            {
+                Rectangle lastItem;
+                try
+                {
+                    lastItem = GetItemRect(Items.Count - 1, ItemBoundsPortion.Entire);
+                }
+                catch
+                {
+                    // The last item is not realized; do not risk painting over
+                    // visible rows.
+                    return;
+                }
+
+                if (lastItem.Bottom > fill.Top)
+                {
+                    if (lastItem.Bottom >= fill.Bottom)
+                        return;
+
+                    fill.Y = lastItem.Bottom;
+                    fill.Height = ClientRectangle.Bottom - lastItem.Bottom;
+                }
+            }
+
+            if (fill.Height <= 0)
+                return;
+
+            using (var graphics = Graphics.FromHwnd(Handle))
+            using (var brush = new SolidBrush(ColorScheme.TableBackColor))
+            {
+                graphics.FillRectangle(brush, fill);
+            }
+        }
+        catch
+        {
+            // Painting must never break the list.
+        }
+    }
+
     protected override void WndProc(ref Message m)
     {
+        if (m.Msg == WM_PAINT)
+        {
+            base.WndProc(ref m);
+            PaintClientBackground();
+            return;
+        }
+
+        // The native list view paints the area below its last item with the
+        // system window color, even when LVM_SETBKCOLOR is set. Fill the client
+        // background ourselves so the whole list body keeps the dark theme.
+        if (m.Msg == WM_ERASEBKGND)
+        {
+            try
+            {
+                using (var graphics = Graphics.FromHdc(m.WParam))
+                using (var brush = new SolidBrush(ColorScheme.TableBackColor))
+                {
+                    graphics.FillRectangle(brush, ClientRectangle);
+                }
+            }
+            catch
+            {
+                // Painting must never break the list.
+            }
+
+            m.Result = (IntPtr)1;
+            return;
+        }
+
         if (m.Msg == WM_REFLECT + WM_NOFITY)
         {
             var pnmhdr = (NMHDR)m.GetLParam(typeof(NMHDR));
@@ -224,45 +349,31 @@ public class ListView : System.Windows.Forms.ListView
                         }
                         else
                         {
+                            // Fill the empty body (and the area below the last
+                            // item) with the table background. Without this,
+                            // comctl32 uses the theme's default light brush.
+                            pnmlv.clrTextBk = ColorTranslator.ToWin32(ColorScheme.TableBackColor);
+                            pnmlv.clrText = ColorTranslator.ToWin32(ColorScheme.ForeColor);
+                            Marshal.StructureToPtr(pnmlv, m.LParam, false);
+
                             m.Result = new IntPtr((int)CDRF.CDRF_NOTIFYITEMDRAW);
                         }
 
                         break;
 
-                        /*case CDDS.CDDS_ITEMPREPAINT:
-                            m.Result = new IntPtr((int)(CDRF.CDRF_NOTIFYSUBITEMDRAW | CDRF.CDRF_NOTIFYPOSTPAINT));
+                    case CDDS.CDDS_ITEMPREPAINT:
+                        if (ColorScheme.BackColor.IsDark())
+                        {
+                            var itemIndex = (int)pnmlv.nmcd.dwItemSpec;
+                            bool isAlt = (itemIndex % 2) == 1;
+                            pnmlv.clrTextBk = ColorTranslator.ToWin32(isAlt ? ColorScheme.TableAlternateRowColor : ColorScheme.TableBackColor);
+                            pnmlv.clrText = ColorTranslator.ToWin32(ColorScheme.ForeColor);
+                            Marshal.StructureToPtr(pnmlv, m.LParam, false);
+                            m.Result = new IntPtr((int)CDRF.CDRF_NEWFONT);
+                            return;
+                        }
 
-                            ListView lv = this;
-                            IntPtr hHeader = GetHeaderControl(lv);
-                            IntPtr hdc = GetDC(hHeader);
-
-                            using (var graphics = Graphics.FromHdc(hdc))
-                            {
-                                graphics.FillRectangle(new SolidBrush(ColorScheme.BackColor), graphics.ClipBounds);
-
-                                var width = 0;
-                                foreach (ColumnHeader column in Columns)
-                                {
-                                    var size = TextRenderer.MeasureText(column.Text, Font);
-                                    var bounds = new Rectangle(new Point(width, 0), new Size(column.Width + 5, 24));
-
-                                    if(column.TextAlign == HorizontalAlignment.Left)
-                                        TextRenderer.DrawText(graphics, column.Text, Font, bounds, ColorScheme.ForeColor, TextFormatFlags.Left | TextFormatFlags.LeftAndRightPadding | TextFormatFlags.PathEllipsis | TextFormatFlags.VerticalCenter);
-                                    else if (column.TextAlign == HorizontalAlignment.Right)
-                                        TextRenderer.DrawText(graphics, column.Text, Font, bounds, ColorScheme.ForeColor, TextFormatFlags.Right | TextFormatFlags.VerticalCenter);
-                                    else
-                                        TextRenderer.DrawText(graphics, column.Text, Font, bounds, ColorScheme.ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-
-                                    var x = bounds.X - 2;
-                                    graphics.DrawLine(new Pen(ColorScheme.BorderColor), x, 0, x, Height);
-
-                                    width += column.Width;
-                                }
-                            }
-
-                            //ReleaseDC(hHeader, hdc);
-
-                                break;*/
+                        break;
                 }
             }
         }
@@ -272,16 +383,13 @@ public class ListView : System.Windows.Forms.ListView
             try
             {
 
-                BackColor = ColorScheme.BackColor;
+                BackColor = ColorScheme.TableBackColor;
                 ForeColor = ColorScheme.ForeColor;
             }
             catch (Exception)
             {
             }
         }
-        else if (m.Msg != WM_KILLFOCUS &&
-            (m.Msg == WM_HSCROLL || m.Msg == WM_VSCROLL))
-            Invalidate();
 
         base.WndProc(ref m);
     }

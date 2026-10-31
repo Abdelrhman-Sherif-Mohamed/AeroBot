@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using RSBot.Core.Extensions;
@@ -33,10 +33,10 @@ public class RefSkill : IReference<uint>
         try
         {
             var path = $"icon\\{UI_IconFile}";
-            if (!Game.MediaPk2.TryGetFile(path, out var file))
-                bitmap = Game.MediaPk2.GetFile("icon\\icon_default.ddj").ToImage();
-
-            bitmap = file.ToImage();
+            if (Game.MediaPk2 != null && Game.MediaPk2.TryGetFile(path, out var file) && file != null)
+                bitmap = file.ToImage();
+            else if (Game.MediaPk2 != null && Game.MediaPk2.TryGetFile("icon\\icon_default.ddj", out var defaultFile) && defaultFile != null)
+                bitmap = defaultFile.ToImage();
         }
         catch
         {
@@ -109,15 +109,15 @@ public class RefSkill : IReference<uint>
     //public short ReqCommon_Str;
     //public short ReqCommon_Int;
 
-    //public int ReqLearn_Skill1;
-    //public int ReqLearn_Skill2;
-    //public int ReqLearn_Skill3;
-    //public byte ReqLearn_SkillLevel1;
-    //public byte ReqLearn_SkillLevel2;
-    //public byte ReqLearn_SkillLevel3;
-    //public int ReqLearn_SP;
+    public int ReqLearn_Skill1;
+    public int ReqLearn_Skill2;
+    public int ReqLearn_Skill3;
+    public byte ReqLearn_SkillLevel1;
+    public byte ReqLearn_SkillLevel2;
+    public byte ReqLearn_SkillLevel3;
+    public int ReqLearn_SP;
 
-    //public byte ReqLearn_Race;
+    public byte ReqLearn_Race;
     //public byte Req_Restriction1;
     //public byte Req_Restriction2;
     public WeaponType ReqCast_Weapon1;
@@ -144,7 +144,7 @@ public class RefSkill : IReference<uint>
     //public byte AI_SkillType;
     public List<int> Params = new(50);
 
-    public PrimarySkillParam Type => (PrimarySkillParam) Params[0];
+    public PrimarySkillParam Type => Params != null && Params.Count > 0 ? (PrimarySkillParam)Params[0] : PrimarySkillParam.Meele;
 
     #endregion Fields
 
@@ -207,14 +207,14 @@ public class RefSkill : IReference<uint>
 
         //parser.TryParseShort(38, out ReqCommon_Str);
         //parser.TryParseShort(39, out ReqCommon_Int);
-        //ReqLearn_Skill1 = int.Parse(data[40]);
-        //ReqLearn_Skill2 = int.Parse(data[41]);
-        //ReqLearn_Skill3 = int.Parse(data[42]);
-        //ReqLearn_SkillLevel1 = byte.Parse(data[43]);
-        //ReqLearn_SkillLevel2 = byte.Parse(data[44]);
-        //ReqLearn_SkillLevel3 = byte.Parse(data[45]);
-        //parser.TryParseInt(46, out ReqLearn_SP);
-        //ReqLearn_Race = byte.Parse(data[47]);
+        parser.TryParse(40, out ReqLearn_Skill1);
+        parser.TryParse(41, out ReqLearn_Skill2);
+        parser.TryParse(42, out ReqLearn_Skill3);
+        parser.TryParse(43, out ReqLearn_SkillLevel1);
+        parser.TryParse(44, out ReqLearn_SkillLevel2);
+        parser.TryParse(45, out ReqLearn_SkillLevel3);
+        parser.TryParse(46, out ReqLearn_SP);
+        parser.TryParse(47, out ReqLearn_Race);
         //Req_Restriction1 = byte.Parse(data[48]);
         //Req_Restriction2 = byte.Parse(data[49]);
         parser.TryParse(50, out ReqCast_Weapon1);

@@ -1,19 +1,23 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using RSBot.Alchemy.Bot;
 using RSBot.Alchemy.Bundle.Enhance;
 using RSBot.Alchemy.Helper;
+using RSBot.Core;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
+using SDUI;
 using SDUI.Controls;
 
 namespace RSBot.Alchemy.Views.Settings;
 
 [ToolboxItem(false)]
-public partial class EnhanceSettingsView : DoubleBufferedControl
+public partial class EnhanceSettingsView : UserControl
 {
     #region Member
 
@@ -30,11 +34,9 @@ public partial class EnhanceSettingsView : DoubleBufferedControl
     {
         CheckForIllegalCrossThreadCalls = false;
         InitializeComponent();
-        SetStyle(
-            ControlStyles.UserPaint |
-            ControlStyles.AllPaintingInWmPaint |
-            ControlStyles.OptimizedDoubleBuffer,
-            true);
+        DoubleBuffered = true;
+
+        ApplySettingsLayout();
 
         EventManager.SubscribeEvent("OnEnterGame", SubscribeMainFormEvents);
     }
@@ -208,4 +210,148 @@ public partial class EnhanceSettingsView : DoubleBufferedControl
     }
 
     #endregion Events
+
+    #region Layout & Theme
+
+    public void ApplyLocalization()
+    {
+        if (lblMaxOptLevel == null)
+            return;
+
+        lblMaxOptLevel.Text = T("Alchemy.Enhance.Max", "Max enhancement:", "أقصى تحسين:");
+        lblElixir.Text = T("Alchemy.Enhance.Elixir", "Elixir:", "الإكسير:");
+        checkStopLuckyPowder.Text = T("Alchemy.Enhance.StopPowder", "Stop if 0 lucky powder", "إيقاف عند نفاد مسحوق الحظ");
+        checkUseLuckyStones.Text = T("Alchemy.Enhance.Lucky", "Use lucky stones", "استخدام أحجار الحظ");
+        checkUseImmortalStones.Text = T("Alchemy.Enhance.Immortal", "Use immortal stones", "استخدام أحجار الخلود");
+        checkUseAstralStones.Text = T("Alchemy.Enhance.Astral", "Use astral stones", "استخدام الأحجار النجمية");
+        checkUseSteadyStones.Text = T("Alchemy.Enhance.Steady", "Use steady stones", "استخدام أحجار الثبات");
+
+        ApplySettingsLayout();
+    }
+
+    public void ApplyTheme()
+    {
+        var foreColor = ColorScheme.ForeColor;
+        var mutedColor = ColorScheme.BackColor.IsDark()
+            ? Color.FromArgb(168, 184, 204)
+            : Color.FromArgb(90, 104, 124);
+
+        lblMaxOptLevel.ForeColor = foreColor;
+        lblElixir.ForeColor = foreColor;
+        lblPlus.ForeColor = foreColor;
+        lblCurrentOptLevel.ForeColor = ColorScheme.AccentColor;
+        linkRefreshItemList.ForeColor = ColorScheme.AccentColor;
+        checkStopLuckyPowder.ForeColor = foreColor;
+        checkUseLuckyStones.ForeColor = foreColor;
+        checkUseImmortalStones.ForeColor = foreColor;
+        checkUseAstralStones.ForeColor = foreColor;
+        checkUseSteadyStones.ForeColor = foreColor;
+        numMaxEnhancement.BackColor = ColorScheme.InputBackColor;
+        numMaxEnhancement.ForeColor = foreColor;
+        comboElixir.BackColor = ColorScheme.InputBackColor;
+        comboElixir.ForeColor = foreColor;
+
+        foreach (var counter in new[]
+                 {
+                     lblLuckyPowderCount, lblLuckyCount, lblImmortalCount, lblAstralCount,
+                     lblSteadyStonesCount
+                 })
+        {
+            if (counter != null)
+                counter.ForeColor = mutedColor;
+        }
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        ApplySettingsLayout();
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+
+        if (Visible)
+            ApplySettingsLayout();
+    }
+
+    private int S(float value)
+    {
+        return (int)Math.Round(value * DeviceDpi / 96f);
+    }
+
+    private void Place(Control control, int x, int y, int width, int height)
+    {
+        if (control == null)
+            return;
+
+        control.Anchor = AnchorStyles.None;
+        control.Dock = DockStyle.None;
+        control.AutoSize = false;
+        control.SetBounds(S(x), S(y), Math.Max(1, S(width)), Math.Max(1, S(height)));
+    }
+
+    private void PlaceLabel(SDUI.Controls.Label label, int x, int y, int width, int height,
+        ContentAlignment alignment)
+    {
+        Place(label, x, y, width, height);
+        label.TextAlign = alignment;
+    }
+
+    private void ApplySettingsLayout()
+    {
+        if (IsDisposed || lblMaxOptLevel == null)
+            return;
+
+        var scale = DeviceDpi / 96f;
+        var width = (int)(ClientSize.Width / scale);
+        var height = (int)(ClientSize.Height / scale);
+
+        if (width < 220 || height < 200)
+            return;
+
+        const int pad = 18;
+        const int labelWidth = 190;
+
+        PlaceLabel(lblMaxOptLevel, width - pad - labelWidth, 28, labelWidth, 28,
+            ContentAlignment.MiddleRight);
+        Place(numMaxEnhancement, width - pad - labelWidth - 80, 29, 72, 27);
+        PlaceLabel(lblPlus, width - pad - labelWidth - 102, 28, 18, 28, ContentAlignment.MiddleCenter);
+        PlaceLabel(lblCurrentOptLevel, pad, 24, 80, 34, ContentAlignment.MiddleLeft);
+
+        Place(linkRefreshItemList, pad, 68, 34, 30);
+        Place(comboElixir, pad + 40, 70, width - pad * 2 - 40 - labelWidth - 10, 27);
+        PlaceLabel(lblElixir, width - pad - labelWidth, 68, labelWidth, 28,
+            ContentAlignment.MiddleRight);
+
+        var counterX = width - pad - 60;
+        var checkWidth = Math.Max(160, width - pad * 2 - 74);
+
+        Place(checkStopLuckyPowder, pad, 112, checkWidth, 24);
+        PlaceLabel(lblLuckyPowderCount, counterX, 112, 60, 24, ContentAlignment.MiddleRight);
+
+        Place(checkUseLuckyStones, pad, 146, checkWidth, 24);
+        PlaceLabel(lblLuckyCount, counterX, 146, 60, 24, ContentAlignment.MiddleRight);
+
+        Place(checkUseImmortalStones, pad, 178, checkWidth, 24);
+        PlaceLabel(lblImmortalCount, counterX, 178, 60, 24, ContentAlignment.MiddleRight);
+
+        Place(checkUseAstralStones, pad, 210, checkWidth, 24);
+        PlaceLabel(lblAstralCount, counterX, 210, 60, 24, ContentAlignment.MiddleRight);
+
+        Place(checkUseSteadyStones, pad, 242, checkWidth, 24);
+        PlaceLabel(lblSteadyStonesCount, counterX, 242, 60, 24, ContentAlignment.MiddleRight);
+    }
+
+    private static string T(string key, string english, string arabic)
+    {
+        var value = LanguageManager.GetLangBySpecificKey("RSBot.Alchemy", key, string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+            return value;
+
+        return Kernel.Language == "ar_AR" ? arabic : english;
+    }
+
+    #endregion Layout & Theme
 }

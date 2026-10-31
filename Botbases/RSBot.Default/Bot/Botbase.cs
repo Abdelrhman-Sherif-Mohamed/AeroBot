@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using RSBot.Core;
 using RSBot.Core.Components;
@@ -50,9 +50,12 @@ internal class Botbase
         if (!Kernel.Bot.Running)
             return;
 
+        if (Game.Player == null || Game.Player.State == null)
+            return;
+
         if (Game.Player.HasActiveVehicle)
         {
-            Game.Player.Vehicle.Dismount();
+            Game.Player.Vehicle?.Dismount();
             Thread.Sleep(1000);
         }
 
@@ -60,11 +63,12 @@ internal class Botbase
         if (PickupManager.RunningPlayerPickup)
             return;
 
-        if (Bundles.Loop.Config.UseSpeedDrug &&
-            Game.Player.State.ActiveBuffs.FindIndex(p => p.Record.Params.Contains(1752396901)) < 0)
+        if (Bundles.Loop?.Config != null && Bundles.Loop.Config.UseSpeedDrug &&
+            Game.Player.State.ActiveBuffs != null &&
+            Game.Player.State.ActiveBuffs.FindIndex(p => p?.Record?.Params != null && p.Record.Params.Contains(1752396901)) < 0)
         {
-            var item = Game.Player.Inventory.GetItem(new TypeIdFilter(3, 3, 13, 1),
-                p => p.Record.Desc1.Contains("_SPEED_"));
+            var item = Game.Player.Inventory?.GetItem(new TypeIdFilter(3, 3, 13, 1),
+                p => p?.Record?.Desc1 != null && p.Record.Desc1.Contains("_SPEED_"));
             item?.Use();
         }
 

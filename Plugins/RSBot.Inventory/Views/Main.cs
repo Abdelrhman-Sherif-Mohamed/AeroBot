@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Client.ReferenceObjects;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Extensions;
 using RSBot.Core.Network;
@@ -13,7 +14,6 @@ using RSBot.Core.Objects;
 using RSBot.Core.Objects.Inventory;
 using SDUI;
 using SDUI.Controls;
-using SDUI.Helpers;
 using Button = SDUI.Controls.Button;
 using ListViewExtensions = RSBot.Core.Extensions.ListViewExtensions;
 
@@ -39,10 +39,11 @@ public partial class Main : DoubleBufferedControl
     {
         _lock = new object();
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
         SubscribeEvents();
 
         listViewMain.SmallImageList = ListViewExtensions.StaticItemsImageList;
+        listViewMain.BackColor = ColorScheme.TableBackColor;
+        listViewMain.ForeColor = ColorScheme.ForeColor;
 
         var backColor = ColorScheme.BorderColor.Determine().Alpha(85);
         buttonInventory.ForeColor = backColor.Determine();
@@ -637,5 +638,57 @@ public partial class Main : DoubleBufferedControl
     private void Main_Load(object sender, EventArgs e)
     {
         checkAutoSort.Checked = PlayerConfig.Get("RSBot.Inventory.AutoSort", false);
+        checkAutoHappy.Checked = PlayerConfig.Get("RSBot.Inventory.Happy", false);
+        UpdateHappyUI();
+
+        timerHappy.Interval = 1500;
+        timerHappy.Tick += (s, ev) => UpdateHappyUI();
+        timerHappy.Start();
+    }
+
+    private void btnStartHappy_Click(object sender, EventArgs e)
+    {
+        if (HappyManager.Running)
+            HappyManager.Stop();
+        else
+            HappyManager.Run(true);
+
+        UpdateHappyUI();
+    }
+
+    private void btnStopHappy_Click(object sender, EventArgs e)
+    {
+        HappyManager.Stop();
+        UpdateHappyUI();
+    }
+
+    private void checkAutoHappy_CheckedChanged(object sender, EventArgs e)
+    {
+        PlayerConfig.Set("RSBot.Inventory.Happy", checkAutoHappy.Checked);
+    }
+
+    private void UpdateHappyUI()
+    {
+        if (IsDisposed) return;
+        try
+        {
+            var letters = HappyManager.GetLetterCounts();
+            var jewelCount = HappyManager.GetJewelBoxCount();
+            lblHappyCounts.Text = $"H:{letters.H} A:{letters.A} P1:{letters.P1} P2:{letters.P2} Y:{letters.Y} | Jewel:{jewelCount}";
+
+            if (HappyManager.Running)
+            {
+                lblHappyStatus.Text = "Running...";
+                lblHappyStatus.ForeColor = Color.DarkOrange;
+                btnStartHappy.Text = "Running...";
+            }
+            else
+            {
+                lblHappyStatus.Text = letters.CanExchange ? "Ready" : "Idle";
+                lblHappyStatus.ForeColor = letters.CanExchange ? Color.SeaGreen : Color.Gray;
+                btnStartHappy.Text = "Start Exchange";
+            }
+        }
+        catch { }
     }
 }

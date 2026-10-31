@@ -1,14 +1,15 @@
-using System;
+﻿using System;
 using System.ComponentModel;
+using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using RSBot.Core;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects.Skill;
 using RSBot.Protection.Components.Player;
 using SDUI.Controls;
-using SDUI.Helpers;
 using CheckBox = SDUI.Controls.CheckBox;
 
 namespace RSBot.Protection.Views;
@@ -20,6 +21,216 @@ public partial class Main : DoubleBufferedControl
     {
         InitializeComponent();
         SubscribeEvents();
+        ApplyProtectionLayout();
+    }
+
+    private bool _applyingProtectionLayout;
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        ApplyProtectionLayout();
+    }
+
+    private int S(float value)
+    {
+        return (int)Math.Round(value * DeviceDpi / 96f);
+    }
+
+    private void Place(Control control, int x, int y, int width, int height)
+    {
+        if (control == null)
+            return;
+
+        control.AutoSize = false;
+        control.SetBounds(S(x), S(y), Math.Max(1, S(width)), Math.Max(1, S(height)));
+    }
+
+    private void PlaceLabel(SDUI.Controls.Label label, int x, int y, int width, int height,
+        ContentAlignment alignment)
+    {
+        if (label == null)
+            return;
+
+        label.AutoSize = false;
+        label.TextAlign = alignment;
+        label.SetBounds(S(x), S(y), Math.Max(1, S(width)), Math.Max(1, S(height)));
+    }
+
+    /// <summary>
+    ///     Lays the Protection page out as two responsive columns. The designer
+    ///     stored fixed coordinates for the English labels; the Arabic captions
+    ///     are wider and the page is shown in a much larger surface, so the cards
+    ///     are re-positioned to use the available width and keep every label
+    ///     inside its card.
+    /// </summary>
+    private void ApplyProtectionLayout()
+    {
+        if (_applyingProtectionLayout || IsDisposed || groupHPMP == null)
+            return;
+
+        _applyingProtectionLayout = true;
+        SuspendLayout();
+
+        try
+        {
+            var scale = DeviceDpi / 96f;
+            var width = Math.Max((int)(ClientSize.Width / scale), 1000);
+            var height = Math.Max((int)(ClientSize.Height / scale), 600);
+
+            AutoScroll = true;
+            AutoScrollMinSize = new Size(S(width), S(height));
+
+            // Child coordinates below are relative to the card client area; the
+            // native group box title is painted separately by SDUI.GroupBox.
+            groupHPMP.Padding = Padding.Empty;
+            groupBadStatus.Padding = Padding.Empty;
+            groupPet.Padding = Padding.Empty;
+            groupBackTown.Padding = Padding.Empty;
+            groupStatPoints.Padding = Padding.Empty;
+
+            const int margin = 14;
+            const int gap = 14;
+            const int top = margin;
+            var contentW = width - margin * 2;
+            var rightW = Math.Min(460, Math.Max(340, (int)(contentW * 0.40f)));
+            var leftW = contentW - rightW - gap;
+            var leftX = margin;
+            var rightX = leftX + leftW + gap;
+
+            // ---- Left column: recovery, bad status and pet --------------------
+            const int hpmpH = 232;
+            const int badH = 100;
+            const int petH = 196;
+            Place(groupHPMP, leftX, top, leftW, hpmpH);
+            Place(groupBadStatus, leftX, top + hpmpH + gap, leftW, badH);
+            var petY = top + hpmpH + gap + badH + gap;
+            Place(groupPet, leftX, petY, leftW, petH);
+
+            // Shared grid: checkbox | < | value | % | skill combo.
+            const int rowH = 26;
+            const int rowGap = 32;
+            const int numW = 90;
+            const int pctW = 24;
+            const int ltW = 16;
+            var comboW = Math.Min(160, Math.Max(120, (int)(leftW * 0.235f)));
+            var comboX = leftW - 16 - comboW;
+            var pctX = comboX - 12 - pctW;
+            var numX = pctX - 6 - numW;
+            var ltX = numX - 4 - ltW;
+            var checkW = ltX - 8 - 16;
+
+            var rowY = 32;
+            PlaceRow(checkUseHPPotionsPlayer, label1, numPlayerHPPotionMin, label2, rowY,
+                checkW, ltX, numX, pctX, numW, pctW);
+            rowY += rowGap;
+            PlaceRow(checkUseMPPotionsPlayer, label4, numPlayerMPPotionMin, label3, rowY,
+                checkW, ltX, numX, pctX, numW, pctW);
+            rowY += rowGap;
+            PlaceRow(checkUseVigorHP, label6, numPlayerHPVigorPotionMin, label5, rowY,
+                checkW, ltX, numX, pctX, numW, pctW);
+            rowY += rowGap;
+            PlaceRow(checkUseVigorMP, label8, numPlayerMPVigorPotionMin, label7, rowY,
+                checkW, ltX, numX, pctX, numW, pctW);
+            rowY += rowGap;
+            PlaceRow(checkUseSkillHP, label10, numPlayerSkillHPMin, label9, rowY,
+                checkW, ltX, numX, pctX, numW, pctW);
+            Place(comboSkillPlayerHP, comboX, rowY - 1, comboW, 28);
+            rowY += rowGap;
+            PlaceRow(checkUseSkillMP, label12, numPlayerSkillMPMin, label11, rowY,
+                checkW, ltX, numX, pctX, numW, pctW);
+            Place(comboSkillPlayerMP, comboX, rowY - 1, comboW, 28);
+
+            PlaceLabel(label17, comboX, 132, comboW, 20, ContentAlignment.MiddleLeft);
+
+            // Bad status: the skill picker occupies the same column as the
+            // recovery pickers, so the two cards line up visually.
+            Place(checkUseUniversalPills, 16, 26, checkW, rowH);
+            Place(checkUseBadStatusSkill, 16, 54, checkW, rowH);
+            PlaceLabel(label18, comboX, 29, comboW, 20, ContentAlignment.MiddleLeft);
+            Place(comboSkillBadStatus, comboX, 47, comboW, 28);
+
+            // Pet recovery follows the same value grid as the player rows.
+            rowY = 32;
+            PlaceRow(checkUsePetHP, label16, numPetMinHP, label15, rowY,
+                checkW, ltX, numX, pctX, numW, pctW);
+            rowY += rowGap;
+            PlaceRow(checkUseHGP, label14, numPetMinHGP, label13, rowY,
+                checkW, ltX, numX, pctX, numW, pctW);
+            Place(checkUseAbnormalStatePotion, 16, 96, leftW - 32, rowH);
+            Place(checkReviveAttackPet, 16, 128, leftW - 32, rowH);
+            Place(checkAutoSummonAttackPet, 16, 160, leftW - 32, rowH);
+
+            // ---- Right column: return to town and stat points -----------------
+            const int backH = 292;
+            const int statH = 244;
+            Place(groupBackTown, rightX, top, rightW, backH);
+            Place(groupStatPoints, rightX, top + backH + gap, rightW, statH);
+
+            const int deadNumW = 90;
+            var deadNumX = rightW - 16 - 55 - 6 - deadNumW;
+            Place(checkDead, 16, 32, deadNumX - 26, 28);
+            Place(numDeadTimeout, deadNumX, 34, deadNumW, 25);
+            PlaceLabel(label21, deadNumX + deadNumW + 6, 36, 55, 22, ContentAlignment.MiddleLeft);
+
+            var townRowY = 64;
+            Place(checkStopBotOnReturnToTown, 16, townRowY, rightW - 32, 28);
+            townRowY += 27;
+            Place(checkNoArrows, 16, townRowY, rightW - 32, 28);
+            townRowY += 27;
+            Place(checkInventory, 16, townRowY, rightW - 32, 28);
+            townRowY += 27;
+            Place(checkFullPetInventory, 16, townRowY, rightW - 32, 28);
+            townRowY += 27;
+            Place(checkNoHPPotions, 16, townRowY, rightW - 32, 28);
+            townRowY += 27;
+            Place(checkNoMPPotions, 16, townRowY, rightW - 32, 28);
+            townRowY += 27;
+            Place(checkDurability, 16, townRowY, rightW - 32, 28);
+            townRowY += 27;
+            Place(checkLevelUp, 16, townRowY, rightW - 32, 28);
+
+            const int statNumW = 90;
+            var statNumX = rightW - 16 - statNumW;
+            var statCheckW = statNumX - 16 - 12;
+            Place(checkIncInt, 16, 34, statCheckW, 30);
+            Place(numIncInt, statNumX, 36, statNumW, 25);
+            Place(checkIncStr, 16, 78, statCheckW, 30);
+            Place(numIncStr, statNumX, 80, statNumW, 25);
+            Place(checkIncBotStopped, 16, 122, rightW - 32, 28);
+            Place(buttonRun, 16, 168, rightW - 32, 34);
+
+            var noteY = Math.Max(petY + petH, top + backH + gap + statH) + 6;
+            PlaceLabel(label22, leftX, noteY, contentW, 22, ContentAlignment.MiddleLeft);
+        }
+        finally
+        {
+            ResumeLayout(true);
+            _applyingProtectionLayout = false;
+        }
+    }
+
+    private void PlaceRow(CheckBox check, SDUI.Controls.Label lessThan, NumUpDown value,
+        SDUI.Controls.Label percent, int y, int checkW, int ltX, int numX, int pctX,
+        int numW, int pctW)
+    {
+        Place(check, 16, y, checkW, 26);
+        PlaceLabel(lessThan, ltX, y + 1, 16, 24, ContentAlignment.MiddleLeft);
+        Place(value, numX, y + 1, numW, 25);
+        PlaceLabel(percent, pctX, y + 1, pctW, 24, ContentAlignment.MiddleLeft);
+    }
+
+    /// <summary>
+    ///     Localizes the Run/Cancel caption instead of falling back to English
+    ///     when the state changes.
+    /// </summary>
+    private void UpdateRunButtonCaption()
+    {
+        var key = _statIncreaseRunning ? "buttonRunCancel" : "buttonRun";
+        buttonRun.Text = LanguageManager.GetLangBySpecificKey(
+            "RSBot.Protection",
+            $"RSBot.Protection.Main.GroupBox.{key}",
+            _statIncreaseRunning ? "Cancel" : "Run");
     }
 
     /// <summary>
@@ -248,23 +459,17 @@ public partial class Main : DoubleBufferedControl
     {
         if (Game.Player.StatPoints < numIncInt.Value + numIncStr.Value)
         {
-            var runText = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("SonicBot.Protection", "SonicBot.Protection.Main.GroupBox.buttonRun", "تنفيذ النقاط");
-            buttonRun.Text = string.IsNullOrEmpty(runText) ? "تنفيذ النقاط" : runText;
-
             _statIncreaseRunning = false;
+            UpdateRunButtonCaption();
         }
     }
 
     private void buttonRun_Click(object sender, EventArgs e)
     {
-        var runText = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("SonicBot.Protection", "SonicBot.Protection.Main.GroupBox.buttonRun", "تنفيذ النقاط");
-        if (string.IsNullOrEmpty(runText)) runText = "تنفيذ النقاط";
-
         if (_statIncreaseRunning)
         {
-            buttonRun.Text = runText;
-
             _statIncreaseRunning = false;
+            UpdateRunButtonCaption();
 
             StatPointsHandler.CancellationRequested = true;
 
@@ -290,7 +495,7 @@ public partial class Main : DoubleBufferedControl
 
         _statIncreaseRunning = true;
 
-        buttonRun.Text = "إلغاء";
+        UpdateRunButtonCaption();
     }
 
     /// <summary>
@@ -303,6 +508,7 @@ public partial class Main : DoubleBufferedControl
         _settingsLoaded = false;
         LoadSettings();
         _settingsLoaded = true;
+        UpdateRunButtonCaption();
     }
 
     #region Fields

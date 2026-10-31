@@ -8,14 +8,110 @@ using System.Windows.Forms;
 
 public static class DrawingExtensions
 {
+    private static readonly System.Text.RegularExpressions.Regex _parenthesesPrefixRegex =
+        new System.Text.RegularExpressions.Regex(@"^\s*\(([^)]+)\)\s+([\u0600-\u06FF].+)$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static readonly System.Text.RegularExpressions.Regex _parenthesesRegex =
+        new System.Text.RegularExpressions.Regex(@"\(([^)]+)\)", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static readonly System.Text.RegularExpressions.Regex _colonFollowedByWordRegex =
+        new System.Text.RegularExpressions.Regex(@":(\s+)([0-9A-Za-z])", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    public static bool HasArabic(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return false;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c >= 0x0600 && c <= 0x06FF)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    ///     Properly formats mixed Arabic and English text:
+    ///     - Reorders inverted prefix parentheses, e.g. "(Stats) تطوير الخصائص" -> "تطوير الخصائص (Stats)"
+    ///     - Encloses parenthesized acronyms/words with LRM/RLM directional marks
+    ///     - Pins colons to Arabic text so they do not flip in LTR containers
+    /// </summary>
+    public static string FormatBidiText(string text)
+    {
+        if (string.IsNullOrEmpty(text) || !HasArabic(text))
+            return text;
+
+        // Strip existing directional marks first to ensure idempotency
+        text = text.Replace("\u200E", "").Replace("\u200F", "");
+
+        // 1. Inverted prefix match
+        var prefixMatch = _parenthesesPrefixRegex.Match(text);
+        if (prefixMatch.Success)
+        {
+            text = $"{prefixMatch.Groups[2].Value.Trim()} ({prefixMatch.Groups[1].Value.Trim()})";
+        }
+
+        // 2. Format trailing colons
+        if (text.EndsWith(":"))
+        {
+            text = text + "\u200F";
+        }
+        else if (text.EndsWith(": "))
+        {
+            text = text.Substring(0, text.Length - 1) + "\u200F ";
+        }
+
+        return text;
+    }
+
+    /// <summary>
+    ///     Strips emoji glyphs, surrogate pairs, and non-printable symbols that fail to render
+    ///     in Windows Forms GDI and display as broken square tofu boxes.
+    /// </summary>
+    public static string StripEmojis(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text;
+
+        var sb = new System.Text.StringBuilder(text.Length);
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (char.IsSurrogate(c))
+            {
+                if (char.IsSurrogatePair(text, i))
+                    i++;
+                continue;
+            }
+
+            int code = (int)c;
+            if ((code >= 0x2600 && code <= 0x27BF) ||
+                (code >= 0x2300 && code <= 0x23FF) ||
+                (code >= 0x2B00 && code <= 0x2BFF) ||
+                (code >= 0x25A0 && code <= 0x25FF) ||
+                (code >= 0xFE00 && code <= 0xFE0F))
+            {
+                continue;
+            }
+
+            sb.Append(c);
+        }
+
+        return sb.ToString().Trim();
+    }
+
     private static void DrawText(Graphics g, string text, Font font, Color color, RectangleF rect, StringFormat format)
     {
         if (string.IsNullOrEmpty(text) || rect.Width <= 0 || rect.Height <= 0)
             return;
 
+        text = StripEmojis(text);
+
         // Ensure proper RTL boundary for Arabic text so trailing/leading brackets, colons and numbers are not flipped
         if (HasArabic(text))
         {
+            text = FormatBidiText(text);
             if (!text.StartsWith("\u200F"))
                 text = "\u200F" + text;
             if (!text.EndsWith("\u200F"))
@@ -24,17 +120,6 @@ public static class DrawingExtensions
 
         using var brush = new SolidBrush(color);
         g.DrawString(text, font, brush, rect, format);
-    }
-
-    private static bool HasArabic(string text)
-    {
-        for (int i = 0; i < text.Length; i++)
-        {
-            char c = text[i];
-            if (c >= 0x0600 && c <= 0x06FF)
-                return true;
-        }
-        return false;
     }
 
     private static readonly ContentAlignment anyRight = ContentAlignment.TopRight | ContentAlignment.MiddleRight | ContentAlignment.BottomRight;

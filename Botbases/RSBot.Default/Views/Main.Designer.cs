@@ -1,4 +1,4 @@
-namespace RSBot.Default.Views
+﻿namespace RSBot.Default.Views
 {
     partial class Main
     {
@@ -30,6 +30,7 @@ namespace RSBot.Default.Views
         {
             System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Avoid", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("Prefer", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Berzerk", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("No custom behavior", System.Windows.Forms.HorizontalAlignment.Left);
             System.Windows.Forms.ListViewItem listViewItem1 = new System.Windows.Forms.ListViewItem("General");
             System.Windows.Forms.ListViewItem listViewItem2 = new System.Windows.Forms.ListViewItem("Champion");
@@ -47,6 +48,7 @@ namespace RSBot.Default.Views
             ctxAvoidance = new SDUI.Controls.ContextMenuStrip();
             btnAvoid = new System.Windows.Forms.ToolStripMenuItem();
             btnPrefer = new System.Windows.Forms.ToolStripMenuItem();
+            btnBerserk = new System.Windows.Forms.ToolStripMenuItem();
             toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             btnNoCustomBehavior = new System.Windows.Forms.ToolStripMenuItem();
             groupBoxWalkback = new SDUI.Controls.GroupBox();
@@ -59,6 +61,7 @@ namespace RSBot.Default.Views
             txtWalkscript = new SDUI.Controls.TextBox();
             label4 = new SDUI.Controls.Label();
             checkBerzerkWhenFull = new SDUI.Controls.CheckBox();
+            checkBerserkOnMonsterRarity = new SDUI.Controls.CheckBox();
             groupBoxBerserk = new SDUI.Controls.GroupBox();
             label7 = new SDUI.Controls.Label();
             numBerzerkMonsterAmount = new SDUI.Controls.NumUpDown();
@@ -119,7 +122,9 @@ namespace RSBot.Default.Views
             listViewGroup2.Name = "grpPrefer";
             listViewGroup3.Header = "No custom behavior";
             listViewGroup3.Name = "grpNone";
-            lvAvoidance.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] { listViewGroup1, listViewGroup2, listViewGroup3 });
+            listViewGroup4.Header = "Berserk";
+            listViewGroup4.Name = "grpBerserk";
+            lvAvoidance.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] { listViewGroup1, listViewGroup2, listViewGroup4, listViewGroup3 });
             lvAvoidance.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             listViewItem1.Group = listViewGroup3;
             listViewItem2.Group = listViewGroup3;
@@ -147,7 +152,7 @@ namespace RSBot.Default.Views
             // 
             // ctxAvoidance
             // 
-            ctxAvoidance.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { btnAvoid, btnPrefer, toolStripSeparator1, btnNoCustomBehavior });
+            ctxAvoidance.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { btnAvoid, btnPrefer, btnBerserk, toolStripSeparator1, btnNoCustomBehavior });
             ctxAvoidance.Name = "ctxAvoidance";
             ctxAvoidance.Size = new System.Drawing.Size(183, 76);
             // 
@@ -164,6 +169,13 @@ namespace RSBot.Default.Views
             btnPrefer.Size = new System.Drawing.Size(182, 22);
             btnPrefer.Text = "Prefer";
             btnPrefer.Click += btnPrefer_Click;
+            // 
+            // btnBerserk
+            // 
+            btnBerserk.Name = "btnBerserk";
+            btnBerserk.Size = new System.Drawing.Size(182, 22);
+            btnBerserk.Text = "Berserk";
+            btnBerserk.Click += btnBerserk_Click;
             // 
             // toolStripSeparator1
             // 
@@ -193,7 +205,7 @@ namespace RSBot.Default.Views
             groupBoxWalkback.Padding = new System.Windows.Forms.Padding(3, 10, 3, 3);
             groupBoxWalkback.Radius = 10;
             groupBoxWalkback.ShadowDepth = 4;
-            groupBoxWalkback.Size = new System.Drawing.Size(478, 150);
+            groupBoxWalkback.Size = new System.Drawing.Size(478, 117);
             groupBoxWalkback.TabIndex = 2;
             groupBoxWalkback.TabStop = false;
             groupBoxWalkback.Text = "Back to training";
@@ -201,7 +213,7 @@ namespace RSBot.Default.Views
             // linkRecord
             // 
             linkRecord.AutoSize = true;
-            linkRecord.Location = new System.Drawing.Point(348, 18);
+            linkRecord.Location = new System.Drawing.Point(348, 33);
             linkRecord.Name = "linkRecord";
             linkRecord.Size = new System.Drawing.Size(52, 15);
             linkRecord.TabIndex = 7;
@@ -214,12 +226,12 @@ namespace RSBot.Default.Views
             checkBoxUseReverse.AutoSize = true;
             checkBoxUseReverse.BackColor = System.Drawing.Color.Transparent;
             checkBoxUseReverse.Depth = 0;
-            checkBoxUseReverse.Location = new System.Drawing.Point(240, 94);
+            checkBoxUseReverse.Location = new System.Drawing.Point(373, 80);
             checkBoxUseReverse.Margin = new System.Windows.Forms.Padding(0);
             checkBoxUseReverse.MouseLocation = new System.Drawing.Point(-1, -1);
             checkBoxUseReverse.Name = "checkBoxUseReverse";
             checkBoxUseReverse.Ripple = true;
-            checkBoxUseReverse.Size = new System.Drawing.Size(225, 30);
+            checkBoxUseReverse.Size = new System.Drawing.Size(95, 30);
             checkBoxUseReverse.TabIndex = 7;
             checkBoxUseReverse.Text = "Use Reverse";
             checkBoxUseReverse.UseVisualStyleBackColor = false;
@@ -230,12 +242,12 @@ namespace RSBot.Default.Views
             checkUseSpeedDrug.AutoSize = true;
             checkUseSpeedDrug.BackColor = System.Drawing.Color.Transparent;
             checkUseSpeedDrug.Depth = 0;
-            checkUseSpeedDrug.Location = new System.Drawing.Point(16, 94);
+            checkUseSpeedDrug.Location = new System.Drawing.Point(258, 80);
             checkUseSpeedDrug.Margin = new System.Windows.Forms.Padding(0);
             checkUseSpeedDrug.MouseLocation = new System.Drawing.Point(-1, -1);
             checkUseSpeedDrug.Name = "checkUseSpeedDrug";
             checkUseSpeedDrug.Ripple = true;
-            checkUseSpeedDrug.Size = new System.Drawing.Size(220, 30);
+            checkUseSpeedDrug.Size = new System.Drawing.Size(115, 30);
             checkUseSpeedDrug.TabIndex = 7;
             checkUseSpeedDrug.Text = "Use speed drug";
             checkUseSpeedDrug.UseVisualStyleBackColor = false;
@@ -246,12 +258,12 @@ namespace RSBot.Default.Views
             checkCastBuffs.AutoSize = true;
             checkCastBuffs.BackColor = System.Drawing.Color.Transparent;
             checkCastBuffs.Depth = 0;
-            checkCastBuffs.Location = new System.Drawing.Point(240, 62);
+            checkCastBuffs.Location = new System.Drawing.Point(169, 80);
             checkCastBuffs.Margin = new System.Windows.Forms.Padding(0);
             checkCastBuffs.MouseLocation = new System.Drawing.Point(-1, -1);
             checkCastBuffs.Name = "checkCastBuffs";
             checkCastBuffs.Ripple = true;
-            checkCastBuffs.Size = new System.Drawing.Size(225, 30);
+            checkCastBuffs.Size = new System.Drawing.Size(83, 30);
             checkCastBuffs.TabIndex = 6;
             checkCastBuffs.Text = "Cast buffs";
             checkCastBuffs.UseVisualStyleBackColor = false;
@@ -262,12 +274,12 @@ namespace RSBot.Default.Views
             checkUseMount.AutoSize = true;
             checkUseMount.BackColor = System.Drawing.Color.Transparent;
             checkUseMount.Depth = 0;
-            checkUseMount.Location = new System.Drawing.Point(16, 62);
+            checkUseMount.Location = new System.Drawing.Point(18, 80);
             checkUseMount.Margin = new System.Windows.Forms.Padding(0);
             checkUseMount.MouseLocation = new System.Drawing.Point(-1, -1);
             checkUseMount.Name = "checkUseMount";
             checkUseMount.Ripple = true;
-            checkUseMount.Size = new System.Drawing.Size(220, 30);
+            checkUseMount.Size = new System.Drawing.Size(150, 30);
             checkUseMount.TabIndex = 3;
             checkUseMount.Text = "Use mount if available";
             checkUseMount.UseVisualStyleBackColor = false;
@@ -276,7 +288,7 @@ namespace RSBot.Default.Views
             // btnBrowse
             // 
             btnBrowse.Color = System.Drawing.Color.Transparent;
-            btnBrowse.Location = new System.Drawing.Point(406, 33);
+            btnBrowse.Location = new System.Drawing.Point(406, 51);
             btnBrowse.Name = "btnBrowse";
             btnBrowse.Radius = 6;
             btnBrowse.ShadowDepth = 4F;
@@ -289,7 +301,7 @@ namespace RSBot.Default.Views
             // txtWalkscript
             // 
             txtWalkscript.BackColor = System.Drawing.Color.White;
-            txtWalkscript.Location = new System.Drawing.Point(21, 34);
+            txtWalkscript.Location = new System.Drawing.Point(21, 52);
             txtWalkscript.MaxLength = 32767;
             txtWalkscript.MultiLine = false;
             txtWalkscript.Name = "txtWalkscript";
@@ -307,7 +319,7 @@ namespace RSBot.Default.Views
             label4.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             label4.Gradient = (new System.Drawing.Color[] { System.Drawing.Color.Gray, System.Drawing.Color.Black });
             label4.GradientAnimation = false;
-            label4.Location = new System.Drawing.Point(18, 18);
+            label4.Location = new System.Drawing.Point(18, 33);
             label4.Name = "label4";
             label4.Size = new System.Drawing.Size(65, 15);
             label4.TabIndex = 3;
@@ -323,11 +335,27 @@ namespace RSBot.Default.Views
             checkBerzerkWhenFull.MouseLocation = new System.Drawing.Point(-1, -1);
             checkBerzerkWhenFull.Name = "checkBerzerkWhenFull";
             checkBerzerkWhenFull.Ripple = true;
-            checkBerzerkWhenFull.Size = new System.Drawing.Size(260, 30);
+            checkBerzerkWhenFull.Size = new System.Drawing.Size(190, 30);
             checkBerzerkWhenFull.TabIndex = 4;
             checkBerzerkWhenFull.Text = "Enter berzerk mode when full";
             checkBerzerkWhenFull.UseVisualStyleBackColor = false;
             checkBerzerkWhenFull.CheckedChanged += settings_CheckedChanged;
+            // 
+            // checkBerserkOnMonsterRarity
+            // 
+            checkBerserkOnMonsterRarity.AutoSize = true;
+            checkBerserkOnMonsterRarity.BackColor = System.Drawing.Color.Transparent;
+            checkBerserkOnMonsterRarity.Depth = 0;
+            checkBerserkOnMonsterRarity.Location = new System.Drawing.Point(21, 112);
+            checkBerserkOnMonsterRarity.Margin = new System.Windows.Forms.Padding(0);
+            checkBerserkOnMonsterRarity.MouseLocation = new System.Drawing.Point(-1, -1);
+            checkBerserkOnMonsterRarity.Name = "checkBerserkOnMonsterRarity";
+            checkBerserkOnMonsterRarity.Ripple = true;
+            checkBerserkOnMonsterRarity.Size = new System.Drawing.Size(190, 30);
+            checkBerserkOnMonsterRarity.TabIndex = 4;
+            checkBerserkOnMonsterRarity.Text = "Enter berserk mode when attack specific monster type";
+            checkBerserkOnMonsterRarity.UseVisualStyleBackColor = false;
+            checkBerserkOnMonsterRarity.CheckedChanged += settings_CheckedChanged;
             // 
             // groupBoxBerserk
             // 
@@ -337,15 +365,16 @@ namespace RSBot.Default.Views
             groupBoxBerserk.Controls.Add(checkBerzerkAvoidance);
             groupBoxBerserk.Controls.Add(checkBerzerkMonsterAmount);
             groupBoxBerserk.Controls.Add(checkBerzerkWhenFull);
-            groupBoxBerserk.Location = new System.Drawing.Point(262, 177);
+            groupBoxBerserk.Controls.Add(checkBerserkOnMonsterRarity);
+            groupBoxBerserk.Location = new System.Drawing.Point(262, 144);
             groupBoxBerserk.Name = "groupBoxBerserk";
             groupBoxBerserk.Padding = new System.Windows.Forms.Padding(3, 10, 3, 3);
             groupBoxBerserk.Radius = 10;
             groupBoxBerserk.ShadowDepth = 4;
-            groupBoxBerserk.Size = new System.Drawing.Size(478, 125);
+            groupBoxBerserk.Size = new System.Drawing.Size(478, 150);
             groupBoxBerserk.TabIndex = 5;
             groupBoxBerserk.TabStop = false;
-            groupBoxBerserk.Text = "Berzerk";
+            groupBoxBerserk.Text = "Berserk";
             // 
             // label7
             // 
@@ -354,7 +383,7 @@ namespace RSBot.Default.Views
             label7.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             label7.Gradient = (new System.Drawing.Color[] { System.Drawing.Color.Gray, System.Drawing.Color.Black });
             label7.GradientAnimation = false;
-            label7.Location = new System.Drawing.Point(292, 67);
+            label7.Location = new System.Drawing.Point(300, 67);
             label7.Name = "label7";
             label7.Size = new System.Drawing.Size(56, 15);
             label7.TabIndex = 7;
@@ -365,12 +394,12 @@ namespace RSBot.Default.Views
             numBerzerkMonsterAmount.BackColor = System.Drawing.Color.Transparent;
             numBerzerkMonsterAmount.Font = new System.Drawing.Font("Segoe UI", 9.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             numBerzerkMonsterAmount.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            numBerzerkMonsterAmount.Location = new System.Drawing.Point(222, 62);
+            numBerzerkMonsterAmount.Location = new System.Drawing.Point(214, 62);
             numBerzerkMonsterAmount.Maximum = new decimal(new int[] { 10, 0, 0, 0 });
             numBerzerkMonsterAmount.Minimum = new decimal(new int[] { 2, 0, 0, 0 });
-            numBerzerkMonsterAmount.MinimumSize = new System.Drawing.Size(65, 25);
+            numBerzerkMonsterAmount.MinimumSize = new System.Drawing.Size(80, 25);
             numBerzerkMonsterAmount.Name = "numBerzerkMonsterAmount";
-            numBerzerkMonsterAmount.Size = new System.Drawing.Size(65, 25);
+            numBerzerkMonsterAmount.Size = new System.Drawing.Size(80, 25);
             numBerzerkMonsterAmount.TabIndex = 6;
             numBerzerkMonsterAmount.Value = new decimal(new int[] { 5, 0, 0, 0 });
             numBerzerkMonsterAmount.ValueChanged += numSettings_ValueChanged;
@@ -385,7 +414,7 @@ namespace RSBot.Default.Views
             checkBerzerkAvoidance.MouseLocation = new System.Drawing.Point(-1, -1);
             checkBerzerkAvoidance.Name = "checkBerzerkAvoidance";
             checkBerzerkAvoidance.Ripple = true;
-            checkBerzerkAvoidance.Size = new System.Drawing.Size(440, 30);
+            checkBerzerkAvoidance.Size = new System.Drawing.Size(352, 30);
             checkBerzerkAvoidance.TabIndex = 5;
             checkBerzerkAvoidance.Text = "If being attacked by a monster type that should be avoided";
             checkBerzerkAvoidance.UseVisualStyleBackColor = false;
@@ -401,7 +430,7 @@ namespace RSBot.Default.Views
             checkBerzerkMonsterAmount.MouseLocation = new System.Drawing.Point(-1, -1);
             checkBerzerkMonsterAmount.Name = "checkBerzerkMonsterAmount";
             checkBerzerkMonsterAmount.Ripple = true;
-            checkBerzerkMonsterAmount.Size = new System.Drawing.Size(195, 30);
+            checkBerzerkMonsterAmount.Size = new System.Drawing.Size(187, 30);
             checkBerzerkMonsterAmount.TabIndex = 4;
             checkBerzerkMonsterAmount.Text = "Being attacked by more than";
             checkBerzerkMonsterAmount.UseVisualStyleBackColor = false;
@@ -427,7 +456,7 @@ namespace RSBot.Default.Views
             groupBoxArea.Padding = new System.Windows.Forms.Padding(3, 10, 3, 3);
             groupBoxArea.Radius = 10;
             groupBoxArea.ShadowDepth = 4;
-            groupBoxArea.Size = new System.Drawing.Size(221, 240);
+            groupBoxArea.Size = new System.Drawing.Size(221, 228);
             groupBoxArea.TabIndex = 0;
             groupBoxArea.TabStop = false;
             groupBoxArea.Text = "Area";
@@ -455,7 +484,7 @@ namespace RSBot.Default.Views
             label6.GradientAnimation = false;
             label6.Location = new System.Drawing.Point(14, 145);
             label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(195, 15);
+            label6.Size = new System.Drawing.Size(159, 15);
             label6.TabIndex = 7;
             label6.Text = "If there is no enemy nearby...";
             // 
@@ -474,11 +503,11 @@ namespace RSBot.Default.Views
             // 
             radioWalkAround.AutoSize = true;
             radioWalkAround.Checked = true;
-            radioWalkAround.Location = new System.Drawing.Point(22, 196);
+            radioWalkAround.Location = new System.Drawing.Point(35, 192);
             radioWalkAround.Margin = new System.Windows.Forms.Padding(0);
             radioWalkAround.Name = "radioWalkAround";
             radioWalkAround.Ripple = true;
-            radioWalkAround.Size = new System.Drawing.Size(185, 30);
+            radioWalkAround.Size = new System.Drawing.Size(100, 30);
             radioWalkAround.TabIndex = 5;
             radioWalkAround.TabStop = true;
             radioWalkAround.Text = "Walk around";
@@ -487,11 +516,11 @@ namespace RSBot.Default.Views
             // radioCenter
             // 
             radioCenter.AutoSize = true;
-            radioCenter.Location = new System.Drawing.Point(22, 166);
+            radioCenter.Location = new System.Drawing.Point(35, 166);
             radioCenter.Margin = new System.Windows.Forms.Padding(0);
             radioCenter.Name = "radioCenter";
             radioCenter.Ripple = true;
-            radioCenter.Size = new System.Drawing.Size(185, 30);
+            radioCenter.Size = new System.Drawing.Size(127, 30);
             radioCenter.TabIndex = 4;
             radioCenter.Text = "Go back to center";
             radioCenter.CheckedChanged += settings_CheckedChanged;
@@ -596,7 +625,7 @@ namespace RSBot.Default.Views
             groupBoxAdvanced.Controls.Add(linkAttackWeakerMobsHelp);
             groupBoxAdvanced.Controls.Add(checkAttackWeakerFirst);
             groupBoxAdvanced.Controls.Add(checkBoxDimensionPillar);
-            groupBoxAdvanced.Location = new System.Drawing.Point(262, 308);
+            groupBoxAdvanced.Location = new System.Drawing.Point(262, 300);
             groupBoxAdvanced.Name = "groupBoxAdvanced";
             groupBoxAdvanced.Padding = new System.Windows.Forms.Padding(3, 8, 3, 3);
             groupBoxAdvanced.Radius = 10;
@@ -609,7 +638,7 @@ namespace RSBot.Default.Views
             // linkAttackWeakerMobsHelp
             // 
             linkAttackWeakerMobsHelp.AutoSize = true;
-            linkAttackWeakerMobsHelp.Location = new System.Drawing.Point(292, 64);
+            linkAttackWeakerMobsHelp.Location = new System.Drawing.Point(286, 64);
             linkAttackWeakerMobsHelp.Name = "linkAttackWeakerMobsHelp";
             linkAttackWeakerMobsHelp.Size = new System.Drawing.Size(12, 15);
             linkAttackWeakerMobsHelp.TabIndex = 7;
@@ -627,7 +656,7 @@ namespace RSBot.Default.Views
             checkAttackWeakerFirst.MouseLocation = new System.Drawing.Point(-1, -1);
             checkAttackWeakerFirst.Name = "checkAttackWeakerFirst";
             checkAttackWeakerFirst.Ripple = true;
-            checkAttackWeakerFirst.Size = new System.Drawing.Size(265, 30);
+            checkAttackWeakerFirst.Size = new System.Drawing.Size(267, 30);
             checkAttackWeakerFirst.TabIndex = 1;
             checkAttackWeakerFirst.Text = "If avoided: counter attack weaker mobs first";
             checkAttackWeakerFirst.UseVisualStyleBackColor = false;
@@ -685,10 +714,12 @@ namespace RSBot.Default.Views
         private SDUI.Controls.CheckBox checkUseSpeedDrug;
         private SDUI.Controls.CheckBox checkCastBuffs;
         private SDUI.Controls.CheckBox checkBerzerkWhenFull;
+        private SDUI.Controls.CheckBox checkBerserkOnMonsterRarity;
         private SDUI.Controls.ListView lvAvoidance;
         private SDUI.Controls.ContextMenuStrip ctxAvoidance;
         private System.Windows.Forms.ToolStripMenuItem btnAvoid;
         private System.Windows.Forms.ToolStripMenuItem btnPrefer;
+        private System.Windows.Forms.ToolStripMenuItem btnBerserk;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.ToolStripMenuItem btnNoCustomBehavior;
         private SDUI.Controls.GroupBox groupBoxBerserk;

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -10,6 +11,7 @@ using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Extensions;
 using RSBot.Core.Objects;
+using SDUI;
 using SDUI.Controls;
 using CheckBox = SDUI.Controls.CheckBox;
 using GroupBox = SDUI.Controls.GroupBox;
@@ -26,6 +28,9 @@ public partial class Main : DoubleBufferedControl
     private List<RefShopGroup> _stableKeeper;
     private List<RefShopGroup> _weaponTrader;
     private bool _loadingSettings;
+    private bool _applyingItemsLayout;
+    private SDUI.Controls.Label _shoppingListTitle;
+    private SDUI.Controls.Label _shoppingListHint;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="Main" /> class.
@@ -40,6 +45,471 @@ public partial class Main : DoubleBufferedControl
         listShoppingList.SmallImageList = ListViewExtensions.StaticItemsImageList;
         listAvailableProducts.SmallImageList = ListViewExtensions.StaticItemsImageList;
         listFilter.SmallImageList = ListViewExtensions.StaticItemsImageList;
+
+        CreateShoppingListLabels();
+        tabMain.SelectedIndexChanged += TabMain_SelectedIndexChanged;
+
+        ApplyItemsLocalization();
+        ApplyItemsLayout();
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        ApplyItemsLayout();
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+
+        if (!Visible)
+            return;
+
+        ApplyItemsLocalization();
+        ApplyItemsLayout();
+    }
+
+    private int S(float value)
+    {
+        return (int)Math.Round(value * DeviceDpi / 96f);
+    }
+
+    private static string T(string key, string fallback)
+    {
+        return LanguageManager.GetLangBySpecificKey("RSBot.Items", key, fallback);
+    }
+
+    private void Place(Control control, int x, int y, int width, int height)
+    {
+        if (control == null)
+            return;
+
+        control.Anchor = AnchorStyles.None;
+        control.Dock = DockStyle.None;
+        control.AutoSize = false;
+        control.SetBounds(S(x), S(y), Math.Max(1, S(width)), Math.Max(1, S(height)));
+    }
+
+    private void PlaceLabel(SDUI.Controls.Label label, int x, int y, int width, int height,
+        ContentAlignment alignment)
+    {
+        if (label == null)
+            return;
+
+        Place(label, x, y, width, height);
+        label.TextAlign = alignment;
+    }
+
+    /// <summary>
+    ///     Builds the two labels that fill the previously empty panel above the
+    ///     shopping list. They are created in code so the designer hierarchy and
+    ///     the existing control names stay untouched.
+    /// </summary>
+    private void CreateShoppingListLabels()
+    {
+        _shoppingListTitle = new SDUI.Controls.Label
+        {
+            Name = "shoppingListTitle",
+            AutoSize = false,
+            ApplyGradient = false,
+            BackColor = Color.Transparent,
+            ForeColor = ColorScheme.ForeColor,
+            Font = new Font("Segoe UI", 11.5F, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        _shoppingListHint = new SDUI.Controls.Label
+        {
+            Name = "shoppingListHint",
+            AutoSize = false,
+            ApplyGradient = false,
+            BackColor = Color.Transparent,
+            ForeColor = ColorScheme.SecondaryForeColor,
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        panel2.Controls.Add(_shoppingListTitle);
+        panel2.Controls.Add(_shoppingListHint);
+    }
+
+    private void TabMain_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        ApplyItemsLayout();
+    }
+
+    /// <summary>
+    ///     Lays the page out for the actual tab surface. The designer used fixed
+    ///     934x559 coordinates, while the running application shows the page at
+    ///     roughly 1116x577. Re-flowing the controls keeps every Arabic caption
+    ///     readable and removes the vertical scrollbar the old filter panel
+    ///     always forced.
+    /// </summary>
+    private void ApplyItemsLayout()
+    {
+        if (_applyingItemsLayout || IsDisposed || tabMain == null || tabMain.TabPages.Count < 3)
+            return;
+
+        var area = tabMain.DisplayRectangle;
+        if (area.Width < 200 || area.Height < 200)
+            return;
+
+        _applyingItemsLayout = true;
+        try
+        {
+            var scale = DeviceDpi / 96f;
+            var pageW = (int)(area.Width / scale);
+            var pageH = (int)(area.Height / scale);
+            var layoutW = Math.Max(pageW, 1000);
+            var layoutH = Math.Max(pageH, 560);
+
+            LayoutShopping(layoutW, layoutH);
+            LayoutFilter(layoutW, layoutH);
+            LayoutPickup(layoutW, layoutH);
+
+            var needsScroll = layoutW > pageW || layoutH > pageH;
+            foreach (TabPage page in tabMain.TabPages)
+            {
+                page.Padding = new Padding(0);
+                page.BackColor = ColorScheme.BackColor;
+                page.AutoScroll = true;
+                page.AutoScrollMinSize = needsScroll
+                    ? new Size(S(layoutW), S(layoutH))
+                    : Size.Empty;
+            }
+        }
+        finally
+        {
+            _applyingItemsLayout = false;
+        }
+    }
+
+    private void LayoutShopping(int width, int height)
+    {
+        const int margin = 14;
+        const int gap = 12;
+        const int panelH = 70;
+
+        var contentW = width - margin * 2;
+        var oneRow = contentW >= 1040;
+        var bottomH = oneRow ? 84 : 116;
+        var bottomY = height - margin - bottomH;
+        var bodyH = bottomY - gap - margin;
+
+        separator5.Visible = false;
+
+        // Top: available products / shopping list in two resizable columns.
+        Place(splitContainer, margin, margin, contentW, bodyH);
+        splitContainer.SplitterWidth = S(1);
+
+        var leftW = Math.Max(360, (int)(contentW * 0.42f));
+        splitContainer.SplitterDistance = S(leftW);
+        var rightW = contentW - leftW - 1;
+
+        Place(panel1, 0, 0, leftW, panelH);
+        Place(listAvailableProducts, 0, panelH, leftW, bodyH - panelH);
+        Place(panel2, 0, 0, rightW, panelH);
+        Place(listShoppingList, 0, panelH, rightW, bodyH - panelH);
+
+        PlaceLabel(label1, 12, 6, 52, 24, ContentAlignment.MiddleLeft);
+        Place(comboStore, 66, 5, Math.Max(150, leftW - 66 - 166), 25);
+        Place(checkShowEquipment, leftW - 162, 2, 150, 28);
+        PlaceLabel(label6, 12, 38, 52, 24, ContentAlignment.MiddleLeft);
+        Place(txtShopSearch, 66, 37, Math.Max(120, leftW - 80), 25);
+
+        Place(_shoppingListTitle, 14, 2, rightW - 28, 30);
+        Place(_shoppingListHint, 14, 33, rightW - 28, 30);
+
+        colAvailableName.Width = Math.Max(120, leftW - 24);
+        colName.Width = Math.Max(140, rightW - 112);
+        colAmount.Width = 92;
+
+        // Bottom: general setup card, four options in a single row when there
+        // is enough width, otherwise a readable 2x2 grid.
+        Place(groupBox1, margin, bottomY, contentW, bottomH);
+
+        var cols = oneRow ? 4 : 2;
+        var cbGap = 16;
+        var cbW = Math.Max(120, (contentW - 32 - (cols - 1) * cbGap) / cols);
+        var checkBoxes = new[] { checkEnable, checkRepairGear, checkSellItemsFromPet, checkStoreItemsFromPet };
+
+        for (var i = 0; i < checkBoxes.Length; i++)
+        {
+            var row = i / cols;
+            var col = i % cols;
+            Place(checkBoxes[i], 16 + col * (cbW + cbGap), 34 + row * 32, cbW, 28);
+        }
+    }
+
+    private void LayoutFilter(int width, int height)
+    {
+        const int margin = 14;
+        const int gap = 12;
+        const int footerH = 46;
+
+        var contentW = width - margin * 2;
+        var contentH = height - margin * 2 - gap - footerH;
+        var filterW = Math.Max(380, Math.Min(430, (int)(contentW * 0.38f)));
+        var listX = margin + filterW + gap;
+        var listW = contentW - filterW - gap;
+
+        // The designer had a permanently scrolling 720 px filter column. It is
+        // compacted below so it fits the real page height without a scrollbar.
+        Place(filterPanel, margin, margin, filterW, contentH);
+        filterPanel.AutoScroll = false;
+        filterPanel.AutoScrollMinSize = Size.Empty;
+        filterPanel.Padding = new Padding(8, 8, 8, 8);
+
+        Place(listFilter, listX, margin, listW, contentH);
+        Place(panel3, margin, height - margin - footerH, contentW, footerH);
+
+        pictureBox1.Visible = false;
+        panel7.Visible = false;
+
+        Place(btnResetFilter, 12, 8, 110, 30);
+        Place(btnReload, 130, 8, 150, 30);
+
+        var searchButtonW = 96;
+        var searchButtonX = contentW - 12 - searchButtonW;
+        var searchW = Math.Max(180, Math.Min(320, (int)(contentW * 0.28f)));
+        var searchX = searchButtonX - 8 - searchW;
+
+        Place(btnSearch, searchButtonX, 8, searchButtonW, 30);
+        Place(txtSellSearch, searchX, 9, searchW, 26);
+        PlaceLabel(labelResult, Math.Max(300, searchX - 78), 8, 66, 30, ContentAlignment.MiddleRight);
+
+        var innerW = filterW - 16;
+        var colW = Math.Max(80, (innerW - 28) / 3);
+
+        void PlaceGrid(GroupBox box, int y, int boxH, CheckBox[] boxes, int columns)
+        {
+            Place(box, 8, y, innerW, boxH);
+            for (var i = 0; i < boxes.Length; i++)
+            {
+                var row = i / columns;
+                var col = i % columns;
+                Place(boxes[i], 8 + col * (colW + 6), 28 + row * 21, colW, 21);
+            }
+        }
+
+        var y = 8;
+
+        // Gender and degree, with the numeric fields on their own compact row.
+        Place(groupGender, 8, y, innerW, 98);
+        Place(checkMale, 8, 28, colW, 21);
+        Place(checkFemale, 8 + colW + 6, 28, colW, 21);
+        Place(checkBoxRareItems, 8 + (colW + 6) * 2, 28, colW, 21);
+        Place(checkChinese, 8, 49, colW, 21);
+        Place(checkEuropean, 8 + colW + 6, 49, colW, 21);
+        PlaceLabel(label3, 8, 71, 44, 22, ContentAlignment.MiddleLeft);
+        Place(numDegreeFrom, 54, 69, 62, 26);
+        PlaceLabel(label4, 120, 71, 14, 22, ContentAlignment.MiddleCenter);
+        Place(numDegreeTo, 138, 69, 62, 26);
+        y += 102;
+
+        PlaceGrid(groupClothes, y, 93, new[]
+        {
+            checkClothes, checkLight, checkHeavy,
+            checkHead, checkShoulder, checkChest,
+            checkLegs, checkHand, checkBoot
+        }, 3);
+        y += 97;
+
+        PlaceGrid(groupAccessories, y, 51, new[]
+        {
+            checkRing, checkNecklace, checkEarring
+        }, 3);
+        y += 55;
+
+        PlaceGrid(groupWeapons, y, 135, new[]
+        {
+            checkBlade, checkSword, checkSpear,
+            checkGlave, checkBow, checkXBow,
+            check1HSword, check2HSword, checkAxe,
+            checkWRod, checkCRod, checkStaff,
+            checkDagger, checkHarp, checkShield
+        }, 3);
+        y += 139;
+
+        PlaceGrid(groupOthers, y, 72, new[]
+        {
+            checkQuest, checkCoin, checkAmmo,
+            checkAlchemy, checkOther
+        }, 3);
+
+        // The old separators are replaced by the spacing between the cards.
+        separator1.Visible = false;
+        separator2.Visible = false;
+        separator3.Visible = false;
+        separator4.Visible = false;
+
+        colItemName.Width = Math.Max(140, listW - 348 - 24);
+        colItemLevel.Width = 72;
+        colGender.Width = 66;
+        colPickup.Width = 74;
+        colSell.Width = 68;
+        collStore.Width = 68;
+
+        numDegreeFrom.BackColor = Color.Transparent;
+        numDegreeFrom.ForeColor = ColorScheme.ForeColor;
+        numDegreeTo.BackColor = Color.Transparent;
+        numDegreeTo.ForeColor = ColorScheme.ForeColor;
+
+        listFilter.BackColor = ColorScheme.TableBackColor;
+        listFilter.ForeColor = ColorScheme.ForeColor;
+        listAvailableProducts.BackColor = ColorScheme.TableBackColor;
+        listAvailableProducts.ForeColor = ColorScheme.ForeColor;
+        listShoppingList.BackColor = ColorScheme.TableBackColor;
+        listShoppingList.ForeColor = ColorScheme.ForeColor;
+    }
+
+    private void LayoutPickup(int width, int height)
+    {
+        const int margin = 14;
+        const int gap = 12;
+
+        var contentW = width - margin * 2;
+
+        Place(groupBoxGeneral, margin, margin, contentW, 150);
+        var generalColW = Math.Max(240, (contentW - 48) / 2);
+        Place(checkEnableAbilityPet, 16, 36, generalColW, 30);
+        Place(cbJustpickmyitems, 16 + generalColW + 16, 36, generalColW, 30);
+        Place(checkDontPickupInBerzerk, 16, 78, generalColW, 30);
+        Place(cbDontPickupWhileBotting, 16 + generalColW + 16, 78, generalColW, 30);
+
+        var optionsY = margin + 150 + gap;
+        Place(groupBoxOptions, margin, optionsY, contentW, 150);
+        var optionColW = Math.Max(200, (contentW - 64) / 3);
+        Place(checkPickupGold, 16, 36, optionColW, 30);
+        Place(checkPickupBlue, 16 + optionColW + 16, 36, optionColW, 30);
+        Place(checkPickupRare, 16 + (optionColW + 16) * 2, 36, optionColW, 30);
+        Place(checkQuestItems, 16, 78, optionColW, 30);
+        Place(checkAllEquips, 16 + optionColW + 16, 78, optionColW, 30);
+        Place(checkEverything, 16 + (optionColW + 16) * 2, 78, optionColW, 30);
+    }
+
+    /// <summary>
+    ///     Translates the common trader tab captions that come from the game
+    ///     reference data. Unknown captions are kept exactly as the client
+    ///     provides them.
+    /// </summary>
+    private static string TranslateShopGroup(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return name;
+
+        switch (name.Trim().ToLowerInvariant())
+        {
+            case "potion":
+                return T("RSBot.Items.ShopTab.Potion", name);
+            case "weapon":
+                return T("RSBot.Items.ShopTab.Weapon", name);
+            case "shield":
+                return T("RSBot.Items.ShopTab.Shield", name);
+            case "armor":
+                return T("RSBot.Items.ShopTab.Armor", name);
+            case "protector":
+                return T("RSBot.Items.ShopTab.Armor", name);
+            case "accessory":
+                return T("RSBot.Items.ShopTab.Accessory", name);
+            case "ammo":
+                return T("RSBot.Items.ShopTab.Ammo", name);
+            case "quest":
+                return T("RSBot.Items.ShopTab.Quest", name);
+            case "special":
+                return T("RSBot.Items.ShopTab.Special", name);
+            case "other":
+                return T("RSBot.Items.ShopTab.Other", name);
+            case "avatar":
+                return T("RSBot.Items.ShopTab.Avatar", name);
+            case "ability pet":
+                return T("RSBot.Items.ShopTab.AbilityPet", name);
+            case "alchemy":
+                return T("RSBot.Items.ShopTab.Alchemy", name);
+            default:
+                return name;
+        }
+    }
+
+    /// <summary>
+    ///     Localizes strings that the generic language walker cannot reach:
+    ///     list column headers, trader names, list group captions, context
+    ///     menus and the runtime labels above the shopping list.
+    /// </summary>
+    private void ApplyItemsLocalization()
+    {
+        if (IsDisposed || listFilter == null)
+            return;
+
+        colAvailableName.Text = T("RSBot.Items.Columns.Name", "Name");
+        colName.Text = T("RSBot.Items.Columns.Name", "Name");
+        colAmount.Text = T("RSBot.Items.Columns.Amount", "Amount");
+        colItemName.Text = T("RSBot.Items.Columns.Name", "Name");
+        colItemLevel.Text = T("RSBot.Items.Columns.Level", "Level");
+        colGender.Text = T("RSBot.Items.Columns.Gender", "Gender");
+        colPickup.Text = T("RSBot.Items.Columns.Pickup", "Pickup");
+        colSell.Text = T("RSBot.Items.Columns.Sell", "Sell");
+        collStore.Text = T("RSBot.Items.Columns.Store", "Store");
+
+        menuChangeAmount.Text = T("RSBot.Items.ContextMenu.ChangeAmount", "Change amount");
+        menuRemoveItem.Text = T("RSBot.Items.ContextMenu.Remove", "Remove");
+        menuAddToShoppingList.Text = T("RSBot.Items.ContextMenu.AddToShoppingList", "Add to shopping list");
+
+        btnAddToSell.Text = T("RSBot.Items.ContextMenu.AddToSell", "Sell");
+        btnAddToStore.Text = T("RSBot.Items.ContextMenu.AddToStore", "Store");
+        btnPickup.Text = T("RSBot.Items.ContextMenu.Pickup", "Pickup");
+        btnPickOnlyCharacter.Text = T("RSBot.Items.ContextMenu.PickupOnlyCharacter", "Pickup only character");
+        btnDontSell.Text = T("RSBot.Items.ContextMenu.DontSell", "Don't sell");
+        btnDontStore.Text = T("RSBot.Items.ContextMenu.DontStore", "Don't store");
+        btnDontPickup.Text = T("RSBot.Items.ContextMenu.DontPickup", "Don't pickup");
+
+        var selectedTrader = comboStore.SelectedIndex;
+        comboStore.BeginUpdate();
+        comboStore.Items.Clear();
+        comboStore.Items.AddRange(new object[]
+        {
+            T("RSBot.Items.Shopping.PotionTrader", "Potion trader"),
+            T("RSBot.Items.Shopping.StableKeeper", "Stable keeper"),
+            T("RSBot.Items.Shopping.ProtectorTrader", "Protector trader"),
+            T("RSBot.Items.Shopping.WeaponTrader", "Weapon trader"),
+            T("RSBot.Items.Shopping.AccessoryTrader", "Accessory trader")
+        });
+        comboStore.EndUpdate();
+
+        if (selectedTrader >= 0 && selectedTrader < comboStore.Items.Count)
+            comboStore.SelectedIndex = selectedTrader;
+        else if (_potionTrader != null && comboStore.Items.Count > 0)
+            comboStore.SelectedIndex = 0;
+
+        foreach (ListViewGroup group in listShoppingList.Groups)
+        {
+            switch (group.Name)
+            {
+                case "groupPotion":
+                    group.Header = T("RSBot.Items.Shopping.GroupPotion", "Potion trader");
+                    break;
+                case "groupStable":
+                    group.Header = T("RSBot.Items.Shopping.GroupStable", "Stable keeper");
+                    break;
+                case "groupProtector":
+                    group.Header = T("RSBot.Items.Shopping.GroupProtector", "Protector trader");
+                    break;
+                case "groupWeapon":
+                    group.Header = T("RSBot.Items.Shopping.GroupWeapon", "Weapon trader");
+                    break;
+                case "groupAccessory":
+                    group.Header = T("RSBot.Items.Shopping.GroupAccessory", "Accessory trader");
+                    break;
+            }
+        }
+
+        if (_shoppingListTitle != null)
+            _shoppingListTitle.Text = T("RSBot.Items.Shopping.ListTitle", "Shopping list");
+
+        if (_shoppingListHint != null)
+            _shoppingListHint.Text = T("RSBot.Items.Shopping.ListHint",
+                "Right-click an item to change the amount or remove it");
     }
 
     /// <summary>
@@ -131,7 +601,7 @@ public partial class Main : DoubleBufferedControl
                     Game.ReferenceManager.GetTranslation(Game.ReferenceManager.GetTab(good.RefTabCodeName)
                         .StrID128_Tab);
 
-                var lvGroup = new ListViewGroup(tabName) { Name = tabName };
+                var lvGroup = new ListViewGroup(TranslateShopGroup(tabName)) { Name = tabName };
                 if (!listAvailableProducts.Groups.Contains(lvGroup))
                     listAvailableProducts.Groups.Add(lvGroup);
 
@@ -451,7 +921,7 @@ public partial class Main : DoubleBufferedControl
         if (items.Count == 0)
         {
             listFilter.Visible = true;
-            MessageBox.Show(this, LanguageManager.GetLang("NoResultsFound"), "Warning");
+            MessageBox.Show(this, LanguageManager.GetLang("NoResultsFound"), T("RSBot.Items.Warning", "Warning"));
             return;
         }
 
@@ -534,6 +1004,15 @@ public partial class Main : DoubleBufferedControl
     private void OnLoadGameData()
     {
         LoadGroups();
+
+        Invoke(() =>
+        {
+            if (IsDisposed || comboStore.Items.Count == 0)
+                return;
+
+            if (comboStore.SelectedIndex < 0)
+                comboStore.SelectedIndex = 0;
+        });
     }
 
     /// <summary>
@@ -700,7 +1179,7 @@ public partial class Main : DoubleBufferedControl
         ShoppingManager.Enabled = checkEnable.Checked;
         PlayerConfig.Set("RSBot.Shopping.Enabled", checkEnable.Checked);
 
-        PlayerConfig.Set("RSBot.Shopping.StorePetItems", checkSellItemsFromPet.Checked);
+        PlayerConfig.Set("RSBot.Shopping.StorePetItems", checkStoreItemsFromPet.Checked);
         ShoppingManager.StorePetItems = checkStoreItemsFromPet.Checked;
 
         PlayerConfig.Set("RSBot.Shopping.SellPetItems", checkSellItemsFromPet.Checked);

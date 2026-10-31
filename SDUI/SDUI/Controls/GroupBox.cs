@@ -1,4 +1,4 @@
-﻿using SDUI.Helpers;
+using SDUI.Helpers;
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -34,6 +34,20 @@ public class GroupBox : System.Windows.Forms.GroupBox
         }
     }
 
+    private bool _borderless = false;
+    public bool Borderless
+    {
+        get => _borderless;
+        set
+        {
+            if (_borderless == value)
+                return;
+
+            _borderless = value;
+            Invalidate();
+        }
+    }
+
     public GroupBox()
     {
         SetStyle(ControlStyles.SupportsTransparentBackColor |
@@ -41,19 +55,40 @@ public class GroupBox : System.Windows.Forms.GroupBox
                   ControlStyles.OptimizedDoubleBuffer |
                   ControlStyles.DoubleBuffer |
                   ControlStyles.ResizeRedraw |
-                  ControlStyles.Opaque |
                   ControlStyles.UserPaint, true);
 
         UpdateStyles();
         this.DoubleBuffered = true;
         this.BackColor = Color.Transparent;
-        this.Padding = new Padding(3, 8, 3, 3);
+        this.Padding = new Padding(8, 12, 8, 8);
     }
 
     protected override void OnParentBackColorChanged(EventArgs e)
     {
         base.OnParentBackColorChanged(e);
         Invalidate();
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        // Transparent child controls ask their parent to paint the surface behind
+        // them. The card itself is painted in OnPaint, so mirror the card fill in
+        // OnPaintBackground as well; otherwise labels and checkboxes render on the
+        // page background instead of on the card (visible as dark rectangles).
+        var graphics = e.Graphics;
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        GroupBoxRenderer.DrawParentBackground(graphics, ClientRectangle, this);
+
+        if (_borderless)
+            return;
+
+        var rect = ClientRectangle.ToRectangleF();
+        rect.Inflate(-1f, -1f);
+
+        using var path = rect.Radius(_radius);
+        using var brush = new SolidBrush(ColorScheme.CardColor);
+        graphics.FillPath(brush, path);
     }
 
     protected override void OnControlAdded(ControlEventArgs e)
@@ -66,6 +101,7 @@ public class GroupBox : System.Windows.Forms.GroupBox
     {
         var graphics = e.Graphics;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
         GroupBoxRenderer.DrawParentBackground(graphics, ClientRectangle, this);
         if (ColorScheme.DrawDebugBorders)
@@ -76,32 +112,46 @@ public class GroupBox : System.Windows.Forms.GroupBox
         }
 
         var rect = ClientRectangle.ToRectangleF();
-        var inflate = _shadowDepth / 4f;
-        rect.Inflate(-inflate, -inflate);
-        var shadowRect = rect;
+        rect.Inflate(-1f, -1f);
 
-        //using (var path = e.Graphics.GenerateRoundedRectangle(rect, _radius))
-        using var path = rect.Radius(_radius);
-        rect = new RectangleF(0, 0, rect.Width, Font.Height + 7);
+        if (!_borderless)
+        {
+            using var path = rect.Radius(_radius);
 
-        var color = ColorScheme.BorderColor;
-        BackColor = Color.Transparent;
+            using (var brush = new SolidBrush(ColorScheme.CardColor))
+                graphics.FillPath(brush, path);
 
-        using (var brush = new SolidBrush(ColorScheme.BackColor2))
-            e.Graphics.FillPath(brush, path);
+            using (var borderPen = new Pen(ColorScheme.BorderColor, 1f))
+                graphics.DrawPath(borderPen, path);
+        }
 
-        using var backColorBrush = new SolidBrush(ColorScheme.BackColor2.Alpha(15));
+        if (!string.IsNullOrWhiteSpace(Text))
+        {
+            var headerHeight = Font.Height + 6;
+            var headerRect = new RectangleF(rect.Left + (_borderless ? 2 : 12), rect.Top + 4, Math.Max(0, rect.Width - (_borderless ? 4 : 24)), headerHeight);
 
-        var clip = e.Graphics.ClipBounds;
-        e.Graphics.SetClip(rect);
-        e.Graphics.DrawLine(ColorScheme.BorderColor, 0, rect.Height - 1, rect.Width, rect.Height - 1);
-        e.Graphics.FillPath(backColorBrush, path);
+            using var titleFont = new Font(Font.FontFamily, Font.Size, FontStyle.Bold);
+            using var textFormat = new StringFormat
+            {
+                Alignment = RightToLeft == RightToLeft.Yes ? StringAlignment.Far : StringAlignment.Near,
+                LineAlignment = StringAlignment.Center,
+                Trimming = StringTrimming.EllipsisCharacter,
+                FormatFlags = StringFormatFlags.NoWrap
+            };
+            if (RightToLeft == RightToLeft.Yes)
+                textFormat.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
 
-        this.DrawString(graphics, ColorScheme.ForeColor, rect);
+            var titleColor = ColorScheme.ResolveTextColor(ForeColor);
+            using var textBrush = new SolidBrush(titleColor);
+            graphics.DrawString(DrawingExtensions.FormatBidiText(DrawingExtensions.StripEmojis(Text)), titleFont, textBrush, headerRect, textFormat);
 
-        e.Graphics.SetClip(clip);
-        e.Graphics.DrawShadow(shadowRect, _shadowDepth, _radius);
-        e.Graphics.DrawPath(ColorScheme.BorderColor, path);
+            if (!_borderless)
+            {
+                var lineY = rect.Top + headerHeight + 2;
+                using var linePen = new Pen(ColorScheme.BorderColor.Alpha(100), 1f);
+                graphics.DrawLine(linePen, rect.Left + 8, lineY, rect.Right - 8, lineY);
+            }
+        }
     }
 
     public override Size GetPreferredSize(Size proposedSize)

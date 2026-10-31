@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -18,6 +17,82 @@ internal static class TradeConfig
     {
         get => PlayerConfig.Get("RSBot.Trade.TracePlayer", false);
         set => PlayerConfig.Set("RSBot.Trade.TracePlayer", value);
+    }
+
+    public static bool UseCityToCity
+    {
+        get => PlayerConfig.Get("RSBot.Trade.UseCityToCity", true);
+        set => PlayerConfig.Set("RSBot.Trade.UseCityToCity", value);
+    }
+
+    public static string StartCity
+    {
+        get => PlayerConfig.Get("RSBot.Trade.StartCity", "Auto-Detect");
+        set => PlayerConfig.Set("RSBot.Trade.StartCity", value);
+    }
+
+    public static string DestinationCity
+    {
+        get => PlayerConfig.Get("RSBot.Trade.DestinationCity", "Donwhang");
+        set => PlayerConfig.Set("RSBot.Trade.DestinationCity", value);
+    }
+
+    public static int TradeLoops
+    {
+        get => PlayerConfig.Get("RSBot.Trade.TradeLoops", 0);
+        // 0 means infinite loops, just like vBot.
+        set => PlayerConfig.Set("RSBot.Trade.TradeLoops", System.Math.Clamp(value, 0, 999));
+    }
+
+    /// <summary>
+    ///     Whether repeat trade loop is enabled.
+    /// </summary>
+    public static bool RepeatTradeLoop
+    {
+        get => PlayerConfig.Get("RSBot.Trade.RepeatTradeLoop", true);
+        set => PlayerConfig.Set("RSBot.Trade.RepeatTradeLoop", value);
+    }
+
+    /// <summary>
+    ///     Dismount transport immediately when attacking or engaged with a thief.
+    /// </summary>
+    public static bool DismountToAttackThief
+    {
+        get => PlayerConfig.Get("RSBot.Trade.DismountToAttackThief", false);
+        set => PlayerConfig.Set("RSBot.Trade.DismountToAttackThief", value);
+    }
+
+    /// <summary>
+    ///     Dismount, take off Job outfit, and switch to default bot when loops complete.
+    /// </summary>
+    public static bool DismountTakeOffJobAndStartDefault
+    {
+        get => PlayerConfig.Get("RSBot.Trade.DismountTakeOffJobAndStartDefault", false);
+        set => PlayerConfig.Set("RSBot.Trade.DismountTakeOffJobAndStartDefault", value);
+    }
+
+    public static int CurrentTradeLoop
+    {
+        get => PlayerConfig.Get("RSBot.Trade.CurrentTradeLoop", 0);
+        set => PlayerConfig.Set("RSBot.Trade.CurrentTradeLoop", value);
+    }
+
+    public static bool SmartObstacleEvasion
+    {
+        get => PlayerConfig.Get("RSBot.Trade.SmartObstacleEvasion", true);
+        set => PlayerConfig.Set("RSBot.Trade.SmartObstacleEvasion", value);
+    }
+
+    public static bool SmartThiefCombat
+    {
+        get => PlayerConfig.Get("RSBot.Trade.SmartThiefCombat", true);
+        set => PlayerConfig.Set("RSBot.Trade.SmartThiefCombat", value);
+    }
+
+    public static bool SkipNpcIfHasGoods
+    {
+        get => PlayerConfig.Get("RSBot.Trade.SkipNpcIfHasGoods", true);
+        set => PlayerConfig.Set("RSBot.Trade.SkipNpcIfHasGoods", value);
     }
 
     public static bool MountTransport
@@ -42,6 +117,99 @@ internal static class TradeConfig
     {
         get => PlayerConfig.Get("RSBot.Trade.RunTownScript", false);
         set => PlayerConfig.Set("RSBot.Trade.RunTownScript", value);
+    }
+
+    /// <summary>
+    ///     Skip the town script entirely. This is the inverse of the old
+    ///     RunTownScript option and is the value used by the new UI.
+    /// </summary>
+    public static bool SkipTownScript
+    {
+        get => PlayerConfig.Get("RSBot.Trade.SkipTownScript",
+            !PlayerConfig.Get("RSBot.Trade.RunTownScript", false));
+        set => PlayerConfig.Set("RSBot.Trade.SkipTownScript", value);
+    }
+
+    /// <summary>
+    ///     Automatically start the trade bot after the character finished
+    ///     loading (login / return to character selection).
+    /// </summary>
+    public static bool AutoStartAfterLogin
+    {
+        get => PlayerConfig.Get("RSBot.Trade.AutoStartAfterLogin", false);
+        set => PlayerConfig.Set("RSBot.Trade.AutoStartAfterLogin", value);
+    }
+
+    /// <summary>
+    ///     Use a return scroll after a trade loop has been completed.
+    /// </summary>
+    public static bool UseReturnScrollAfterLoop
+    {
+        get => PlayerConfig.Get("RSBot.Trade.UseReturnScrollAfterLoop", false);
+        set => PlayerConfig.Set("RSBot.Trade.UseReturnScrollAfterLoop", value);
+    }
+
+    /// <summary>
+    ///     The maximum distance (in meters) used when searching for thieves.
+    /// </summary>
+    public static int MaxAttackDistance
+    {
+        get => PlayerConfig.Get("RSBot.Trade.MaxAttackDistance", 50);
+        set => PlayerConfig.Set("RSBot.Trade.MaxAttackDistance", System.Math.Clamp(value, 5, 200));
+    }
+
+    /// <summary>
+    ///     Transport handling mode: "Auto" summons the transport, "Manual"
+    ///     waits for the player to summon it.
+    /// </summary>
+    public static string TransportMode
+    {
+        get => PlayerConfig.Get("RSBot.Trade.TransportMode", "Manual");
+        set => PlayerConfig.Set("RSBot.Trade.TransportMode", value);
+    }
+
+    /// <summary>
+    ///     Returns whether the given route script is enabled in the route table.
+    /// </summary>
+    public static bool IsRouteActive(string fileName)
+    {
+        return PlayerConfig.Get($"RSBot.Trade.RouteActive.{fileName}", true);
+    }
+
+    /// <summary>
+    ///     Enables or disables the given route script.
+    /// </summary>
+    public static void SetRouteActive(string fileName, bool active)
+    {
+        PlayerConfig.Set($"RSBot.Trade.RouteActive.{fileName}", active);
+    }
+
+    /// <summary>
+    ///     Gets the planned loop count for a route script.
+    /// </summary>
+    public static int GetRouteLoop(string fileName)
+    {
+        return PlayerConfig.Get($"RSBot.Trade.RouteLoop.{fileName}", 1);
+    }
+
+    /// <summary>
+    ///     Sets the planned loop count for a route script.
+    /// </summary>
+    public static void SetRouteLoop(string fileName, int loops)
+    {
+        PlayerConfig.Set($"RSBot.Trade.RouteLoop.{fileName}", System.Math.Clamp(loops, 1, 999));
+    }
+
+    /// <summary>
+    ///     Removes a route list from the configuration.
+    /// </summary>
+    public static void RemoveRouteList(string name)
+    {
+        var lists = RouteScriptList;
+        if (!lists.Remove(name))
+            return;
+
+        RouteScriptList = lists;
     }
 
     public static bool WaitForHunter
@@ -144,220 +312,4 @@ internal static class TradeConfig
             RouteScriptList = value.Keys.ToList();
         }
     }
-
-    public static List<TradeRouteItem> Routes
-    {
-        get
-        {
-            try
-            {
-                var json = PlayerConfig.Get("RSBot.Trade.RoutesJson", "");
-                if (string.IsNullOrWhiteSpace(json))
-                    return new List<TradeRouteItem>();
-
-                return System.Text.Json.JsonSerializer.Deserialize<List<TradeRouteItem>>(json) ?? new List<TradeRouteItem>();
-            }
-            catch
-            {
-                return new List<TradeRouteItem>();
-            }
-        }
-        set
-        {
-            try
-            {
-                var json = System.Text.Json.JsonSerializer.Serialize(value);
-                PlayerConfig.Set("RSBot.Trade.RoutesJson", json);
-            }
-            catch { }
-        }
-    }
-
-    public static bool RepeatLoop
-    {
-        get => PlayerConfig.Get("RSBot.Trade.RepeatLoop", true);
-        set => PlayerConfig.Set("RSBot.Trade.RepeatLoop", value);
-    }
-
-    public static int RepeatTimes
-    {
-        get => PlayerConfig.Get("RSBot.Trade.RepeatTimes", 0);
-        set => PlayerConfig.Set("RSBot.Trade.RepeatTimes", value);
-    }
-
-    public static bool DisableAutoActivation
-    {
-        get => PlayerConfig.Get("RSBot.Trade.DisableAutoActivation", false);
-        set => PlayerConfig.Set("RSBot.Trade.DisableAutoActivation", value);
-    }
-
-    public static bool ReturnScrollAfterLoop
-    {
-        get => PlayerConfig.Get("RSBot.Trade.ReturnScrollAfterLoop", false);
-        set => PlayerConfig.Set("RSBot.Trade.ReturnScrollAfterLoop", value);
-    }
-
-    public static bool UnequipJobSuitAfterLoop
-    {
-        get => PlayerConfig.Get("RSBot.Trade.UnequipJobSuitAfterLoop", false);
-        set => PlayerConfig.Set("RSBot.Trade.UnequipJobSuitAfterLoop", value);
-    }
-
-    public static bool SkipTownScripts
-    {
-        get => PlayerConfig.Get("RSBot.Trade.SkipTownScripts", false);
-        set => PlayerConfig.Set("RSBot.Trade.SkipTownScripts", value);
-    }
-
-    public static string SelectedTransport
-    {
-        get => PlayerConfig.Get("RSBot.Trade.SelectedTransport", "Auto");
-        set => PlayerConfig.Set("RSBot.Trade.SelectedTransport", value);
-    }
-
-    public static string ResolveTradeScript(string startCity, string endCity)
-    {
-        if (string.IsNullOrWhiteSpace(startCity) || string.IsNullOrWhiteSpace(endCity))
-            return string.Empty;
-
-        var s = startCity.Trim().ToLowerInvariant();
-        var e = endCity.Trim().ToLowerInvariant();
-
-        if (s == "donwhang" || s == "downhang") s = "downhang";
-        if (e == "donwhang" || e == "downhang") e = "downhang";
-        if (s == "constantinople" || s == "costantinople") s = "costantinople";
-        if (e == "constantinople" || e == "costantinople") e = "costantinople";
-
-        var searchDirs = new[]
-        {
-            Path.Combine(Kernel.BasePath, "Data", "Scripts", "Trade"),
-            Path.Combine(Kernel.BasePath, "Dependencies", "Scripts", "Trade"),
-            @"E:\RSBot-2.9.5\Scripts\Scripts\Trade"
-        };
-
-        foreach (var dir in searchDirs)
-        {
-            if (!Directory.Exists(dir)) continue;
-
-            var files = Directory.GetFiles(dir, "*.vb");
-            foreach (var file in files)
-            {
-                var fname = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
-                if (fname == $"{s} to {e}" || fname == $"{s}to{e}")
-                    return file;
-            }
-
-            foreach (var file in files)
-            {
-                var fname = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
-                var idxS = fname.IndexOf(s, System.StringComparison.Ordinal);
-                var idxE = fname.IndexOf(e, System.StringComparison.Ordinal);
-                if (idxS >= 0 && idxE >= 0 && idxS < idxE)
-                    return file;
-            }
-        }
-
-        return string.Empty;
-    }
-
-    /// <summary>
-    ///     Generates a reverse trade script by reversing walk waypoints and swapping buy/sell NPCs.
-    /// </summary>
-    public static string GenerateReverseScript(string scriptPath, string startCity = "", string endCity = "")
-    {
-        if (string.IsNullOrEmpty(scriptPath) || !File.Exists(scriptPath))
-            return string.Empty;
-
-        try
-        {
-            var lines = File.ReadAllLines(scriptPath);
-            if (lines.Length == 0) return string.Empty;
-
-            var moveCommands = new List<string>();
-            string buyCommand = null;
-            string sellCommand = null;
-
-            foreach (var line in lines)
-            {
-                var trimmed = line.Trim();
-                if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("//") || trimmed.StartsWith("#"))
-                    continue;
-
-                if (trimmed.StartsWith("move", StringComparison.OrdinalIgnoreCase))
-                    moveCommands.Add(trimmed);
-                else if (trimmed.StartsWith("buy-goods", StringComparison.OrdinalIgnoreCase))
-                    buyCommand = trimmed;
-                else if (trimmed.StartsWith("sell-goods", StringComparison.OrdinalIgnoreCase))
-                    sellCommand = trimmed;
-            }
-
-            if (moveCommands.Count == 0)
-                return string.Empty;
-
-            // Reverse waypoints
-            moveCommands.Reverse();
-
-            var reversedLines = new List<string>();
-            string newBuyCommand = null;
-            string newSellCommand = null;
-
-            if (!string.IsNullOrEmpty(sellCommand))
-            {
-                var parts = sellCommand.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 2)
-                    newBuyCommand = $"buy-goods {parts[1]} Full";
-            }
-
-            if (!string.IsNullOrEmpty(buyCommand))
-            {
-                var parts = buyCommand.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 2)
-                    newSellCommand = $"sell-goods {parts[1]}";
-            }
-
-            var insertBuyIndex = Math.Min(10, moveCommands.Count / 10);
-            for (int i = 0; i < moveCommands.Count; i++)
-            {
-                reversedLines.Add(moveCommands[i]);
-                if (i == insertBuyIndex && !string.IsNullOrEmpty(newBuyCommand))
-                {
-                    reversedLines.Add("summon-transport");
-                    reversedLines.Add(newBuyCommand);
-                }
-            }
-
-            if (!string.IsNullOrEmpty(newSellCommand))
-                reversedLines.Add(newSellCommand);
-
-            var dir = Path.GetDirectoryName(scriptPath);
-            var baseName = Path.GetFileNameWithoutExtension(scriptPath);
-            string reverseFileName;
-
-            if (!string.IsNullOrEmpty(startCity) && !string.IsNullOrEmpty(endCity))
-                reverseFileName = $"{endCity} to {startCity}.vb";
-            else
-                reverseFileName = $"{baseName}_reversed.vb";
-
-            var reversePath = Path.Combine(dir, reverseFileName);
-            File.WriteAllLines(reversePath, reversedLines);
-            Log.Notify($"[Trade] Auto-generated reverse trade script: {reverseFileName}");
-
-            return reversePath;
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"[Trade] Could not generate reverse script: {ex.Message}");
-            return string.Empty;
-        }
-    }
-}
-
-public class TradeRouteItem
-{
-    public int Index { get; set; }
-    public string StartCity { get; set; }
-    public string EndCity { get; set; }
-    public string ScriptFile { get; set; }
-    public bool Active { get; set; }
-    public int LoopCount { get; set; } = 1;
 }

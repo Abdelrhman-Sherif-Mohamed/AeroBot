@@ -40,10 +40,15 @@ internal class PackResolver
 
         foreach (var subFolderName in paths)
         {
-            //Search in all blocks for the subfolder
-            var subFolderEntry = _caseSensitive 
-                ? blocks.GetEntries().FirstOrDefault(e => e.Name == subFolderName && e.Type == PackEntryType.Folder) 
-                : blocks.GetEntries().FirstOrDefault(e => e.Name.IndexOf(subFolderName, StringComparison.OrdinalIgnoreCase) == 0 && e.Type == PackEntryType.Folder);
+            //Search in all blocks for the subfolder. Prefer an exact match, but keep the old
+            //prefix behavior as fallback for clients that store decorated folder names.
+            var folderEntries = blocks.GetEntries().Where(e => e.Type == PackEntryType.Folder);
+
+            var subFolderEntry = _caseSensitive
+                ? folderEntries.FirstOrDefault(e => e.Name == subFolderName) ??
+                  folderEntries.FirstOrDefault(e => e.Name.IndexOf(subFolderName, StringComparison.Ordinal) == 0)
+                : folderEntries.FirstOrDefault(e => string.Equals(e.Name, subFolderName, StringComparison.OrdinalIgnoreCase)) ??
+                  folderEntries.FirstOrDefault(e => e.Name.IndexOf(subFolderName, StringComparison.OrdinalIgnoreCase) == 0);
 
             //Path not found
             if (subFolderEntry == null)
@@ -68,10 +73,13 @@ internal class PackResolver
         var parentFolderPath = PathUtil.GetFolderName(path);
         var fileName = PathUtil.GetFileName(path);
         var resolvedFolderBlock = ResolveBlock(parentFolderPath);
+        var folderEntries = resolvedFolderBlock.GetEntries().Where(e => e.Type == PackEntryType.File).ToArray();
 
-        var entry = _caseSensitive 
-            ? resolvedFolderBlock.GetEntries().FirstOrDefault(e => e.Type == PackEntryType.File && e.Name == fileName)
-            : resolvedFolderBlock.GetEntries().FirstOrDefault(e => e.Type == PackEntryType.File && e.Name.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) == 0);
+        var entry = _caseSensitive
+            ? folderEntries.FirstOrDefault(e => e.Name == fileName) ??
+              folderEntries.FirstOrDefault(e => e.Name.IndexOf(fileName, StringComparison.Ordinal) == 0)
+            : folderEntries.FirstOrDefault(e => string.Equals(e.Name, fileName, StringComparison.OrdinalIgnoreCase)) ??
+              folderEntries.FirstOrDefault(e => e.Name.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) == 0);
 
         return entry ?? null;
     }

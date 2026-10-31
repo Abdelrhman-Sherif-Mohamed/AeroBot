@@ -8,7 +8,7 @@ namespace RSBot.Items;
 public class Bootstrap : IPlugin
 {
     /// <inheritdoc />
-    public string InternalName => "SonicBot.Items";
+    public string InternalName => "RSBot.Items";
 
     /// <inheritdoc />
     public string DisplayName => "Items";

@@ -9,7 +9,7 @@ internal static class GenericAlchemyAckResponse
 {
     public static void Invoke(Packet packet, AlchemyType type)
     {
-        AlchemyManager.IsFusing = false;
+        AlchemyManager.CompleteOperation();
 
         EventManager.FireEvent("OnAlchemy", type);
 
@@ -19,7 +19,6 @@ internal static class GenericAlchemyAckResponse
         if (result == 2)
         {
             EventManager.FireEvent("OnAlchemyError", packet.ReadUShort(), type);
-            AlchemyManager.ActiveAlchemyItems = null;
 
             return;
         }
@@ -28,7 +27,6 @@ internal static class GenericAlchemyAckResponse
         if (action == AlchemyAction.Cancel)
         {
             EventManager.FireEvent("OnAlchemyCanceled", type);
-            AlchemyManager.ActiveAlchemyItems = null;
 
             return;
         }

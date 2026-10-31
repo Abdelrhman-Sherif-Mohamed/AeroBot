@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -37,33 +37,19 @@ public class PluginManager
 
         try
         {
-            if (!Directory.Exists(InitialDirectory))
-                Directory.CreateDirectory(InitialDirectory);
-
-            foreach (var file in Directory.GetFiles(InitialDirectory, "*.dll"))
+            foreach (var extension in from file in Directory.GetFiles(InitialDirectory)
+                     let fileInfo = new FileInfo(file)
+                     where fileInfo.Extension == ".dll"
+                     select GetExtensionsFromAssembly(file)
+                     into loadedExtensions
+                     from extension in loadedExtensions
+                     select extension)
             {
-                try
-                {
-                    var loadedExtensions = GetExtensionsFromAssembly(file);
-                    foreach (var extension in loadedExtensions)
-                    {
-                        if (Extensions.ContainsKey(extension.Key))
-                        {
-                            Log.Warn($"Plugin [{extension.Key}] already loaded, skipping duplicate from {Path.GetFileName(file)}.");
-                            continue;
-                        }
-
-                        Extensions.Add(extension.Key, extension.Value);
-                        Log.Debug($"Loaded plugin [{extension.Value.InternalName}]");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn($"Could not load plugins from [{Path.GetFileName(file)}]: {ex.Message}");
-                }
+                Extensions.Add(extension.Key, extension.Value);
+                Log.Debug($"Loaded plugin [{extension.Value.InternalName}]");
             }
 
-            // Order by index, not alphabetically
+            //order by index, not alphabeticaly
             Extensions = Extensions.OrderBy(entry => entry.Value.Index)
                 .ToDictionary(x => x.Key, x => x.Value);
 
@@ -73,53 +59,10 @@ public class PluginManager
         }
         catch (Exception ex)
         {
-            File.WriteAllText(Path.Combine(Kernel.BasePath, "boot-error.log"),
+            File.WriteAllText(Kernel.BasePath + "\\boot-error.log",
                 $"The plugin manager encountered a problem: \n{ex.Message} at {ex.StackTrace}");
             return false;
         }
-    }
-
-    /// <summary>
-    ///     Dynamically loads plugins from a single assembly file at runtime.
-    /// </summary>
-    /// <param name="file">The DLL path.</param>
-    /// <returns>List of newly loaded plugins.</returns>
-    public List<IPlugin> LoadSingleAssembly(string file)
-    {
-        var loaded = new List<IPlugin>();
-        if (Extensions == null)
-            Extensions = new Dictionary<string, IPlugin>();
-
-        try
-        {
-            var newExtensions = GetExtensionsFromAssembly(file);
-            foreach (var extension in newExtensions)
-            {
-                if (Extensions.ContainsKey(extension.Key))
-                {
-                    Log.Warn($"Plugin [{extension.Key}] is already loaded.");
-                    continue;
-                }
-
-                try
-                {
-                    extension.Value.Initialize();
-                    Extensions.Add(extension.Key, extension.Value);
-                    loaded.Add(extension.Value);
-                    Log.Notify($"Dynamically loaded plugin [{extension.Value.DisplayName}]!");
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Failed to initialize dynamic plugin [{extension.Value.DisplayName}]: {ex.Message}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Failed to load assembly [{file}]: {ex.Message}");
-        }
-
-        return loaded;
     }
 
     /// <summary>
@@ -131,32 +74,16 @@ public class PluginManager
     {
         var result = new Dictionary<string, IPlugin>();
 
+        var assembly = Assembly.LoadFrom(file);
+
         try
         {
-            var assembly = Assembly.LoadFrom(file);
-            Type[] assemblyTypes;
-            try
-            {
-                assemblyTypes = assembly.GetTypes();
-            }
-            catch (ReflectionTypeLoadException ex)
-            {
-                assemblyTypes = ex.Types.Where(t => t != null).ToArray();
-            }
+            var assemblyTypes = assembly.GetTypes();
 
-            foreach (var type in assemblyTypes.Where(type => type != null && type.IsPublic && !type.IsAbstract && typeof(IPlugin).IsAssignableFrom(type)))
-            {
-                try
-                {
-                    var extension = (IPlugin)Activator.CreateInstance(type);
-                    if (extension != null && !result.ContainsKey(extension.InternalName))
-                        result.Add(extension.InternalName, extension);
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn($"Failed to create plugin instance [{type.FullName}]: {ex.Message}");
-                }
-            }
+            foreach (var extension in (from type in assemblyTypes
+                         where type.IsPublic && !type.IsAbstract && type.GetInterface("IPlugin") != null
+                         select Activator.CreateInstance(type)).OfType<IPlugin>())
+                result.Add(extension.InternalName, extension);
 
             if (result.Count == 0)
                 return result;
@@ -165,38 +92,20 @@ public class PluginManager
             var hookType = typeof(IPacketHook);
 
             var types = assemblyTypes
-                .Where(p => p != null && handlerType.IsAssignableFrom(p) && !p.IsInterface && !p.IsAbstract).ToArray();
+                .Where(p => handlerType.IsAssignableFrom(p) && !p.IsInterface).ToArray();
 
             foreach (var handler in types)
-            {
-                try
-                {
-                    PacketManager.RegisterHandler((IPacketHandler)Activator.CreateInstance(handler));
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn($"Failed to register packet handler [{handler.Name}]: {ex.Message}");
-                }
-            }
+                PacketManager.RegisterHandler((IPacketHandler)Activator.CreateInstance(handler));
 
             types = assemblyTypes
-                .Where(p => p != null && hookType.IsAssignableFrom(p) && !p.IsInterface && !p.IsAbstract).ToArray();
+                .Where(p => hookType.IsAssignableFrom(p) && !p.IsInterface).ToArray();
 
             foreach (var hook in types)
-            {
-                try
-                {
-                    PacketManager.RegisterHook((IPacketHook)Activator.CreateInstance(hook));
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn($"Failed to register packet hook [{hook.Name}]: {ex.Message}");
-                }
-            }
+                PacketManager.RegisterHook((IPacketHook)Activator.CreateInstance(hook));
         }
         catch
         {
-            /* ignore, it's an invalid or non-managed extension DLL */
+            /* ignore, it's an invalid extension */
         }
 
         return result;

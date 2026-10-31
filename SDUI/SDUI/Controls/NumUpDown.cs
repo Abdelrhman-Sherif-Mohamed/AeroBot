@@ -1,8 +1,7 @@
-﻿using SDUI;
+using SDUI;
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Security.Policy;
 using System.Windows.Forms;
 
 namespace SDUI.Controls
@@ -26,6 +25,8 @@ namespace SDUI.Controls
         private const int SIZE = 20;
         private float _dpi => DeviceDpi / 96f;
 
+        private Color _boxColor = Color.Empty;
+
         public decimal Value
         {
             get
@@ -34,7 +35,7 @@ namespace SDUI.Controls
             }
             set
             {
-                if (value <= _max & value >= _min)
+                if (value <= _max && value >= _min)
                 {
                     _value = value;
                     ValueChanged?.Invoke(this, EventArgs.Empty);
@@ -81,7 +82,38 @@ namespace SDUI.Controls
             }
         }
 
-        public override Color BackColor { get => base.BackColor; set => base.BackColor = Color.Transparent; }
+        public override string Text
+        {
+            get => Value.ToString();
+            set
+            {
+                if (decimal.TryParse(value, out var d))
+                    Value = d;
+                base.Text = value;
+                Invalidate();
+            }
+        }
+
+        public Color BoxColor
+        {
+            get => _boxColor;
+            set
+            {
+                _boxColor = value;
+                Invalidate();
+            }
+        }
+
+        public override Color BackColor
+        {
+            get => _boxColor.IsEmpty ? base.BackColor : _boxColor;
+            set
+            {
+                _boxColor = value;
+                base.BackColor = value;
+                Invalidate();
+            }
+        }
 
         public NumUpDown()
         {
@@ -95,11 +127,10 @@ namespace SDUI.Controls
             UpdateStyles();
             this.DoubleBuffered = true;
 
-            BackColor = Color.Transparent;
             _min = 0;
             _max = 100;
-            Size = new Size(80, 25);
-            MinimumSize = Size;
+            _value = 0;
+            RightToLeft = RightToLeft.No;
 
             _longPressTimer.Tick += LongPressTimer_Tick;
             _longPressTimer.Interval = LONG_PRESS_TIMER_INTERVAL;
@@ -223,35 +254,72 @@ namespace SDUI.Controls
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            //base.OnPaint(e);
             var graphics = e.Graphics;
             ButtonRenderer.DrawParentBackground(e.Graphics, Bounds, this);
 
             using var borderPen = new Pen(ColorScheme.BorderColor);
-            using var backColorBrush = ColorScheme.BackColor.Alpha(90).Brush();
+            
+            var boxBrush = (_boxColor.A != 0 && _boxColor != Color.Empty && _boxColor != Color.Transparent)
+                ? new SolidBrush(_boxColor)
+                : ColorScheme.BackColor.Alpha(90).Brush();
 
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using var round = ClientRectangle.Radius(8);
 
-            graphics.FillPath(backColorBrush, round);
+            graphics.FillPath(boxBrush, round);
             graphics.DrawPath(borderPen, round);
 
+            if (_boxColor.A != 0 && _boxColor != Color.Empty && _boxColor != Color.Transparent)
+                boxBrush.Dispose();
 
-            this.DrawString(graphics, "▲", ColorScheme.ForeColor, _upButtonRect);
-            this.DrawString(graphics, "▼", ColorScheme.ForeColor, _downButtonRect);
+            var textColor = ColorScheme.ResolveTextColor(ForeColor);
+
+            // Draw crisp geometric arrows
+            DrawArrow(graphics, _upButtonRect, true, textColor);
+            DrawArrow(graphics, _downButtonRect, false, textColor);
 
             graphics.DrawLine(borderPen, _upButtonRect.X, 0, _upButtonRect.X, _upButtonRect.Height);
             graphics.DrawLine(borderPen, _downButtonRect.X, 0, _downButtonRect.X, _downButtonRect.Height);
 
-            // Numeric value is always drawn as a left-to-right island, clamped to
-            // the region left of the stepper arrows so it never overlaps them.
+            // Numeric value
             var buttonsWidth = (int)(SIZE * _dpi * 2);
             var valueRect = new Rectangle(Padding.Left + 6, 0,
                 Math.Max(1, Width - buttonsWidth - Padding.Left - Padding.Right - 10),
                 Height - 1);
 
-            TextRenderer.DrawText(graphics, Value.ToString(), Font, valueRect, ColorScheme.ForeColor,
+            TextRenderer.DrawText(graphics, Value.ToString(), Font, valueRect, textColor,
                 TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+        }
+
+        private static void DrawArrow(Graphics g, RectangleF rect, bool up, Color color)
+        {
+            using var brush = new SolidBrush(color);
+            float cx = rect.X + rect.Width / 2f;
+            float cy = rect.Y + rect.Height / 2f;
+            float size = 4f;
+
+            PointF[] points;
+            if (up)
+            {
+                points = new PointF[]
+                {
+                    new PointF(cx, cy - size),
+                    new PointF(cx - size, cy + size),
+                    new PointF(cx + size, cy + size)
+                };
+            }
+            else
+            {
+                points = new PointF[]
+                {
+                    new PointF(cx - size, cy - size),
+                    new PointF(cx + size, cy - size),
+                    new PointF(cx, cy + size)
+                };
+            }
+
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.FillPolygon(brush, points);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using RSBot.Core.Components;
 using RSBot.Core.Network;
@@ -242,6 +242,12 @@ public class Cos : SpawnedEntity
             packet.WriteInt(destination.YOffset);
         }
 
+        if (!sleep)
+        {
+            PacketManager.SendPacket(packet, PacketDestination.Server);
+            return;
+        }
+
         var awaitCallback = new AwaitCallback(response => response.ReadUInt() == UniqueId
             ? AwaitCallbackResult.Success
             : AwaitCallbackResult.ConditionFailed, 0xB021);
@@ -249,7 +255,7 @@ public class Cos : SpawnedEntity
         PacketManager.SendPacket(packet, PacketDestination.Server, awaitCallback);
         awaitCallback.AwaitResponse();
         var distance = Game.Player.Movement.Source.DistanceTo(destination);
-        //Wait to finish the step (ms = distance/speed seconds * 1000)
+        //Wait to finish the step
         if (sleep)
             Thread.Sleep(Convert.ToInt32(distance / Game.Player.ActualSpeed * 1000));
     }

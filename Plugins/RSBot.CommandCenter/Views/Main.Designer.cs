@@ -36,10 +36,13 @@
             tabPage2 = new System.Windows.Forms.TabPage();
             lblChatCommandDescriptions = new System.Windows.Forms.TextBox();
             label1 = new SDUI.Controls.Label();
+            tabPage3 = new System.Windows.Forms.TabPage();
+            label2 = new SDUI.Controls.Label();
             btnSave = new SDUI.Controls.Button();
             tabControl1.SuspendLayout();
             tabPage1.SuspendLayout();
             tabPage2.SuspendLayout();
+            tabPage3.SuspendLayout();
             SuspendLayout();
             // 
             // checkEnable
@@ -75,6 +78,7 @@
             // 
             tabControl1.Controls.Add(tabPage1);
             tabControl1.Controls.Add(tabPage2);
+            tabControl1.Controls.Add(tabPage3);
             tabControl1.ItemSize = new System.Drawing.Size(80, 24);
             tabControl1.Location = new System.Drawing.Point(8, 4);
             tabControl1.Name = "tabControl1";
@@ -143,6 +147,29 @@
             label1.TabIndex = 0;
             label1.Text = "Type the following commands into the game chat";
             // 
+            // tabPage3
+            // 
+            tabPage3.BackColor = System.Drawing.Color.White;
+            tabPage3.Controls.Add(label2);
+            tabPage3.Location = new System.Drawing.Point(4, 28);
+            tabPage3.Name = "tabPage3";
+            tabPage3.Padding = new System.Windows.Forms.Padding(3);
+            tabPage3.Size = new System.Drawing.Size(377, 327);
+            tabPage3.TabIndex = 2;
+            tabPage3.Text = "Notifications";
+            // 
+            // label2
+            // 
+            label2.ApplyGradient = false;
+            label2.AutoSize = true;
+            label2.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
+            label2.Gradient = (new System.Drawing.Color[] { System.Drawing.Color.Gray, System.Drawing.Color.Black });
+            label2.Location = new System.Drawing.Point(134, 157);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(93, 15);
+            label2.TabIndex = 0;
+            label2.Text = "<coming soon>";
+            // 
             // btnSave
             // 
             btnSave.Color = System.Drawing.Color.FromArgb(56, 155, 90);
@@ -171,6 +198,8 @@
             tabPage1.ResumeLayout(false);
             tabPage2.ResumeLayout(false);
             tabPage2.PerformLayout();
+            tabPage3.ResumeLayout(false);
+            tabPage3.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -183,8 +212,10 @@
         private System.Windows.Forms.TabPage tabPage1;
         private SDUI.Controls.Panel panelActions;
         private System.Windows.Forms.TabPage tabPage2;
+        private System.Windows.Forms.TabPage tabPage3;
         private SDUI.Controls.Label label1;
         private System.Windows.Forms.TextBox lblChatCommandDescriptions;
+        private SDUI.Controls.Label label2;
         private SDUI.Controls.Button btnSave;
     }
 }

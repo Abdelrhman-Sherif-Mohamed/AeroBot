@@ -69,6 +69,8 @@ namespace SDUI.Controls
 
             SetStyle(ControlStyles.ResizeRedraw, true);
 
+            BackColor = Color.Transparent;
+
             animationManager = new Animation.AnimationEngine
             {
                 AnimationType = AnimationType.EaseInOut,
@@ -161,9 +163,22 @@ namespace SDUI.Controls
         {
             var graphics = pevent.Graphics;
             graphics.SmoothingMode = SmoothingMode.HighQuality;
-            graphics.TextRenderingHint = TextRenderingHint.SystemDefault;
+            graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
-            CheckBoxRenderer.DrawParentBackground(pevent.Graphics, ClientRectangle, this);
+            // ButtonBase-hosted controls can erase with the native button brush
+            // (black) before OnPaint runs. Repaint the real parent surface so the
+            // control blends into cards and panels instead of showing a black box.
+            if (BackColor == Color.Transparent || BackColor.A == 0)
+                GroupBoxRenderer.DrawParentBackground(graphics, ClientRectangle, this);
+
+            var isLightMode = !ColorScheme.BackColor.IsDark();
+            var isStaleDarkBg = isLightMode && (BackColor == Color.Black || BackColor == Color.FromArgb(0, 0, 0) || BackColor == Color.FromArgb(16, 16, 16));
+
+            if (BackColor != Color.Transparent && !BackColor.IsEmpty && BackColor.A > 0 && !isStaleDarkBg)
+            {
+                using var bgBrush = new SolidBrush(BackColor);
+                graphics.FillRectangle(bgBrush, ClientRectangle);
+            }
 
             var CHECKBOX_CENTER = boxOffset + CHECKBOX_SIZE_HALF - 1;
 
@@ -194,24 +209,28 @@ namespace SDUI.Controls
             }
 
             var checkMarkLineFill = new Rectangle(boxOffset, boxOffset, (int)(14.0 * animationProgress), 14);
-            using (var checkmarkPath = DrawingExtensions.CreateRoundPath(boxOffset, boxOffset, 14, 14, 2))
+            using (var checkmarkPath = DrawingExtensions.CreateRoundPath(boxOffset, boxOffset, 14, 14, 3))
             {
-                using var brush2 = new SolidBrush(ColorScheme.BackColor.BlendWith(Enabled ? ColorScheme.BorderColor : disabledOffColor, backgroundAlpha));
-                using var pen2 = new Pen(brush2.Color);
+                // Box background: Pure white in Light mode, dark input surface in Dark mode
+                var boxBg = ColorScheme.BackColor.IsDark() ? ColorScheme.InputBackColor : Color.White;
+                using var boxBrush = new SolidBrush(boxBg);
+                using var boxPen = new Pen(ColorScheme.BorderColor, 1.2f);
 
-                graphics.FillPath(ColorScheme.BorderColor.Brush(), checkmarkPath);
-                graphics.DrawPath(ColorScheme.BorderColor.Pen(), checkmarkPath);
+                graphics.FillPath(boxBrush, checkmarkPath);
+                graphics.DrawPath(boxPen, checkmarkPath);
 
-                graphics.FillPath(brush, checkmarkPath);
-                graphics.DrawPath(pen, checkmarkPath);
-
-                graphics.DrawImageUnscaledAndClipped(DrawCheckMarkBitmap(), checkMarkLineFill);
+                if (animationProgress > 0)
+                {
+                    graphics.FillPath(brush, checkmarkPath);
+                    graphics.DrawPath(pen, checkmarkPath);
+                    graphics.DrawImageUnscaledAndClipped(DrawCheckMarkBitmap(), checkMarkLineFill);
+                }
             }
 
-            // draw checkbox text (rect starts after the box, width reduced accordingly)
-            var textColor = Enabled ? ColorScheme.ForeColor : Color.Gray;
+            // draw checkbox text (AntiAliasGridFit ensures crisp text without solid black boxes)
+            var textColor = Enabled ? ColorScheme.ResolveTextColor(ForeColor) : Color.Gray;
 
-            var textX = boxOffset + CHECKBOX_SIZE + TextLayout.Gap;
+            var textX = boxOffset + CHECKBOX_SIZE + Math.Max(10, TextLayout.Gap);
             this.DrawString(graphics, TextAlign, textColor,
                 new RectangleF(textX, 0, Math.Max(0, ClientRectangle.Width - textX), ClientRectangle.Height),
                 showEllipsis: false, useMnemonic: false, noWrap: true);
@@ -251,17 +270,33 @@ namespace SDUI.Controls
 
         private void FitTextToContent()
         {
-            if (DesignMode || _isFittingText || !IsHandleCreated)
+            if (DesignMode || _isFittingText || !IsHandleCreated || !AutoSize || Dock != DockStyle.None)
                 return;
 
             try
             {
                 _isFittingText = true;
-                if (AutoSize && !string.IsNullOrEmpty(Text))
+                if (!string.IsNullOrEmpty(Text))
                 {
-                    var need = boxOffset + CHECKBOX_SIZE + TextLayout.Gap + TextRenderer.MeasureText(Text, Font).Width + 8;
-                    if (need > Width)
+                    int gap = Math.Max(10, TextLayout.Gap);
+                    var textWidth = TextRenderer.MeasureText(Text, Font).Width;
+                    int extraPadding = DrawingExtensions.HasArabic(Text) ? (int)(textWidth * 0.25f) + 16 : 14;
+                    var need = boxOffset + CHECKBOX_SIZE + gap + textWidth + extraPadding;
+
+                    if (Parent != null)
+                    {
+                        var maxLimit = Math.Max(Width, Parent.ClientSize.Width - Left - 4);
+                        var targetWidth = Math.Min(need, maxLimit);
+                        if (targetWidth > Width)
+                        {
+                            TextLayout.ShiftRightSiblingsIfNeeded(this, targetWidth, 8);
+                            Width = targetWidth;
+                        }
+                    }
+                    else if (need > Width)
+                    {
                         Width = need;
+                    }
                 }
             }
             catch

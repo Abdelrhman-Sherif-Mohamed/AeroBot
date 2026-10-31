@@ -1,4 +1,4 @@
-﻿using RSBot.Core;
+using RSBot.Core;
 using RSBot.Core.Event;
 
 namespace RSBot.Inventory.Subscriber;
@@ -20,6 +20,12 @@ internal static class InventoryUpdateSubscriber
     {
         var autoSort = PlayerConfig.Get("RSBot.Inventory.AutoSort", false);
         if (!autoSort)
+            return;
+
+        if (RSBot.Core.Components.HappyManager.Running)
+            return;
+
+        if (Game.Player?.Inventory == null || Game.Player.Inventory.IsSorting)
             return;
 
         lock (_lock)

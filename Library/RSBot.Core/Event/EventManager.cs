@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -48,9 +48,18 @@ public class EventManager
                 select o.handler).ToArray();
 
             foreach (var target in targets)
-                if (Thread.CurrentThread.Name == "Proxy.Network.Server.PacketProcessor" ||
-                    Thread.CurrentThread.Name == "Proxy.Network.Client.PacketProcessor")
-                    Task.Run(() => target.DynamicInvoke(parameters));
+                if (Thread.CurrentThread.Name == "Network.PacketProcessor")
+                    Task.Run(() =>
+                    {
+                        try
+                        {
+                            target.DynamicInvoke(parameters);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error($"[EventManager] Error executing event '{name}': {ex.Message}");
+                        }
+                    });
                 else
                     target.DynamicInvoke(parameters);
         }

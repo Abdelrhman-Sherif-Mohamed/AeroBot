@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Components;
@@ -13,7 +13,7 @@ namespace RSBot.Default;
 
 public class Bootstrap : IBotbase
 {
-    public string Name => "AeroBot.Default";
+    public string Name => "RSBot.Default";
 
     public string DisplayName => "Training";
 
@@ -26,32 +26,35 @@ public class Bootstrap : IBotbase
     /// </summary>
     public void Tick()
     {
-        if (!Kernel.Bot.Running)
-            return;
-
-        if (Game.Player.Exchanging)
-            return;
-
-        if (Game.Player.Untouchable)
-            return;
-
-        if (Game.Player.State.LifeState == LifeState.Dead)
-            return;
-
-        //Begin the loopback if needed
-        if (Container.Bot.Area.Position.DistanceToPlayer() > 80)
-            Bundles.Loop.Start();
-
-        if (Bundles.Loop.Running)
-            return;
-
-        //Nothing if in scroll state!
-        if (Game.Player.State.ScrollState == ScrollState.NormalScroll ||
-            Game.Player.State.ScrollState == ScrollState.ThiefScroll)
-            return;
-
         try
         {
+            if (!Kernel.Bot.Running)
+                return;
+
+            if (Game.Player == null)
+                return;
+
+            if (Game.Player.Exchanging)
+                return;
+
+            if (Game.Player.Untouchable)
+                return;
+
+            if (Game.Player.State == null || Game.Player.State.LifeState == LifeState.Dead)
+                return;
+
+            //Begin the loopback if needed
+            if (Container.Bot?.Area != null && Container.Bot.Area.Position.DistanceToPlayer() > 80)
+                Bundles.Loop.Start();
+
+            if (Bundles.Loop.Running)
+                return;
+
+            //Nothing if in scroll state!
+            if (Game.Player.State.ScrollState == ScrollState.NormalScroll ||
+                Game.Player.State.ScrollState == ScrollState.ThiefScroll)
+                return;
+
             Container.Bot.Tick();
         }
         catch (Exception ex)

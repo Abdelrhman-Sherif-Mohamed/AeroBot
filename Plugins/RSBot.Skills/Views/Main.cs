@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Client.ReferenceObjects;
@@ -12,9 +13,9 @@ using RSBot.Core.Objects;
 using RSBot.Core.Objects.Skill;
 using RSBot.Skills.Components;
 using SDUI.Controls;
-using SDUI.Helpers;
 using CheckBox = SDUI.Controls.CheckBox;
 using ListViewExtensions = RSBot.Core.Extensions.ListViewExtensions;
+using Action = System.Action;
 
 namespace RSBot.Skills.Views;
 
@@ -27,8 +28,16 @@ public partial class Main : DoubleBufferedControl
     public Main()
     {
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
         SubscribeEvents();
+
+        var masteriesPage = new TabPage
+        {
+            BackColor = System.Drawing.Color.White,
+            Padding = new Padding(3),
+            Text = "Mastery"
+        };
+        masteriesPage.Controls.Add(new MasteriesTab { Dock = DockStyle.Fill });
+        tabControl2.TabPages.Add(masteriesPage);
 
         listAttackingSkills.SmallImageList = ListViewExtensions.StaticImageList;
         listBuffs.SmallImageList = ListViewExtensions.StaticImageList;
@@ -54,6 +63,7 @@ public partial class Main : DoubleBufferedControl
         EventManager.SubscribeEvent("OnRemoveBuff", new Action<SkillInfo>(OnRemoveBuff));
         EventManager.SubscribeEvent("OnResurrectionRequest", OnResurrectionRequest);
         EventManager.SubscribeEvent("OnExpSpUpdate", OnSpUpdated);
+        EventManager.SubscribeEvent("OnUpdateSP", OnSpUpdated);
         EventManager.SubscribeEvent("OnAddItemPerk", new Action<uint, uint>(OnAddItemPerk));
         EventManager.SubscribeEvent("OnRemoveItemPerk", new Action<uint, ItemPerk>(OnRemoveItemPerk));
     }
@@ -65,6 +75,11 @@ public partial class Main : DoubleBufferedControl
     /// <param name="removedPerk">The removed perk.</param>
     private void OnRemoveItemPerk(uint targetId, ItemPerk removedPerk)
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnRemoveItemPerk(targetId, removedPerk)));
+            return;
+        }
         if (targetId != Game.Player.UniqueId || removedPerk == null)
             return;
 
@@ -86,6 +101,11 @@ public partial class Main : DoubleBufferedControl
     /// <param name="token">The token.</param>
     private void OnAddItemPerk(uint targetId, uint token)
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnAddItemPerk(targetId, token)));
+            return;
+        }
         if (targetId != Game.Player.UniqueId)
             return;
 
@@ -106,25 +126,43 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void OnSpUpdated()
     {
-        if (_selectedMastery == null || !checkLearnMastery.Checked) return;
-
-        while (_selectedMastery.Level + numMasteryGap.Value < Game.Player.Level)
+        if (InvokeRequired)
         {
-            if (!checkLearnMasteryBotStopped.Checked && !Kernel.Bot.Running) break;
+            BeginInvoke(new Action(OnSpUpdated));
+            return;
+        }
 
-            var nextMasteryLevel = Game.ReferenceManager.GetRefLevel((byte)(_selectedMastery.Level + 1));
+        SkillUpgradeManager.ResetBlockedSkills();
+        CheckAndLearnMastery();
+        SkillUpgradeManager.RunAutoUpgrade();
+    }
+
+    private void CheckAndLearnMastery()
+    {
+        if (_selectedMastery?.Record == null || !checkLearnMastery.Checked) return;
+        if (!checkLearnMasteryBotStopped.Checked && !Kernel.Bot.Running) return;
+        if (Game.Player == null) return;
+
+        var currentMastery = Game.Player.Skills?.GetMasteryInfoById(_selectedMastery.Record.ID);
+        if (currentMastery == null) return;
+
+        // The auto upgrade handles this mastery completely.
+        if (SkillUpgradeManager.IsAutoEnabled(currentMastery.Id)) return;
+
+        if (currentMastery.Level + (byte)numMasteryGap.Value < Game.Player.Level)
+        {
+            var nextLevelByte = (byte)(currentMastery.Level + 1);
+            var nextMasteryLevel = Game.ReferenceManager.GetRefLevel(nextLevelByte);
+            if (nextMasteryLevel == null) return;
 
             if (nextMasteryLevel.Exp_M > Game.Player.SkillPoints)
             {
-                Log.Debug(
-                    $"Auto. upping mastery cancelled due to insufficient skill points. Required: {nextMasteryLevel.Exp_M}");
-
-                break;
+                Log.Debug($"Auto. upping mastery cancelled due to insufficient skill points. Required: {nextMasteryLevel.Exp_M}");
+                return;
             }
 
-            Log.Notify($"Auto. train mastery [{_selectedMastery.Record.Name} to lv. {nextMasteryLevel}");
-            LearnMasteryHandler.LearnMastery(_selectedMastery.Record.ID);
-            Thread.Sleep(500);
+            Log.Notify($"Auto. train mastery [{currentMastery.Record.Name}] to lv. {nextLevelByte}");
+            LearnMasteryHandler.LearnMastery(currentMastery.Id);
         }
     }
 
@@ -222,7 +260,7 @@ public partial class Main : DoubleBufferedControl
             foreach (var skillId in skillIds)
             {
                 var skillInfo = Game.Player.Skills.GetSkillInfoById(skillId);
-                if (skillInfo == null)
+                if (skillInfo?.Record == null)
                     continue;
 
                 switch (i)
@@ -269,6 +307,9 @@ public partial class Main : DoubleBufferedControl
     {
         SkillManager.Buffs.Clear();
 
+        if (Game.Player?.Skills == null)
+            return;
+
         Game.Player.TryGetAbilitySkills(out var abilitySkills);
 
         foreach (var buffId in PlayerConfig.GetArray<uint>("RSBot.Skills.Buffs"))
@@ -277,7 +318,7 @@ public partial class Main : DoubleBufferedControl
             if (skillInfo == null)
             {
                 skillInfo = abilitySkills.FirstOrDefault(p => p.Id == buffId);
-                if (skillInfo == null)
+                if (skillInfo?.Record == null)
                     continue;
             }
 
@@ -299,7 +340,10 @@ public partial class Main : DoubleBufferedControl
 
         foreach (MasteryComboBoxItem item in comboLearnMastery.Items)
             if (item.Record.NameCode == selectedMastery)
+            {
                 comboLearnMastery.SelectedItem = item;
+                _selectedMastery = item;
+            }
 
         comboLearnMastery.EndUpdate();
 
@@ -316,7 +360,7 @@ public partial class Main : DoubleBufferedControl
 
         var selectedTeleportSkill = PlayerConfig.Get<uint>("RSBot.Skills.TeleportSkill");
         foreach (var skill in Game.Player.Skills.KnownSkills.Where(s =>
-                     s.CanBeCasted && s.Record.Action_ActionDuration == 0 && s.Record.Params[2] == 500))
+                     s != null && s.CanBeCasted && s.Record != null && s.Record.Action_ActionDuration == 0 && s.Record.Params != null && s.Record.Params.Count > 2 && s.Record.Params[2] == 500))
         {
             var index = comboTeleportSkill.Items.Add(new TeleportSkillComboBoxItem
                 { Level = skill.Record.Basic_Level, Record = skill.Record });
@@ -328,7 +372,7 @@ public partial class Main : DoubleBufferedControl
             }
         }
 
-        comboLearnMastery.EndUpdate();
+        comboTeleportSkill.EndUpdate();
     }
 
     /// <summary>
@@ -346,7 +390,7 @@ public partial class Main : DoubleBufferedControl
             foreach (var skillId in skillArray)
             {
                 var skillInfo = Game.Player.Skills.GetSkillInfoById(skillId);
-                if (skillInfo == null)
+                if (skillInfo?.Record == null)
                     continue;
 
                 var item = new ListViewItem(skillInfo.Record.GetRealName()) { Tag = skillInfo };
@@ -381,6 +425,9 @@ public partial class Main : DoubleBufferedControl
                     if (buffInfo == null)
                         continue;
                 }
+
+                if (buffInfo?.Record == null)
+                    continue;
 
                 var item = new ListViewItem(buffInfo.Record.GetRealName()) { Tag = buffInfo };
 
@@ -455,6 +502,12 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void LoadSkills()
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(LoadSkills));
+            return;
+        }
+
         lock (_lock)
         {
             var player = Game.Player;
@@ -463,7 +516,6 @@ public partial class Main : DoubleBufferedControl
 
             LoadTeleportSkills();
             LoadResurrectionSkills();
-            LoadTeleportSkills();
             LoadImbues();
             LoadBuffs();
             LoadMasteries();
@@ -569,8 +621,17 @@ public partial class Main : DoubleBufferedControl
     /// <param name="buffInfo">The added <see cref="BuffInfo" /></param>
     private void OnAddBuff(SkillInfo buffInfo)
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnAddBuff(buffInfo)));
+            return;
+        }
+
         try
         {
+            if (buffInfo?.Record == null)
+                return;
+
             var item = new ListViewItem
             {
                 Text = buffInfo.Record.GetRealName(),
@@ -593,8 +654,17 @@ public partial class Main : DoubleBufferedControl
     /// <param name="buffInfo">The removed <see cref="BuffInfo" /></param>
     private void OnRemoveBuff(SkillInfo removingBuff)
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnRemoveBuff(removingBuff)));
+            return;
+        }
+
         try
         {
+            if (removingBuff == null)
+                return;
+
             for (var i = 0; i < listActiveBuffs.Items.Count; i++)
             {
                 var listItem = listActiveBuffs.Items[i];
@@ -698,8 +768,17 @@ public partial class Main : DoubleBufferedControl
     /// <param name="learnedSkill"></param>
     private void OnSkillLearned(SkillInfo learnedSkill)
     {
-        Log.NotifyLang("SkillLearned", learnedSkill.Record.GetRealName());
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnSkillLearned(learnedSkill)));
+            return;
+        }
+
+        if (learnedSkill?.Record != null)
+            Log.NotifyLang("SkillLearned", learnedSkill.Record.GetRealName());
+
         LoadSkills();
+        SkillUpgradeManager.RunAutoUpgrade();
     }
 
     /// <summary>
@@ -709,9 +788,19 @@ public partial class Main : DoubleBufferedControl
     /// <param name="newSkill">The new skill.</param>
     private void OnSkillUpgraded(SkillInfo oldSkill, SkillInfo newSkill)
     {
-        Log.NotifyLang("SkillUpgraded", newSkill);
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnSkillUpgraded(oldSkill, newSkill)));
+            return;
+        }
 
-        CheckSkillWithdrawnOrUpgraded(oldSkill, newSkill);
+        if (newSkill?.Record != null)
+            Log.NotifyLang("SkillUpgraded", newSkill);
+
+        if (oldSkill != null && newSkill != null)
+            CheckSkillWithdrawnOrUpgraded(oldSkill, newSkill);
+
+        SkillUpgradeManager.RunAutoUpgrade();
     }
 
     /// <summary>
@@ -721,9 +810,17 @@ public partial class Main : DoubleBufferedControl
     /// <param name="newSkill">The new skill.</param>
     private void OnWithdrawSkill(SkillInfo oldSkill, SkillInfo newSkill)
     {
-        Log.NotifyLang("SkillWithdrawn", oldSkill);
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnWithdrawSkill(oldSkill, newSkill)));
+            return;
+        }
 
-        CheckSkillWithdrawnOrUpgraded(oldSkill, newSkill);
+        if (oldSkill?.Record != null)
+            Log.NotifyLang("SkillWithdrawn", oldSkill);
+
+        if (oldSkill != null && newSkill != null)
+            CheckSkillWithdrawnOrUpgraded(oldSkill, newSkill);
     }
 
     /// <summary>
@@ -732,9 +829,19 @@ public partial class Main : DoubleBufferedControl
     /// <param name="info">The information.</param>
     private void OnLearnSkillMastery(MasteryInfo info)
     {
-        Log.NotifyLang("MasteryUpgraded", info.Record.Name);
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => OnLearnSkillMastery(info)));
+            return;
+        }
 
+        if (info?.Record != null)
+            Log.NotifyLang("MasteryUpgraded", info.Record.Name);
+
+        SkillUpgradeManager.ResetBlockedSkills();
         LoadSkills();
+        CheckAndLearnMastery();
+        SkillUpgradeManager.RunAutoUpgrade();
     }
 
     /// <summary>
@@ -742,7 +849,16 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void OnLoadCharacter()
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnLoadCharacter));
+            return;
+        }
+
         comboMonsterType.SelectedIndex = 0;
+
+        SkillUpgradeManager.LoadSettings();
+        SkillUpgradeManager.ResetBlockedSkills();
 
         LoadSkills();
 
@@ -750,6 +866,8 @@ public partial class Main : DoubleBufferedControl
         ApplyBuffSkills();
 
         listActiveBuffs.Items.Clear();
+
+        SkillUpgradeManager.RunAutoUpgrade();
     }
 
     /// <summary>
@@ -757,6 +875,12 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void OnResurrectionRequest()
     {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnResurrectionRequest));
+            return;
+        }
+
         const string key = "RSBot.Skills.";
         if (Game.AcceptanceRequest != null && PlayerConfig.Get<bool>(key + checkAcceptResurrection.Name))
             Game.AcceptanceRequest.Accept();
@@ -975,7 +1099,7 @@ public partial class Main : DoubleBufferedControl
         if (skillInfo.IsAttack)
             return;
 
-        skillInfo.Cast(buff: true);
+        Task.Run(() => skillInfo.Cast(buff: true));
     }
 
     private void skillContextMenu_Opening(object sender, CancelEventArgs e)
@@ -1011,7 +1135,9 @@ public partial class Main : DoubleBufferedControl
                     if (member == null)
                         return;
 
-                    skillInfo.Cast(member.Player.UniqueId, true);
+                    var targetUniqueId = member.Player?.UniqueId ?? 0;
+                    if (targetUniqueId != 0)
+                        Task.Run(() => skillInfo.Cast(targetUniqueId, true));
                 }
                 catch
                 {

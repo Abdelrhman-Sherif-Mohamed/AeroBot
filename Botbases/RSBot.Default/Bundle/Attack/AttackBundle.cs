@@ -1,4 +1,5 @@
-﻿using RSBot.Core;
+using System;
+using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Objects;
 
@@ -16,67 +17,75 @@ internal class AttackBundle : IBundle
     /// </summary>
     public void Invoke()
     {
-        if (Game.SelectedEntity == null || !Game.Player.CanAttack)
-            return;
-
-        if (Game.SelectedEntity.IsBehindObstacle)
+        try
         {
-            Log.Debug("Deselecting entity because it moved behind an obstacle!");
-
-            if (Game.Player.InAction)
-                SkillManager.CancelAction();
-
-            Game.SelectedEntity?.TryDeselect();
-            Game.SelectedEntity = null;
-
-            return;
-        }
-
-        if (SkillManager.ImbueSkill != null &&
-            !Game.Player.State.HasActiveBuff(SkillManager.ImbueSkill, out _) &&
-            SkillManager.ImbueSkill.CanBeCasted)
-            SkillManager.ImbueSkill.Cast(buff: true);
-
-        if (Kernel.TickCount - _lastTick < 250)
-            return;
-
-        _lastTick = Kernel.TickCount;
-
-        //if (Game.Player.InAction && !SkillManager.IsLastCastedBasic)
-        //  return;
-
-        var useTeleportSkill = PlayerConfig.Get("RSBot.Skills.checkUseTeleportSkill", false);
-        if (useTeleportSkill && CastTeleportation())
-            return;
-
-        //var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-        var skill = SkillManager.GetNextSkill();
-
-        //Log.Debug($"Getnextskill: {stopwatch.ElapsedMilliseconds} Action:{Game.Player.InAction} Entity:{Game.SelectedEntity != null} LA:{SkillManager.IsLastCastedBasic} Skill:{skill}");
-
-        if (!Game.Player.InAction)
-            Log.Status("Attacking");
-
-        if (skill == null)
-        {
-            if (Game.Player.InAction)
+            if (Game.SelectedEntity == null || Game.Player == null || !Game.Player.CanAttack)
                 return;
 
-            if (PlayerConfig.Get("RSBot.Skills.checkUseDefaultAttack", true))
-                SkillManager.CastAutoAttack();
+            if (Game.SelectedEntity.IsBehindObstacle)
+            {
+                Log.Debug("Deselecting entity because it moved behind an obstacle!");
 
-            return;
+                if (Game.Player.InAction)
+                    SkillManager.CancelAction();
+
+                Game.SelectedEntity?.TryDeselect();
+                Game.SelectedEntity = null;
+
+                return;
+            }
+
+            if (SkillManager.ImbueSkill?.Record != null &&
+                Game.Player.State != null &&
+                !Game.Player.State.HasActiveBuff(SkillManager.ImbueSkill, out _) &&
+                SkillManager.ImbueSkill.CanBeCasted)
+                SkillManager.ImbueSkill.Cast(buff: true);
+
+            if (Kernel.TickCount - _lastTick < 500)
+                return;
+
+            _lastTick = Kernel.TickCount;
+
+            //if (Game.Player.InAction && !SkillManager.IsLastCastedBasic)
+            //  return;
+
+            var useTeleportSkill = PlayerConfig.Get("RSBot.Skills.checkUseTeleportSkill", false);
+            if (useTeleportSkill && CastTeleportation())
+                return;
+
+            //var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            var skill = SkillManager.GetNextSkill();
+
+            //Log.Debug($"Getnextskill: {stopwatch.ElapsedMilliseconds} Action:{Game.Player.InAction} Entity:{Game.SelectedEntity != null} LA:{SkillManager.IsLastCastedBasic} Skill:{skill}");
+
+            if (!Game.Player.InAction)
+                Log.Status("Attacking");
+
+            if (skill == null)
+            {
+                if (Game.Player.InAction)
+                    return;
+
+                if (PlayerConfig.Get("RSBot.Skills.checkUseDefaultAttack", true))
+                    SkillManager.CastAutoAttack();
+
+                return;
+            }
+
+            if (Game.Player.InAction && SkillManager.IsLastCastedBasic)
+                SkillManager.CancelAction();
+
+            var uniqueId = Game.SelectedEntity?.UniqueId;
+            if (uniqueId == null)
+                return;
+
+            skill?.Cast(uniqueId.Value);
         }
-
-        if (Game.Player.InAction && SkillManager.IsLastCastedBasic)
-            SkillManager.CancelAction();
-
-        var uniqueId = Game.SelectedEntity?.UniqueId;
-        if (uniqueId == null)
-            return;
-
-        skill?.Cast(uniqueId.Value);
+        catch (Exception ex)
+        {
+            Log.Error($"Error in AttackBundle: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -98,11 +107,19 @@ internal class AttackBundle : IBundle
     /// <returns></returns>
     private bool CastTeleportation()
     {
-        if (SkillManager.TeleportSkill?.CanBeCasted != true || Game.SelectedEntity?.State.LifeState != LifeState.Alive)
+        if (SkillManager.TeleportSkill?.CanBeCasted != true ||
+            SkillManager.TeleportSkill?.Record?.Params == null ||
+            SkillManager.TeleportSkill.Record.Params.Count <= 3 ||
+            Game.SelectedEntity?.State?.LifeState != LifeState.Alive)
             return false;
 
         var distanceToMonster = Game.SelectedEntity?.DistanceToPlayer;
-        var availableDistance = SkillManager.TeleportSkill.Record.Params[3] / 10;
+        if (distanceToMonster == null)
+            return false;
+
+        var availableDistance = 0;
+        if (SkillManager.TeleportSkill.Record.Params != null && SkillManager.TeleportSkill.Record.Params.Count > 3)
+            availableDistance = SkillManager.TeleportSkill.Record.Params[3] / 10;
 
         if (availableDistance <= 0)
         {
@@ -110,16 +127,16 @@ internal class AttackBundle : IBundle
         }
         else
         {
-            var distanceAfterCasting = distanceToMonster - availableDistance;
+            var distanceAfterCasting = distanceToMonster.Value - availableDistance;
             if (distanceAfterCasting < 0)
                 distanceAfterCasting *= -1;
 
-            if (distanceAfterCasting < distanceToMonster)
+            if (distanceAfterCasting < distanceToMonster.Value)
             {
                 SkillManager.TeleportSkill.CastAt(Game.SelectedEntity.Position);
 
                 Log.Debug(
-                    $"Used teleportation skill [{SkillManager.TeleportSkill.Record.GetRealName()}] (before: {distanceToMonster}m, after: {distanceAfterCasting}m, traveled: {availableDistance}m)");
+                    $"Used teleportation skill [{SkillManager.TeleportSkill.Record.GetRealName()}] (before: {distanceToMonster.Value}m, after: {distanceAfterCasting}m, traveled: {availableDistance}m)");
 
                 return true;
             }

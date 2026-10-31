@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using RSBot.Core;
+using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Extensions;
@@ -14,7 +15,6 @@ using RSBot.Core.Objects.Party;
 using RSBot.Core.Objects.Skill;
 using SDUI;
 using SDUI.Controls;
-using SDUI.Helpers;
 using Button = SDUI.Controls.Button;
 using ListViewExtensions = RSBot.Core.Extensions.ListViewExtensions;
 
@@ -44,7 +44,6 @@ public partial class Main : DoubleBufferedControl
     public Main()
     {
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
 
         selectedMemberBuffs.SmallImageList = ListViewExtensions.StaticImageList;
         listPartyBuffSkills.SmallImageList = ListViewExtensions.StaticImageList;
@@ -62,7 +61,439 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private string _noGuildText => LanguageManager.GetLang("NoGuild");
 
-    private string _none => LanguageManager.GetLang("none");
+    private string _none => LanguageManager.GetLang("None");
+
+    private bool _applyingPartyLayout;
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        ApplyPartyLayout();
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+
+        if (!Visible)
+            return;
+
+        ApplyPartyLocalization();
+        ApplyPartyLayout();
+    }
+
+    private int S(float value)
+    {
+        return (int)Math.Round(value * DeviceDpi / 96f);
+    }
+
+    private static string T(string key, string fallback)
+    {
+        return LanguageManager.GetLangBySpecificKey("RSBot.Party", key, fallback);
+    }
+
+    private void Place(Control control, int x, int y, int width, int height)
+    {
+        if (control == null)
+            return;
+
+        control.Anchor = AnchorStyles.None;
+        control.Dock = DockStyle.None;
+        control.AutoSize = false;
+        control.SetBounds(S(x), S(y), Math.Max(1, S(width)), Math.Max(1, S(height)));
+    }
+
+    private void PlaceLabel(SDUI.Controls.Label label, int x, int y, int width, int height,
+        ContentAlignment alignment)
+    {
+        if (label == null)
+            return;
+
+        Place(label, x, y, width, height);
+        label.TextAlign = alignment;
+    }
+
+    /// <summary>
+    ///     Lays out the party page for the actual page surface. The designer
+    ///     coordinates were made for the original 746x435 tab page, while the
+    ///     application shows the page at roughly 1116x577. Re-positioning the
+    ///     controls keeps the Arabic captions readable and uses the available
+    ///     width instead of leaving large empty areas.
+    /// </summary>
+    private void ApplyPartyLayout()
+    {
+        if (_applyingPartyLayout || IsDisposed || tabMain == null || tabMain.TabPages.Count < 4)
+            return;
+
+        var area = tabMain.DisplayRectangle;
+        if (area.Width < 200 || area.Height < 200)
+            return;
+
+        _applyingPartyLayout = true;
+        try
+        {
+            // The old fixed layout used docked separator lines between the
+            // panels. The responsive cards already provide enough spacing, so
+            // these stray lines are hidden.
+            separator3.Visible = false;
+            separator4.Visible = false;
+            separator5.Visible = false;
+            separator6.Visible = false;
+
+            var scale = DeviceDpi / 96f;
+            var pageW = (int)(area.Width / scale);
+            var pageH = (int)(area.Height / scale);
+            var layoutW = Math.Max(pageW, 980);
+            var layoutH = Math.Max(pageH, 560);
+
+            LayoutCurrentParty(layoutW, layoutH);
+            LayoutAutoParty(layoutW, layoutH);
+            LayoutPartyMatching(layoutW, layoutH);
+            LayoutBuffing(layoutW, layoutH);
+
+            // Only reserve virtual space when the page is actually smaller
+            // than the design minimum. This avoids needless scrollbars at the
+            // default 1300x820 window size.
+            var needsScroll = layoutW > pageW || layoutH > pageH;
+            foreach (TabPage page in tabMain.TabPages)
+            {
+                page.AutoScroll = true;
+                page.AutoScrollMinSize = needsScroll
+                    ? new Size(S(layoutW), S(layoutH))
+                    : Size.Empty;
+            }
+        }
+        finally
+        {
+            _applyingPartyLayout = false;
+        }
+    }
+
+    private void LayoutCurrentParty(int width, int height)
+    {
+        const int margin = 14;
+        const int gap = 12;
+        const int topH = 76;
+
+        var contentW = width - margin * 2;
+        var topY = margin;
+
+        Place(grpPartySettings, margin, topY, contentW, topH);
+
+        var cbGap = 16;
+        var cbW = (contentW - 32 - cbGap * 2) / 3;
+        Place(checkCurrentAutoShareEXP, 16, 28, cbW, 30);
+        Place(checkCurrentAllowInvitations, 16 + cbW + cbGap, 28, cbW, 30);
+        Place(checkCurrentAutoShareItems, 16 + (cbW + cbGap) * 2, 28, cbW, 30);
+
+        var bodyY = topY + topH + gap;
+        var footerH = 36;
+        var bodyH = height - bodyY - margin - footerH - gap;
+
+        Place(listParty, margin, bodyY, contentW, Math.Max(80, bodyH));
+        Place(panel1, margin, height - margin - footerH, contentW, footerH);
+
+        Place(label1, 16, 6, 60, 24);
+        Place(lblLeader, 78, 6, Math.Max(180, contentW - 78 - 166), 24);
+        Place(btnLeaveParty, contentW - 16 - 150, 4, 150, 26);
+
+        colMemberName.Width = 220;
+        colLevel.Width = 70;
+        colGuild.Width = 180;
+        colMasteries.Width = 300;
+        colLocation.Width = Math.Max(150, contentW - 2 - 220 - 70 - 180 - 300);
+    }
+
+    private void LayoutAutoParty(int width, int height)
+    {
+        const int margin = 14;
+        const int gap = 12;
+        const int topH = 76;
+
+        var contentW = width - margin * 2;
+        var topY = margin;
+
+        Place(grbAutoPartySettings, margin, topY, contentW, topH);
+
+        var cbGap = 16;
+        var cbW = (contentW - 32 - cbGap * 2) / 3;
+        Place(checkAutoExpAutoShare, 16, 28, cbW, 30);
+        Place(checkAutoAllowInvitations, 16 + cbW + cbGap, 28, cbW, 30);
+        Place(checkAutoItemAutoShare, 16 + (cbW + cbGap) * 2, 28, cbW, 30);
+
+        var bodyY = topY + topH + gap;
+        var bodyH = height - bodyY - margin;
+        var leftW = Math.Min(340, Math.Max(280, (int)(contentW * 0.30f)));
+        var rightX = margin + leftW + gap;
+        var rightW = contentW - leftW - gap;
+
+        Place(panel2, margin, bodyY, leftW, bodyH);
+
+        var upperH = Math.Max(180, (int)(bodyH * 0.48f));
+        Place(groupBox3, 0, 0, leftW, upperH);
+        Place(groupBox7, 0, upperH + gap, leftW, bodyH - upperH - gap);
+
+        var leftInner = leftW - 4;
+        var leftBtnW = Math.Max(60, (leftInner - 24) / 2);
+        Place(btnAddToAutoParty, 8, 5, leftBtnW, 24);
+        Place(btnRemoveFromAutoParty, leftInner - 8 - leftBtnW, 5, leftBtnW, 24);
+        Place(buttonCommandPlayerAdd, 8, 5, leftBtnW, 24);
+        Place(buttonCommandPlayerRemove, leftInner - 8 - leftBtnW, 5, leftBtnW, 24);
+
+        if (listAutoParty.Columns.Count > 0)
+            listAutoParty.Columns[0].Width = Math.Max(100, leftInner - 10);
+        if (listCommandPlayers.Columns.Count > 0)
+            listCommandPlayers.Columns[0].Width = Math.Max(100, leftInner - 10);
+
+        // ---- Auto party settings card --------------------------------------
+        Place(groupBox2, rightX, bodyY, rightW, bodyH);
+
+        var innerW = rightW - 32;
+        var colW = (innerW - 24) / 2;
+        var rightColX = 16 + colW + 24;
+
+        Place(checkAcceptAll, 16, 34, colW, 28);
+        Place(checkAcceptFromList, 16, 68, colW, 28);
+        Place(checkAcceptIfBotStopped, 16, 102, colW, 28);
+        Place(checkAcceptAtTrainingPlace, 16, 136, colW, 28);
+
+        Place(checkInviteAll, rightColX, 34, colW, 28);
+        Place(checkInviteFromList, rightColX, 68, colW, 28);
+        Place(checkBoxFollowMaster, rightColX, 102, colW, 28);
+
+        Place(separator10, 16 + colW + 11, 30, 2, 140);
+        Place(separator1, 16, 174, innerW, 10);
+
+        Place(checkBoxLeaveIfMasterNot, 16, 186, 300, 28);
+        Place(textBoxLeaveIfMasterNotName, 328, 189, 220, 25);
+
+        Place(checkBoxListenMasterCommands, 16, 224, colW, 28);
+        Place(checkBoxListenCommandsOnlyList, 16, 256, colW, 28);
+
+        Place(separator2, 16, 292, innerW, 10);
+        PlaceLabel(labelCommandsInfo, 16, 305, innerW, 88, ContentAlignment.MiddleLeft);
+        PlaceLabel(label2, 16, bodyH - 34, innerW, 22, ContentAlignment.MiddleLeft);
+    }
+
+    private void LayoutPartyMatching(int width, int height)
+    {
+        const int margin = 14;
+        const int gap = 12;
+        const int footerH = 46;
+
+        var contentW = width - margin * 2;
+        var topH = topPartyPanel.Height > 60 ? 170 : 48;
+
+        Place(topPartyPanel, margin, margin, contentW, topH);
+
+        Place(label3, 16, 15, 45, 20);
+        Place(tbPartySearchName, 63, 13, 150, 23);
+        Place(label4, 224, 15, 50, 20);
+        Place(cbPartySearchPurpose, 276, 13, 140, 23);
+        Place(label5, 428, 15, 55, 20);
+        Place(nudPartySearchMin, 485, 13, 85, 25);
+        PlaceLabel(label6, 574, 15, 18, 20, ContentAlignment.MiddleCenter);
+        Place(nudPartySearchMax, 596, 13, 85, 25);
+        Place(btnPartySearch, 694, 14, 90, 23);
+        Place(btnPartyRefresh, 792, 14, 90, 23);
+        Place(buttonAutoJoinConfig, contentW - 16 - 28, 12, 28, 25);
+
+        if (topH > 60)
+        {
+            Place(separator11, 16, 48, contentW - 32, 10);
+            Place(checkBoxJoinByName, 16, 60, 220, 28);
+            Place(textBoxJoinByName, 250, 62, 260, 23);
+            Place(checkBoxJoinByTitle, 16, 94, 220, 28);
+            Place(textBoxJoinByTitle, 250, 96, 260, 23);
+            Place(buttonConfirmJoinConfig, contentW - 16 - 110, 128, 110, 26);
+        }
+
+        var listY = margin + topH + gap;
+        var listH = height - listY - margin - footerH - gap;
+        Place(lvPartyMatching, margin, listY, contentW, Math.Max(100, listH));
+
+        Place(bottomPartyPanel, margin, height - margin - footerH, contentW, footerH);
+
+        Place(btnJoinFormedParty, 12, 10, 110, 26);
+        Place(btnWhisperPartyMaster, 128, 10, 80, 26);
+        Place(btnAutoMatchParty, 214, 10, 130, 26);
+
+        var navCenter = contentW / 2;
+        Place(btnPrev, navCenter - 80, 11, 24, 24);
+        PlaceLabel(lbl_partyPageRange, navCenter - 48, 10, 70, 24, ContentAlignment.MiddleCenter);
+        Place(btnNext, navCenter + 56, 11, 24, 24);
+
+        Place(btnPartyMatchDeleteEntry, contentW - 12 - 90, 10, 90, 26);
+        Place(btnPartyMatchChangeEntry, contentW - 12 - 90 - 8 - 90, 10, 90, 26);
+        Place(btnPartyMatchForm, contentW - 12 - 90 - 8 - 90 - 8 - 110, 10, 110, 26);
+
+        if (bottomPartyPanel.Height > 0)
+        {
+            btnJoinFormedParty.Height = 26;
+            btnWhisperPartyMaster.Height = 26;
+            btnAutoMatchParty.Height = 26;
+        }
+
+        chPartyMatchNo.Width = 60;
+        chPartyMatchRace.Width = 80;
+        chPartyMatchName.Width = 170;
+        chPartyMatchPurporse.Width = 130;
+        chPartyMatchMember.Width = 100;
+        chPartyMatchRange.Width = 80;
+        chPartyMatchTitle.Width =
+            Math.Max(220, contentW - 2 - 60 - 80 - 170 - 130 - 100 - 80);
+    }
+
+    private void LayoutBuffing(int width, int height)
+    {
+        const int margin = 14;
+        const int gap = 12;
+
+        var contentW = width - margin * 2;
+        var totalH = height - margin * 2;
+        var leftW = 330;
+        var middleW = 310;
+        var rightW = contentW - leftW - middleW - gap * 2;
+        var middleX = margin + leftW + gap;
+
+        Place(groupBox1, margin, margin, leftW, totalH);
+        Place(groupBox5, middleX + middleW + gap, margin, rightW, totalH);
+
+        var upperH = Math.Max(180, (int)(totalH * 0.42f));
+        Place(groupBox6, middleX, margin, middleW, upperH);
+        Place(groupBox4, middleX, margin + upperH + gap, middleW, totalH - upperH - gap);
+
+        separator7.Visible = false;
+        separator8.Visible = false;
+        separator9.Visible = false;
+
+        var middleInner = middleW - 4;
+        var halfButtonW = Math.Max(60, (middleInner - 24) / 2);
+
+        listViewGroups.Height = Math.Max(60, upperH - 24 - 38);
+        Place(buttonAddGroup, 8, upperH - 32, halfButtonW, 24);
+        Place(buttonRemoveGroup, middleInner - 8 - halfButtonW, upperH - 32, halfButtonW, 24);
+
+        var memberH = totalH - upperH - gap;
+        listViewPartyMembers.Height = Math.Max(60, memberH - 24 - 76);
+        Place(buttonRemoveCharFromBuffing, middleInner - 34, memberH - 72, 26, 26);
+        Place(btnAddBuffToMember, 8, memberH - 38, halfButtonW, 24);
+        Place(btnRemoveBuffFromMember, middleInner - 8 - halfButtonW, memberH - 38, halfButtonW, 24);
+
+        columnName.Width = Math.Max(120, leftW - 100);
+        columnLimit.Width = 80;
+        columnHeaderGroupName.Width = Math.Max(100, middleInner - 70);
+        columnHeaderMembersCount.Width = 60;
+        chPlayerName.Width = Math.Max(120, middleInner - 70);
+        chPlayerLevel.Width = 60;
+        columnHeader1.Width = Math.Max(120, rightW - 12);
+    }
+
+    /// <summary>
+    ///     Localizes the non-control texts (list column headers and context
+    ///     menus) and rebuilds the purpose filter with translated captions.
+    /// </summary>
+    private void ApplyPartyLocalization()
+    {
+        if (IsDisposed)
+            return;
+
+        colMemberName.Text = T("RSBot.Party.Columns.MemberName", "Name");
+        colLevel.Text = T("RSBot.Party.Columns.Level", "Level");
+        colGuild.Text = T("RSBot.Party.Columns.Guild", "Guild");
+        colMasteries.Text = T("RSBot.Party.Columns.Masteries", "Masteries");
+        colLocation.Text = T("RSBot.Party.Columns.Location", "Location");
+
+        chPartyMatchNo.Text = T("RSBot.Party.Columns.No", "No");
+        chPartyMatchRace.Text = T("RSBot.Party.Columns.Race", "Race");
+        chPartyMatchName.Text = T("RSBot.Party.Columns.Name", "Name");
+        chPartyMatchTitle.Text = T("RSBot.Party.Columns.Title", "Title");
+        chPartyMatchPurporse.Text = T("RSBot.Party.Columns.Purpose", "Purpose");
+        chPartyMatchMember.Text = T("RSBot.Party.Columns.Member", "Members");
+        chPartyMatchRange.Text = T("RSBot.Party.Columns.Range", "Level");
+
+        chPlayerName.Text = T("RSBot.Party.Columns.Name", "Name");
+        chPlayerLevel.Text = T("RSBot.Party.Columns.Level", "Level");
+        columnHeaderGroupName.Text = T("RSBot.Party.Columns.GroupName", "Group Name");
+        columnHeaderMembersCount.Text = T("RSBot.Party.Columns.Members", "Members");
+        columnName.Text = T("RSBot.Party.Columns.Name", "Name");
+        columnLimit.Text = T("RSBot.Party.Columns.Limit", "Limit");
+        columnHeader1.Text = T("RSBot.Party.Columns.Name", "Name");
+
+        menuBanish.Text = T("RSBot.Party.ContextMenu.Banish", "Banish");
+        menuLeave.Text = T("RSBot.Party.ContextMenu.Leave", "Leave");
+        menuItemAddToBuffing.Text = T("RSBot.Party.ContextMenu.AddToBuffing", "Add to buffing");
+        menuItemRefreshBuffs.Text = T("RSBot.Party.ContextMenu.RefreshBuffs", "Refresh buffs");
+
+        var selectedPurpose = cbPartySearchPurpose.SelectedIndex;
+        cbPartySearchPurpose.BeginUpdate();
+        cbPartySearchPurpose.Items.Clear();
+        cbPartySearchPurpose.Items.AddRange(new object[]
+        {
+            T("RSBot.Party.Purpose.All", "All"),
+            T("RSBot.Party.Purpose.Hunting", "Hunting"),
+            T("RSBot.Party.Purpose.Quest", "Quest"),
+            T("RSBot.Party.Purpose.Trade", "Trade Union"),
+            T("RSBot.Party.Purpose.Thief", "Thief Union")
+        });
+        cbPartySearchPurpose.EndUpdate();
+        cbPartySearchPurpose.SelectedIndex = selectedPurpose >= 0 && selectedPurpose < 5 ? selectedPurpose : 0;
+
+        if (labelCommandsInfo.Font.Name != "Segoe UI")
+            labelCommandsInfo.Font = new Font("Segoe UI", 9F);
+
+        if (label2.Font.Name != "Segoe UI")
+            label2.Font = new Font("Segoe UI", 9F);
+    }
+
+    private static string GetPurposeText(PartyPurpose purpose)
+    {
+        switch (purpose)
+        {
+            case PartyPurpose.Hunting:
+                return T("RSBot.Party.Purpose.Hunting", "Hunting");
+            case PartyPurpose.Quest:
+                return T("RSBot.Party.Purpose.Quest", "Quest");
+            case PartyPurpose.Trade:
+                return T("RSBot.Party.Purpose.Trade", "Trade");
+            case PartyPurpose.Thief:
+                return T("RSBot.Party.Purpose.Thief", "Thief");
+            default:
+                return purpose.ToString();
+        }
+    }
+
+    private static string GetRaceText(ObjectCountry country)
+    {
+        switch (country)
+        {
+            case ObjectCountry.Chinese:
+                return T("RSBot.Party.Race.Chinese", "Chinese");
+            case ObjectCountry.Europe:
+                return T("RSBot.Party.Race.Europe", "Europe");
+            case ObjectCountry.Islam:
+                return T("RSBot.Party.Race.Islam", "Islam");
+            default:
+                return T("RSBot.Party.Race.Unassigned", "Unassigned");
+        }
+    }
+
+    private static PartyPurpose? GetPurposeFromFilterIndex(int index)
+    {
+        switch (index)
+        {
+            case 1:
+                return PartyPurpose.Hunting;
+            case 2:
+                return PartyPurpose.Quest;
+            case 3:
+                return PartyPurpose.Trade;
+            case 4:
+                return PartyPurpose.Thief;
+            default:
+                return null;
+        }
+    }
 
     /// <summary>
     ///     Subscribes the events.
@@ -222,12 +653,20 @@ public partial class Main : DoubleBufferedControl
             var listViewItems = new List<ListViewItem>();
             var currentPage = Bundle.Container.PartyMatching.RequestPartyList(page);
 
-            btnPrev.Enabled = currentPage.Page > 0;
-            btnNext.Enabled = currentPage.Page != currentPage.PageCount - 1;
-            btnPrev.Tag = currentPage.Page - 1;
-            btnNext.Tag = currentPage.Page + 1;
+            var pageCount = Math.Max(0, (int)currentPage.PageCount);
+            var safePage = pageCount > 0
+                ? Math.Min(Math.Max(0, (int)currentPage.Page), pageCount - 1)
+                : 0;
 
-            lbl_partyPageRange.Text = $"{currentPage.Page + 1} / {currentPage.PageCount}";
+            btnPrev.Enabled = safePage > 0;
+            btnNext.Enabled = pageCount > 0 && safePage < pageCount - 1;
+            btnPrev.Tag = safePage - 1;
+            btnNext.Tag = safePage + 1;
+
+            lbl_partyPageRange.Tag = safePage;
+            lbl_partyPageRange.Text = pageCount > 0
+                ? $"{safePage + 1} / {pageCount}"
+                : "0 / 0";
 
             foreach (var party in currentPage.Parties)
             {
@@ -237,12 +676,13 @@ public partial class Main : DoubleBufferedControl
                     continue;
 
                 var listItem = new ListViewItem { Text = party.Id.ToString(), Name = party.Id.ToString() };
-                listItem.SubItems.Add(party.Race.ToString());
+                listItem.SubItems.Add(GetRaceText(party.Race));
                 listItem.SubItems.Add(party.Leader);
                 listItem.SubItems.Add(party.Title);
-                listItem.SubItems.Add(party.Purpose.ToString());
+                listItem.SubItems.Add(GetPurposeText(party.Purpose));
                 listItem.SubItems.Add(party.MemberCount.ToString("#/" + party.Settings.MaxMember));
                 listItem.SubItems.Add(party.MinLevel + "~" + party.MaxLevel);
+                listItem.Tag = party.Purpose;
 
                 listItem.ToolTipText = party.Settings.ToString();
                 if (party.Leader == Game.Player.Name ||
@@ -353,6 +793,8 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void LoadPartyBuffSkills()
     {
+        Log.Notify("Refreshing party buff skills");
+
         if (Game.Player == null)
             return;
 
@@ -712,6 +1154,8 @@ public partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="System.EventArgs" /> instance containing the event data.</param>
     private void tabMain_SelectedIndexChanged(object sender, EventArgs e)
     {
+        ApplyPartyLayout();
+
         if (tabMain.SelectedTab == tpPartyMatching)
             RequestPartyList();
     }
@@ -730,7 +1174,7 @@ public partial class Main : DoubleBufferedControl
                 ? LanguageManager.GetLang("FormingParty")
                 : LanguageManager.GetLang("ChangeEntry");
 
-        if (View.PartyWindow.ShowDialog() == DialogResult.OK)
+        if (View.PartyWindow.ShowDialog(FindForm()) == DialogResult.OK)
         {
             if (senderName == nameof(btnPartyMatchForm))
                 Bundle.Container.PartyMatching.Create();
@@ -741,10 +1185,16 @@ public partial class Main : DoubleBufferedControl
 
     private void PageNatigateBtn_Click(object sender, EventArgs e)
     {
-        var btn = sender as Button;
+        if (sender is not Button btn || btn.Tag == null)
+            return;
+
+        var page = Convert.ToInt32(btn.Tag);
+        if (page < 0)
+            return;
+
         btn.Enabled = false;
 
-        RequestPartyList(Convert.ToByte(btn.Tag));
+        RequestPartyList(Convert.ToByte(page));
     }
 
     private void btnPartyMatchDeleteEntry_Click(object sender, EventArgs e)
@@ -755,17 +1205,20 @@ public partial class Main : DoubleBufferedControl
 
     private void btnPartyRefresh_Click(object sender, EventArgs e)
     {
-        RequestPartyList(Convert.ToByte(lbl_partyPageRange.Tag));
+        var page = lbl_partyPageRange.Tag == null
+            ? 0
+            : Math.Max(0, Convert.ToInt32(lbl_partyPageRange.Tag));
+
+        RequestPartyList(Convert.ToByte(page));
     }
 
     private void btnPartySearch_Click(object sender, EventArgs e)
     {
         var lvItems = lvPartyMatching.Items.Cast<ListViewItem>().ToList();
 
-        var selectedPurpose = cbPartySearchPurpose.SelectedItem.ToString();
-
-        if (selectedPurpose != "All")
-            lvItems.RemoveAll(p => p.SubItems[4].Text != selectedPurpose);
+        var selectedPurpose = GetPurposeFromFilterIndex(cbPartySearchPurpose.SelectedIndex);
+        if (selectedPurpose.HasValue)
+            lvItems.RemoveAll(p => !(p.Tag is PartyPurpose purpose) || purpose != selectedPurpose.Value);
 
         if (!string.IsNullOrWhiteSpace(tbPartySearchName.Text))
             //No case sensitivity
@@ -773,12 +1226,7 @@ public partial class Main : DoubleBufferedControl
                 !p.SubItems[2].Text.ToLowerInvariant().Contains(tbPartySearchName.Text.ToLowerInvariant()));
 
         if (nudPartySearchMin.Value > 1 || nudPartySearchMax.Value < 140)
-        {
             lvItems.RemoveAll(p => p.SubItems[6].Text != nudPartySearchMin.Value + "~" + nudPartySearchMax.Value);
-
-            if (selectedPurpose != "All")
-                lvItems.RemoveAll(p => p.SubItems[4].Text != selectedPurpose);
-        }
 
         if (lvItems?.Count() > 0 && lvItems?.Count() != lvPartyMatching.Items.Count)
         {
@@ -954,6 +1402,11 @@ public partial class Main : DoubleBufferedControl
         }
     }
 
+    private void menuItemRefreshBuffs_Click(object sender, EventArgs e)
+    {
+        LoadPartyBuffSkills();
+    }
+
     private void buttonAddGroup_Click(object sender, EventArgs e)
     {
         var title = LanguageManager.GetLang("CreateNewGroup");
@@ -1060,6 +1513,7 @@ public partial class Main : DoubleBufferedControl
         topPartyPanel.Height = 162;
 
         buttonAutoJoinConfig.Color = ColorScheme.BackColor;
+        ApplyPartyLayout();
     }
 
     private void buttonConfirmJoinConfig_Click(object sender, EventArgs e)
@@ -1077,6 +1531,7 @@ public partial class Main : DoubleBufferedControl
 
         buttonAutoJoinConfig.Color = Color.Transparent;
         topPartyPanel.Height = 47;
+        ApplyPartyLayout();
     }
 
     private void checkBoxFollowMaster_CheckedChanged(object sender, EventArgs e)
@@ -1094,5 +1549,7 @@ public partial class Main : DoubleBufferedControl
     private void Main_Load(object sender, EventArgs e)
     {
         LoadSettings();
+        ApplyPartyLocalization();
+        ApplyPartyLayout();
     }
 }

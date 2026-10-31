@@ -188,7 +188,7 @@ public class PackFileSystem : IFileSystem
 
         var entries = block!.GetEntries().Where(e => e.Type != PackEntryType.Nop && !e.IsNavigator()).ToArray();
 
-        var result = new Span<string>();
+        var result = new string[entries.Length];
 
         for (var iEntry = 0; iEntry < entries.Length; iEntry++)
         {
@@ -229,9 +229,13 @@ public class PackFileSystem : IFileSystem
         if (entry is not { Type: PackEntryType.File })
             throw new FileNotFoundException($"The file {path} does not exist!");
 
-        var bsRead = new BsReader(_fileStream);
-        bsRead.BaseStream.Position = entry.DataPosition;
-        var buffer = bsRead.ReadBytes(entry.Size);
+        byte[] buffer;
+        lock (_fileStream)
+        {
+            var bsRead = new BsReader(_fileStream);
+            bsRead.BaseStream.Position = entry.DataPosition;
+            buffer = bsRead.ReadBytes(entry.Size);
+        }
 
         return new PackFileReader(new MemoryStream(buffer));
     }
@@ -248,9 +252,13 @@ public class PackFileSystem : IFileSystem
 
         Debug.WriteLine($"Reading file '{packEntry.Name}' (Offset: 0x{packEntry.DataPosition:X}, Size: {packEntry.Size}B)");
 
-        var bsRead = new BsReader(_fileStream);
-        bsRead.BaseStream.Position = packEntry.DataPosition;
-        var buffer = bsRead.ReadBytes(packEntry.Size);
+        byte[] buffer;
+        lock (_fileStream)
+        {
+            var bsRead = new BsReader(_fileStream);
+            bsRead.BaseStream.Position = packEntry.DataPosition;
+            buffer = bsRead.ReadBytes(packEntry.Size);
+        }
 
         return new PackFileReader(new MemoryStream(buffer));
     }

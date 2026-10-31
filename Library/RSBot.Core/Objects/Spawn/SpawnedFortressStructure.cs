@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Network;
+using RSBot.Core.Network;
 
 namespace RSBot.Core.Objects.Spawn;
 
@@ -68,7 +68,9 @@ public sealed class SpawnedFortressStructure : SpawnedNpc
 
         base.Deserialize(packet);
 
-        GuildId = packet.ReadUInt();
-        GuildName = packet.ReadString();
+        if (packet.Remaining >= 4)
+            GuildId = packet.ReadUInt();
+        if (packet.Remaining >= 2)
+            GuildName = packet.ReadString();
     }
 }

@@ -1,10 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows.Forms;
 
@@ -167,50 +165,7 @@ public class LanguageManager
     ///     Get language value
     /// </summary>
     /// <param name="key">The key</param>
-    [MethodImpl(MethodImplOptions.NoInlining)]
     public static string GetLang(string key)
-    {
-        // Fast path: direct callers resolve without building a stack trace.
-        // NoInlining guarantees GetCallingAssembly() sees the real caller.
-        string parent = null;
-        try
-        {
-            parent = Assembly.GetCallingAssembly()?.GetName().Name;
-        }
-        catch
-        {
-        }
-
-        if (string.IsNullOrEmpty(parent) || parent == "AeroBot.Core" || parent == "SonicBot.Core" || parent == "RSBot.Core")
-            parent = FindNonCoreCaller();
-
-        if (!string.IsNullOrEmpty(parent))
-        {
-            foreach (var candidate in GetParentCandidates(parent))
-            {
-                if (_values.TryGetValue(candidate, out var dict) && dict.TryGetValue(key, out var val))
-                    return val;
-            }
-        }
-
-        return string.Empty;
-    }
-
-    private static IEnumerable<string> GetParentCandidates(string parent)
-    {
-        if (string.IsNullOrEmpty(parent)) yield break;
-        yield return parent;
-
-        yield return parent.Replace("AeroBot", "SonicBot").Replace("RSBot", "SonicBot");
-        yield return parent.Replace("AeroBot", "RSBot").Replace("SonicBot", "RSBot");
-        yield return parent.Replace("SonicBot", "AeroBot").Replace("RSBot", "AeroBot");
-    }
-
-    /// <summary>
-    ///     Walks the stack for the first frame outside of the core assembly (slow path,
-    ///     only used when GetLang is called indirectly through core code).
-    /// </summary>
-    private static string FindNonCoreCaller()
     {
         var trace = new StackTrace();
 
@@ -218,11 +173,14 @@ public class LanguageManager
         for (var i = 0; i < trace.FrameCount; i++)
         {
             parent = Path.GetFileNameWithoutExtension(trace.GetFrame(i).GetMethod().Module.Name);
-            if (parent != "AeroBot.Core" && parent != "SonicBot.Core" && parent != "RSBot.Core")
+            if (parent != "RSBot.Core")
                 break;
         }
 
-        return parent;
+        if (_values.ContainsKey(parent) && _values[parent].ContainsKey(key))
+            return _values[parent][key];
+
+        return string.Empty;
     }
 
     /// <summary>
@@ -241,11 +199,8 @@ public class LanguageManager
     /// <param name="default">The default value that will be returned if the translation could not be found</param>
     public static string GetLangBySpecificKey(string parent, string key, string @default = "")
     {
-        foreach (var candidate in GetParentCandidates(parent))
-        {
-            if (_values.TryGetValue(candidate, out var dict) && dict.TryGetValue(key, out var val))
-                return val;
-        }
+        if (_values.ContainsKey(parent) && _values[parent].ContainsKey(key))
+            return _values[parent][key];
 
         return @default;
     }
@@ -263,19 +218,6 @@ public class LanguageManager
         var assembly = type.Assembly.GetName().Name;
 
         var path = Path.Combine(_path, assembly, language + ".rsl");
-        if (!File.Exists(path))
-        {
-            foreach (var candidate in GetParentCandidates(assembly))
-            {
-                var candPath = Path.Combine(_path, candidate, language + ".rsl");
-                if (File.Exists(candPath))
-                {
-                    path = candPath;
-                    break;
-                }
-            }
-        }
-
         var dir = Path.GetDirectoryName(path);
 
         if (!Directory.Exists(dir))
@@ -320,41 +262,9 @@ public class LanguageManager
                 continue;
             }
 
-            if (control is System.Windows.Forms.ListView lv)
-            {
-                foreach (ColumnHeader col in lv.Columns)
-                {
-                    if (values.TryGetValue($"{headerEx}.{col.Name}", out translatedText) ||
-                        values.TryGetValue($"{header}.{col.Name}", out translatedText) ||
-                        values.TryGetValue($"{col.Name}", out translatedText))
-                    {
-                        if (!string.IsNullOrWhiteSpace(translatedText))
-                            col.Text = translatedText;
-                    }
-                }
-            }
-
-            if (control.ContextMenuStrip != null)
-            {
-                foreach (var item in control.ContextMenuStrip.Items.OfType<ToolStripItem>())
-                {
-                    if (values.TryGetValue($"{headerEx}.{item.Name}", out translatedText) ||
-                        values.TryGetValue($"{header}.{item.Name}", out translatedText) ||
-                        values.TryGetValue($"{item.Name}", out translatedText))
-                    {
-                        if (!string.IsNullOrWhiteSpace(translatedText))
-                            item.Text = translatedText;
-                    }
-                }
-            }
-
-            if (values.TryGetValue($"{headerEx}.{control.Name}", out translatedText) ||
-                values.TryGetValue($"{header}.{control.Name}", out translatedText) ||
-                values.TryGetValue($"{control.Name}", out translatedText))
-            {
+            if (values.TryGetValue($"{headerEx}.{control.Name}", out translatedText))
                 if (!string.IsNullOrWhiteSpace(translatedText))
                     control.Text = translatedText;
-            }
 
             TranslateControls(values, control, headerEx);
         }

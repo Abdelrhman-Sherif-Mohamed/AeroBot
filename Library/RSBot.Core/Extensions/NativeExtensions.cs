@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
@@ -8,6 +8,7 @@ public static class NativeExtensions
 {
     public const uint CREATE_SUSPENDED = 0x00000004;
     public const uint PROCESS_ALL_ACCESS = 0x1F0FFF;
+    public const uint PROCESS_TERMINATE = 0x0001;
     public const uint MEM_COMMIT = 0x00001000;
     public const uint MEM_RESERVE = 0x00002000;
     public const uint MEM_RELEASE = 0x00008000;
@@ -16,33 +17,16 @@ public static class NativeExtensions
 
     public const uint SW_HIDE = 0x00;
     public const uint SW_SHOW = 0x05;
+    public const uint SW_RESTORE = 0x09;
 
     [DllImport("user32.dll")]
     public static extern int ShowWindow(IntPtr hwnd, uint nCmdShow);
 
     [DllImport("user32.dll")]
-    public static extern int SetWindowText(IntPtr hWnd, string text);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    [DllImport("user32.dll")]
-    public static extern bool IsIconic(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
 
-    [StructLayout(LayoutKind.Sequential)]
-    public struct RECT
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-
-        public int Width => Right - Left;
-        public int Height => Bottom - Top;
-    }
+    [DllImport("user32.dll")]
+    public static extern int SetWindowText(IntPtr hWnd, string text);
 
     [DllImport("kernel32.dll")]
     public static extern bool CreateProcess /*A*/(
@@ -90,6 +74,15 @@ public static class NativeExtensions
 
     [DllImport("kernel32.dll")]
     public static extern IntPtr GetModuleHandleA(string lpModuleName);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    public static extern IntPtr GetModuleHandle(string lpModuleName);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool GetExitCodeThread(IntPtr hThread, out uint lpExitCode);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
 
     [DllImport("kernel32.dll")]
     public static extern bool CloseHandle(IntPtr handle);

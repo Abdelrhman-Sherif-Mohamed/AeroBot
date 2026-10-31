@@ -60,57 +60,65 @@ internal class TargetBundle : IBundle
     /// </summary>
     public void Invoke()
     {
-        _blacklist?.RemoveAll((uniqueId, tick) =>
+        try
         {
-            var flag = Kernel.TickCount - tick > BLACKLIST_TIMEOUT;
-            if (flag)
-                Log.Debug($"Removed mob [{uniqueId} from blacklist!");
+            _blacklist?.RemoveAll((uniqueId, tick) =>
+            {
+                var flag = Kernel.TickCount - tick > BLACKLIST_TIMEOUT;
+                if (flag)
+                    Log.Debug($"Removed mob [{uniqueId} from blacklist!");
 
-            return flag;
-        });
+                return flag;
+            });
 
-        var attacker = GetFromCurrentAttackers();
-        if (attacker != null && Game.SelectedEntity == null)
-        {
-            Log.Debug("[TargetBundle] Emergency situation: Attacking the weaker mob first!");
+            var attacker = GetFromCurrentAttackers();
+            if (attacker != null && Game.SelectedEntity == null)
+            {
+                Log.Debug("[TargetBundle] Emergency situation: Attacking the weaker mob first!");
 
-            if (attacker.TrySelect())
+                if (attacker.TrySelect())
+                    Bundles.Movement.LastEntityWasBehindObstacle = false;
+
+                return;
+            }
+
+            if (attacker != null &&
+                Game.SelectedEntity != null &&
+                SpawnManager.TryGetEntity<SpawnedMonster>(Game.SelectedEntity.UniqueId, out var selectedMonster) &&
+                (byte)attacker.Rarity < (byte)selectedMonster.Rarity)
+            {
+                Log.Debug("[TargetBundle] Emergency situation: Found a weaker mob to attack first, switching target!");
+
+                if (attacker.TrySelect())
+                    Bundles.Movement.LastEntityWasBehindObstacle = false;
+
+                return;
+            }
+
+            var warlockModeEnabled = PlayerConfig.Get("RSBot.Skills.checkWarlockMode", false);
+            if (warlockModeEnabled && Game.SelectedEntity?.State != null && Game.SelectedEntity.State.HasTwoDots())
+                return;
+
+            if (Game.SelectedEntity != null && Game.SelectedEntity is not SpawnedMonster)
+                Game.SelectedEntity = null;
+
+            if (Game.SelectedEntity?.State?.LifeState == LifeState.Alive)
+                return;
+
+            var monster = GetNearestEnemy();
+            if (monster == null)
+                return;
+
+            if (Container.Bot?.Area != null && !Container.Bot.Area.IsInSight(monster))
+                return;
+
+            if (monster.TrySelect())
                 Bundles.Movement.LastEntityWasBehindObstacle = false;
-
-            return;
         }
-
-        if (attacker != null &&
-            SpawnManager.TryGetEntity<SpawnedMonster>(Game.SelectedEntity.UniqueId, out var selectedMonster) &&
-            (byte)attacker.Rarity < (byte)selectedMonster.Rarity)
+        catch (System.Exception ex)
         {
-            Log.Debug("[TargetBundle] Emergency situation: Found a weaker mob to attack first, switching target!");
-
-            if (attacker.TrySelect())
-                Bundles.Movement.LastEntityWasBehindObstacle = false;
-
-            return;
+            Log.Error($"Error in TargetBundle.Invoke: {ex.Message}");
         }
-
-        var warlockModeEnabled = PlayerConfig.Get("RSBot.Skills.checkWarlockMode", false);
-        if (warlockModeEnabled && Game.SelectedEntity.State.HasTwoDots())
-            return;
-
-        if (Game.SelectedEntity != null && Game.SelectedEntity is not SpawnedMonster)
-            Game.SelectedEntity = null;
-
-        if (Game.SelectedEntity?.State.LifeState == LifeState.Alive)
-            return;
-
-        var monster = GetNearestEnemy();
-        if (monster == null)
-            return;
-
-        if (!Container.Bot.Area.IsInSight(monster))
-            return;
-
-        if (monster.TrySelect())
-            Bundles.Movement.LastEntityWasBehindObstacle = false;
     }
 
     private SpawnedMonster GetFromCurrentAttackers()
@@ -140,17 +148,24 @@ internal class TargetBundle : IBundle
     ///     Fast path: cheap filters on all mobs, keep attackers + 8 nearest,
     ///     expensive checks (collision) only on those, then rank.
     /// </summary>
+    /// <returns></returns>
     private SpawnedMonster GetNearestEnemy()
     {
+        if (Container.Bot?.Area == null)
+            return default;
+
         var warlockModeEnabled = PlayerConfig.Get<bool>("RSBot.Skills.checkWarlockMode");
         var ignorePillar = PlayerConfig.Get<bool>("RSBot.Training.checkBoxDimensionPillar");
         var areaPos = Container.Bot.Area.Position;
 
         if (!SpawnManager.TryGetEntities<SpawnedMonster>(m =>
+                m != null &&
+                m.State != null &&
                 m.State.LifeState == LifeState.Alive && //Only alive
                 !(warlockModeEnabled && m.State.HasTwoDots()) && //Has two Dots?
                 (_blacklist == null || !_blacklist.ContainsKey(m.UniqueId)) && //Is not blacklisted
                 (m.AttackingPlayer || !Bundles.Avoidance.AvoidMonster(m.Rarity)) && //Is attacking player or shouldn't be avoided
+                m.Record != null &&
                 !m.Record.IsPandora && //Isn't pandora box
                 !(m.Record.IsDimensionPillar && ignorePillar) && //Isn't dimension pillar
                 !m.Record.IsSummonFlower, out var entities))
@@ -162,6 +177,9 @@ internal class TargetBundle : IBundle
 
         foreach (var m in entities)
         {
+            if (m == null)
+                continue;
+
             if (m.AttackingPlayer)
             {
                 attackers.Add(m);
@@ -191,7 +209,7 @@ internal class TargetBundle : IBundle
             candidates.Add(mob);
 
         return candidates
-            .Where(m => m.IsBehindObstacle == false)
+            .Where(m => m != null && m.IsBehindObstacle == false)
             .Where(m => Container.Bot.Area.IsInSight(m))
             .OrderBy(m => m.Movement.Source.DistanceTo(areaPos))
             .OrderBy(m => Bundles.Avoidance.PreferMonster(m.Rarity))

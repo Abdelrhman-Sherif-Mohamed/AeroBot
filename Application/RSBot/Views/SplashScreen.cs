@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Components;
+using RSBot.Core.Security;
 using RSBot.Views.Dialog;
 using SDUI;
 using SDUI.Controls;
@@ -30,6 +31,34 @@ public partial class SplashScreen : UIWindow
         _mainForm = new Main();
 
         labelVersion.Text = Program.AssemblyVersion;
+
+        try
+        {
+            string splashPath = Path.Combine(AppContext.BaseDirectory, "splash_banner.jpg");
+            if (!File.Exists(splashPath))
+                splashPath = Path.Combine(AppContext.BaseDirectory, "Resources", "splash_banner.jpg");
+
+            if (File.Exists(splashPath))
+            {
+                using var stream = new MemoryStream(File.ReadAllBytes(splashPath));
+                pictureBox.Image = Image.FromStream(stream);
+                pictureBox.SizeMode = PictureBoxSizeMode.StretchImage;
+            }
+            else
+            {
+                pictureBox.Image = Properties.Resources.app;
+                pictureBox.SizeMode = PictureBoxSizeMode.StretchImage;
+            }
+
+            string icoPath = Path.Combine(AppContext.BaseDirectory, "app.ico");
+            if (File.Exists(icoPath))
+            {
+                using var icoStream = new MemoryStream(File.ReadAllBytes(icoPath));
+                Icon = new Icon(icoStream);
+            }
+        }
+        catch { }
+
         referenceDataLoader.RunWorkerCompleted += ReferenceDataLoaderCompleted;
     }
 
@@ -38,33 +67,104 @@ public partial class SplashScreen : UIWindow
     /// </summary>
     /// <param name="sender">The source of the event.</param>
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
-    private void SplashScreen_Load(object sender, EventArgs e)
+    private async void SplashScreen_Load(object sender, EventArgs e)
     {
+        // 0. Load language configuration early
+        Kernel.Language = GlobalConfig.Get("RSBot.Language", "ar_AR");
+        var isArabic = UpdateManager.IsArabic;
+
+        // 1. Post-update notification: Show the "What's New" box if an update was just installed
+        var justUpdated = UpdateManager.GetJustUpdatedInfo();
+        if (justUpdated != null)
+        {
+            UpdateManager.ClearJustUpdatedMarker();
+            using (var whatIsNew = new WhatIsNewDialog(justUpdated))
+            {
+                whatIsNew.TopMost = true;
+                whatIsNew.ShowDialog();
+            }
+        }
+        else
+        {
+            // 2. Check for new updates from Firebase
+            lblLoading.Text = isArabic ? "جارٍ التحقق من التحديثات..." : "Checking for updates...";
+            Application.DoEvents();
+
+            var updateInfo = await UpdateManager.CheckForUpdateAsync();
+            if (updateInfo != null && updateInfo.HasNewVersion && !string.IsNullOrWhiteSpace(updateInfo.DownloadUrl))
+            {
+                using (var updateDialog = new UpdateAvailableDialog(updateInfo))
+                {
+                    updateDialog.TopMost = true;
+                    if (updateDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        // User confirmed update: download in launcher
+                        lblLoading.Text = isArabic ? "يتم التحديث... جارٍ تحميل الملفات (0%)" : "Updating... Downloading files (0%)";
+                        progressLoading.Value = 0;
+                        Application.DoEvents();
+
+                        var tempZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "update_temp.zip");
+                        var progressReporter = new Progress<int>(percent =>
+                        {
+                            progressLoading.Value = percent;
+                            lblLoading.Text = isArabic ?
+                                $"يتم التحديث... جارٍ تحميل الملفات ({percent}%)" :
+                                $"Updating... Downloading files ({percent}%)";
+                            Application.DoEvents();
+                        });
+
+                        var success = await UpdateManager.DownloadUpdateAsync(updateInfo.DownloadUrl, tempZip, progressReporter);
+                        if (success)
+                        {
+                            lblLoading.Text = isArabic ?
+                                "يتم التحديث... جارٍ تطبيق التحديث وإعادة التشغيل" :
+                                "Updating... Applying update and restarting";
+                            Application.DoEvents();
+                            await System.Threading.Tasks.Task.Delay(600);
+
+                            UpdateManager.ApplyUpdateAndRestart(tempZip, updateInfo);
+                            return;
+                        }
+                        else
+                        {
+                            var detail = string.IsNullOrWhiteSpace(UpdateManager.LastError) ? "" : $"\n({UpdateManager.LastError})";
+                            var errMsg = isArabic ? $"فشل تحميل التحديث! تأكد من اتصال الإنترنت.{detail}" : $"Failed to download update! Please check internet connection.{detail}";
+                            MessageBox.Show(this, errMsg, "Aerobot", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+                    }
+                    else if (updateInfo.Mandatory)
+                    {
+                        Environment.Exit(0);
+                        return;
+                    }
+                }
+            }
+        }
+
         if (!LoadProfileConfig())
         {
             Environment.Exit(0);
             return;
         }
 
-        Kernel.Language = GlobalConfig.Get("RSBot.Language", "en_US");
-
         LanguageManager.Translate(_mainForm, Kernel.Language);
 
-        if (!GlobalConfig.Exists("RSBot.SilkroadDirectory") ||
-            !File.Exists(GlobalConfig.Get<string>("RSBot.SilkroadDirectory") + "\\media.pk2"))
+        var silkroadDirectory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
+
+        if (string.IsNullOrWhiteSpace(silkroadDirectory) || !Game.IsValidClientDirectory(silkroadDirectory))
         {
             var dialog = new OpenFileDialog
             {
                 Title = LanguageManager.GetLang("OpenFileDialogTitle"),
-                Filter = "Executable (*.exe)|*.exe",
+                Filter = "Silkroad Client / Archives (*.exe;*.pk2;*.ne;*.bin)|*.exe;*.pk2;*.ne;*.bin|All Files (*.*)|*.*",
                 FileName = "sro_client.exe"
             };
 
             var result = dialog.ShowDialog(this);
 
-            var silkroadDirectory = Path.GetDirectoryName(dialog.FileName);
+            silkroadDirectory = Path.GetDirectoryName(dialog.FileName);
 
-            if (result == DialogResult.OK && File.Exists(Path.Combine(silkroadDirectory, "media.pk2")))
+            if (result == DialogResult.OK && Game.IsValidClientDirectory(silkroadDirectory))
             {
                 GlobalConfig.Set("RSBot.SilkroadDirectory", silkroadDirectory);
                 GlobalConfig.Set("RSBot.SilkroadExecutable", Path.GetFileName(dialog.FileName));
@@ -172,11 +272,9 @@ public partial class SplashScreen : UIWindow
     /// </summary>
     private void InitializeBot()
     {
-        //---- Boot kernel -----
         Kernel.Initialize();
         Game.Initialize();
 
-        //---- Load Plugins ----
         if (!Kernel.PluginManager.LoadAssemblies())
         {
             MessageBox.Show(@"Failed to load plugins. Process canceled!", @"Initialize Application - Error",
@@ -184,10 +282,12 @@ public partial class SplashScreen : UIWindow
             return;
         }
 
-        //---- Load Botbases ----
         if (!Kernel.BotbaseManager.LoadAssemblies())
+        {
             MessageBox.Show(@"Failed to load botbases. Process canceled!", @"Initialize Application - Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
 
         CommandManager.Initialize();
     }

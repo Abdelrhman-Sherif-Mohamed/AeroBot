@@ -1,0 +1,190 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- =========================================================================
+         AEROBOT ULTIMATE EDITION - LIGHT THEME PALETTE
+         Crisp, high-contrast, modern Light Mode palette.
+         Eliminates solid black backgrounds on buttons, checkboxes, and containers!
+         ========================================================================= -->
+
+    <!-- Surfaces & Windows -->
+    <Color x:Key="Color.Window.Background">#F1F5F9</Color>
+    <SolidColorBrush x:Key="Brush.Window.Background" Color="#F1F5F9" />
+
+    <!-- Card Backgrounds & Borders -->
+    <Color x:Key="Color.Card.Background">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Brush.Card.Background" Color="#FFFFFF" />
+
+    <Color x:Key="Color.Card.Background.Secondary">#F8FAFC</Color>
+    <SolidColorBrush x:Key="Brush.Card.Background.Secondary" Color="#F8FAFC" />
+
+    <Color x:Key="Color.Card.Background.Tertiary">#F1F5F9</Color>
+    <SolidColorBrush x:Key="Brush.Card.Background.Tertiary" Color="#F1F5F9" />
+
+    <Color x:Key="Color.Card.Border">#CBD5E1</Color>
+    <SolidColorBrush x:Key="Brush.Card.Border" Color="#CBD5E1" />
+
+    <Color x:Key="Color.Card.Border.Subtle">#E2E8F0</Color>
+    <SolidColorBrush x:Key="Brush.Card.Border.Subtle" Color="#E2E8F0" />
+
+    <Color x:Key="Color.Card.Border.Hover">#2563EB</Color>
+    <SolidColorBrush x:Key="Brush.Card.Border.Hover" Color="#2563EB" />
+
+    <!-- Typography / Text Colors (Dark Charcoal/Black for optimal contrast) -->
+    <Color x:Key="Color.Text.Primary">#111827</Color>
+    <SolidColorBrush x:Key="Brush.Text.Primary" Color="#111827" />
+
+    <Color x:Key="Color.Text.Secondary">#4B5563</Color>
+    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#4B5563" />
+
+    <Color x:Key="Color.Text.Muted">#9CA3AF</Color>
+    <SolidColorBrush x:Key="Brush.Text.Muted" Color="#9CA3AF" />
+
+    <Color x:Key="Color.Text.Inverse">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Brush.Text.Inverse" Color="#FFFFFF" />
+
+    <!-- Input Controls (TextBox, ComboBox, Steppers) -->
+    <Color x:Key="Color.Control.Background">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Brush.Control.Background" Color="#FFFFFF" />
+
+    <Color x:Key="Color.Control.Background.Hover">#F3F4F6</Color>
+    <SolidColorBrush x:Key="Brush.Control.Background.Hover" Color="#F3F4F6" />
+
+    <Color x:Key="Color.Control.Border">#CBD5E1</Color>
+    <SolidColorBrush x:Key="Brush.Control.Border" Color="#CBD5E1" />
+
+    <Color x:Key="Color.Control.Border.Hover">#94A3B8</Color>
+    <SolidColorBrush x:Key="Brush.Control.Border.Hover" Color="#94A3B8" />
+
+    <Color x:Key="Color.Control.Border.Focus">#2563EB</Color>
+    <SolidColorBrush x:Key="Brush.Control.Border.Focus" Color="#2563EB" />
+
+    <Color x:Key="Color.Control.Foreground">#111827</Color>
+    <SolidColorBrush x:Key="Brush.Control.Foreground" Color="#111827" />
+
+    <Color x:Key="Color.Control.Placeholder">#9CA3AF</Color>
+    <SolidColorBrush x:Key="Brush.Control.Placeholder" Color="#9CA3AF" />
+
+    <!-- Neutral Button Surface & Border (Clean Light-Gray #F3F4F6) -->
+    <SolidColorBrush x:Key="Brush.Button.Background" Color="#F3F4F6" />
+    <SolidColorBrush x:Key="Brush.Button.Foreground" Color="#111827" />
+    <SolidColorBrush x:Key="Brush.Button.Border" Color="#CBD5E1" />
+
+    <!-- Brand & Accent Colors -->
+    <Color x:Key="Color.Primary">#2563EB</Color>
+    <SolidColorBrush x:Key="Brush.Primary" Color="#2563EB" />
+
+    <Color x:Key="Color.Primary.Hover">#1D4ED8</Color>
+    <SolidColorBrush x:Key="Brush.Primary.Hover" Color="#1D4ED8" />
+
+    <Color x:Key="Color.Primary.Active">#1E40AF</Color>
+    <SolidColorBrush x:Key="Brush.Primary.Active" Color="#1E40AF" />
+
+    <Color x:Key="Color.Primary.Subtle">#EFF6FF</Color>
+    <SolidColorBrush x:Key="Brush.Primary.Subtle" Color="#EFF6FF" />
+
+    <!-- Status Colors -->
+    <Color x:Key="Color.Success">#10B981</Color>
+    <SolidColorBrush x:Key="Brush.Success" Color="#10B981" />
+
+    <Color x:Key="Color.Success.Hover">#059669</Color>
+    <SolidColorBrush x:Key="Brush.Success.Hover" Color="#059669" />
+
+    <Color x:Key="Color.Success.Subtle">#ECFDF5</Color>
+    <SolidColorBrush x:Key="Brush.Success.Subtle" Color="#ECFDF5" />
+
+    <Color x:Key="Color.Warning">#D97706</Color>
+    <SolidColorBrush x:Key="Brush.Warning" Color="#D97706" />
+
+    <Color x:Key="Color.Warning.Hover">#B45309</Color>
+    <SolidColorBrush x:Key="Brush.Warning.Hover" Color="#B45309" />
+
+    <Color x:Key="Color.Warning.Subtle">#FFFBEB</Color>
+    <SolidColorBrush x:Key="Brush.Warning.Subtle" Color="#FFFBEB" />
+
+    <Color x:Key="Color.Danger">#EF4444</Color>
+    <SolidColorBrush x:Key="Brush.Danger" Color="#EF4444" />
+
+    <Color x:Key="Color.Danger.Hover">#DC2626</Color>
+    <SolidColorBrush x:Key="Brush.Danger.Hover" Color="#DC2626" />
+
+    <Color x:Key="Color.Danger.Subtle">#FEF2F2</Color>
+    <SolidColorBrush x:Key="Brush.Danger.Subtle" Color="#FEF2F2" />
+
+    <Color x:Key="Color.Purple">#8B5CF6</Color>
+    <SolidColorBrush x:Key="Brush.Purple" Color="#8B5CF6" />
+
+    <Color x:Key="Color.Purple.Hover">#7C3AED</Color>
+    <SolidColorBrush x:Key="Brush.Purple.Hover" Color="#7C3AED" />
+
+    <Color x:Key="Color.Purple.Subtle">#F5F3FF</Color>
+    <SolidColorBrush x:Key="Brush.Purple.Subtle" Color="#F5F3FF" />
+
+    <!-- Badges & Chips -->
+    <Color x:Key="Color.Badge.Background">#F1F5F9</Color>
+    <SolidColorBrush x:Key="Brush.Badge.Background" Color="#F1F5F9" />
+
+    <Color x:Key="Color.Badge.Border">#E2E8F0</Color>
+    <SolidColorBrush x:Key="Brush.Badge.Border" Color="#E2E8F0" />
+
+    <!-- Gauges & Progress Bars -->
+    <Color x:Key="Color.Gauge.Track">#E2E8F0</Color>
+    <SolidColorBrush x:Key="Brush.Gauge.Track" Color="#E2E8F0" />
+
+    <!-- CheckBox Glyphs & Boxes (Pure White / Subtle Light Border) -->
+    <SolidColorBrush x:Key="Brush.CheckBox.Box.Background" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Brush.CheckBox.Box.Border" Color="#CBD5E1" />
+    <SolidColorBrush x:Key="Brush.CheckBox.Glyph" Color="#FFFFFF" />
+
+    <!-- Shadows & Glows (Soft, low-opacity Light Mode shadows) -->
+    <DropShadowEffect x:Key="Effect.Card.Shadow" 
+                      BlurRadius="12" 
+                      Direction="270" 
+                      ShadowDepth="2" 
+                      Opacity="0.08" 
+                      Color="#0F172A" />
+
+    <DropShadowEffect x:Key="Effect.Glow.Primary" 
+                      BlurRadius="8" 
+                      Direction="0" 
+                      ShadowDepth="0" 
+                      Opacity="0.25" 
+                      Color="#2563EB" />
+
+    <DropShadowEffect x:Key="Effect.Glow.Danger" 
+                      BlurRadius="8" 
+                      Direction="0" 
+                      ShadowDepth="0" 
+                      Opacity="0.2" 
+                      Color="#EF4444" />
+
+    <DropShadowEffect x:Key="Effect.Text.Shadow" 
+                      BlurRadius="0" 
+                      Direction="0" 
+                      ShadowDepth="0" 
+                      Opacity="0" 
+                      Color="Transparent" />
+
+    <!-- =========================================================================
+         STANDARD THEME BRUSH ALIASES (DynamicResource Compatible)
+         Eliminates solid black backgrounds (#000000) on buttons and checkboxes!
+         ========================================================================= -->
+    <SolidColorBrush x:Key="PrimaryTextBrush" Color="#111827" />
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#4B5563" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#9CA3AF" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SurfaceBrush.Secondary" Color="#F8FAFC" />
+    <SolidColorBrush x:Key="SurfaceBrush.Tertiary" Color="#F1F5F9" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#CBD5E1" />
+    <SolidColorBrush x:Key="BorderBrush.Subtle" Color="#E2E8F0" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#EFF6FF" />
+    <SolidColorBrush x:Key="HoverBrush" Color="#F1F5F9" />
+    <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#F3F4F6" />
+    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#CBD5E1" />
+    <SolidColorBrush x:Key="ButtonForegroundBrush" Color="#111827" />
+    <SolidColorBrush x:Key="CheckBoxGlyphBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ListBoxBackgroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ListBoxBorderBrush" Color="#CBD5E1" />
+
+</ResourceDictionary>

@@ -1,14 +1,16 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using RSBot.Core;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
 using RSBot.Default.Views.Dialogs;
+using SDUI;
 using SDUI.Controls;
-using SDUI.Helpers;
 using CheckBox = SDUI.Controls.CheckBox;
 
 namespace RSBot.Default.Views;
@@ -30,8 +32,24 @@ public partial class Main : DoubleBufferedControl
     public Main()
     {
         InitializeComponent();
-        ControlSpacer.NormalizePage(this);
         SubscribeEvents();
+
+        // Runtime checkbox: skip the town script (visiting all NPCs) so the bot goes
+        // straight to the training area. Persisted via PlayerConfig (RSBot.Training.checkSkipTownScript).
+        var skipTownCheckBox = new CheckBox
+        {
+            Name = "checkSkipTownScript",
+            Text = "Skip town script (don't visit NPCs, go to combat)",
+            AutoSize = false,
+            Size = new System.Drawing.Size(360, 30),
+            Location = new System.Drawing.Point(16, 170),
+            Checked = false
+        };
+        groupBoxWalkback.Controls.Add(skipTownCheckBox);
+
+        // Ensure Avoidance / Preference ListView matches the active theme palette
+        lvAvoidance.BackColor = SDUI.ColorScheme.TableBackColor;
+        lvAvoidance.ForeColor = SDUI.ColorScheme.ForeColor;
 
         lvAvoidance.Items[0].Tag = MonsterRarity.General;
         lvAvoidance.Items[1].Tag = MonsterRarity.Champion;
@@ -43,6 +61,200 @@ public partial class Main : DoubleBufferedControl
         lvAvoidance.Items[7].Tag = MonsterRarity.EliteStrong;
         lvAvoidance.Items[8].Tag = MonsterRarity.Elite;
         lvAvoidance.Items[9].Tag = MonsterRarity.Event;
+
+        ApplyTrainingLayout();
+    }
+
+    private bool _applyingTrainingLayout;
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        ApplyTrainingLayout();
+    }
+
+    private int S(float value)
+    {
+        return (int)Math.Round(value * DeviceDpi / 96f);
+    }
+
+    private void Place(Control control, int x, int y, int width, int height)
+    {
+        if (control == null)
+            return;
+
+        control.AutoSize = false;
+        control.SetBounds(S(x), S(y), Math.Max(1, S(width)), Math.Max(1, S(height)));
+    }
+
+    /// <summary>
+    ///     Lays the Training page out as two columns. The card sizes are driven
+    ///     by the available surface instead of the fixed WinForms designer
+    ///     coordinates, so the translated Arabic labels always keep their room
+    ///     and the Avoidance list fills the free height below the area card.
+    /// </summary>
+    private void ApplyTrainingLayout()
+    {
+        if (_applyingTrainingLayout || IsDisposed || groupBoxArea == null)
+            return;
+
+        _applyingTrainingLayout = true;
+        SuspendLayout();
+
+        try
+        {
+            var scale = DeviceDpi / 96f;
+            var width = Math.Max((int)(ClientSize.Width / scale), 800);
+            var height = Math.Max((int)(ClientSize.Height / scale), 570);
+
+            AutoScroll = true;
+            AutoScrollMinSize = new Size(S(width), S(height));
+
+            // Child coordinates below are relative to the card client area; the
+            // native group box title is painted separately by SDUI.GroupBox.
+            groupBoxArea.Padding = Padding.Empty;
+            groupBox2.Padding = Padding.Empty;
+            groupBoxWalkback.Padding = Padding.Empty;
+            groupBoxBerserk.Padding = Padding.Empty;
+            groupBoxAdvanced.Padding = Padding.Empty;
+
+            const int margin = 14;
+            const int gap = 14;
+            var contentW = width - margin * 2;
+            var leftW = Math.Min(400, Math.Max(320, (int)(contentW * 0.35f)));
+            var rightW = contentW - leftW - gap;
+            var leftX = margin;
+            var rightX = leftX + leftW + gap;
+            var top = margin;
+            var bottom = height - margin;
+
+            // ---- Left column: training area and avoidance list ---------------
+            const int areaH = 238;
+            Place(groupBoxArea, leftX, top, leftW, areaH);
+
+            const int fieldLabelW = 84;
+            var fieldLabelX = 16;
+            var fieldX = fieldLabelX + fieldLabelW + 8;
+            var selectW = 34;
+            var selectX = leftW - 16 - selectW;
+            var fieldW = selectX - 8 - fieldX;
+
+            Place(label1, fieldLabelX, 32, fieldLabelW, 28);
+            label1.TextAlign = ContentAlignment.MiddleRight;
+            Place(txtXCoord, fieldX, 32, fieldW, 28);
+
+            Place(label2, fieldLabelX, 62, fieldLabelW, 28);
+            label2.TextAlign = ContentAlignment.MiddleRight;
+            Place(txtYCoord, fieldX, 62, fieldW, 28);
+
+            Place(label3, fieldLabelX, 92, fieldLabelW, 28);
+            label3.TextAlign = ContentAlignment.MiddleRight;
+            Place(txtRadius, fieldX, 92, fieldW, 28);
+
+            Place(buttonSelectTrainingArea, selectX, 91, selectW, 30);
+            Place(btnGetCurrent, fieldX, 126, Math.Min(150, leftW - fieldX - 16), 30);
+
+            label5.BackColor = Color.FromArgb(70, ColorScheme.BorderColor);
+            Place(label5, 16, 160, leftW - 32, 1);
+
+            Place(label6, 16, 164, leftW - 32, 30);
+            label6.TextAlign = ContentAlignment.MiddleLeft;
+
+            var radioW = (leftW - 32 - 10) / 2;
+            Place(radioCenter, 16, 198, radioW, 30);
+            Place(radioWalkAround, 16 + radioW + 10, 198, radioW, 30);
+
+            var avoidY = top + areaH + gap;
+            Place(groupBox2, leftX, avoidY, leftW, Math.Max(180, bottom - avoidY));
+
+            lvAvoidance.Dock = DockStyle.None;
+            const int listInset = 14;
+            const int listTop = 34;
+            var listW = leftW - listInset * 2;
+            Place(lvAvoidance, listInset, listTop, listW,
+                Math.Max(100, groupBox2.Height - listTop - 14));
+
+            if (lvAvoidance.Columns.Count > 0)
+                lvAvoidance.Columns[0].Width = Math.Max(80, listW - 8);
+
+            // ---- Right column: walkback, berserk and advanced settings --------
+            const int backH = 190;
+            Place(groupBoxWalkback, rightX, top, rightW, backH);
+
+            Place(label4, 16, 32, 112, 28);
+            label4.TextAlign = ContentAlignment.MiddleLeft;
+            Place(linkRecord, 134, 32, 64, 28);
+            linkRecord.TextAlign = ContentAlignment.MiddleLeft;
+            linkRecord.LinkColor = ColorScheme.AccentColor;
+
+            const int browseW = 80;
+            var browseX = rightW - 16 - browseW;
+            Place(txtWalkscript, 16, 64, browseX - 8 - 16, 28);
+            Place(btnBrowse, browseX, 63, browseW, 30);
+
+            var optionW = (rightW - 32 - 12) / 2;
+            Place(checkUseMount, 16, 104, optionW, 30);
+            Place(checkCastBuffs, 16 + optionW + 12, 104, optionW, 30);
+            Place(checkUseSpeedDrug, 16, 138, optionW, 30);
+            Place(checkBoxUseReverse, 16 + optionW + 12, 138, optionW, 30);
+
+            var berserkY = top + backH + gap;
+            const int berserkH = 200;
+            Place(groupBoxBerserk, rightX, berserkY, rightW, berserkH);
+
+            Place(checkBerzerkWhenFull, 16, 32, rightW - 32, 30);
+
+            const int numW = 74;
+            const int monstersW = 72;
+            var amountW = Math.Min(360, rightW - 32 - numW - monstersW - 16);
+            Place(checkBerzerkMonsterAmount, 16, 68, amountW, 30);
+            var numX = 16 + amountW + 8;
+            Place(numBerzerkMonsterAmount, numX, 71, numW, 26);
+            Place(label7, numX + numW + 8, 68, monstersW, 30);
+            label7.TextAlign = ContentAlignment.MiddleLeft;
+
+            Place(checkBerzerkAvoidance, 16, 104, rightW - 32, 30);
+            Place(checkBerserkOnMonsterRarity, 16, 140, rightW - 32, 30);
+
+            var advancedY = berserkY + berserkH + gap;
+            var advancedH = Math.Min(240, Math.Max(130, bottom - advancedY));
+            Place(groupBoxAdvanced, rightX, advancedY, rightW, advancedH);
+
+            Place(checkBoxDimensionPillar, 16, 32, rightW - 32, 30);
+            Place(checkAttackWeakerFirst, 16, 68, rightW - 64, 30);
+            Place(linkAttackWeakerMobsHelp, rightW - 16 - 24, 68, 24, 30);
+            linkAttackWeakerMobsHelp.TextAlign = ContentAlignment.MiddleCenter;
+            linkAttackWeakerMobsHelp.LinkColor = ColorScheme.AccentColor;
+
+            TranslateAvoidanceGroups();
+        }
+        finally
+        {
+            ResumeLayout(true);
+            _applyingTrainingLayout = false;
+        }
+    }
+
+    /// <summary>
+    ///     The rarity group headers and the list context menu are not regular
+    ///     controls, so LanguageManager cannot translate them automatically.
+    /// </summary>
+    private void TranslateAvoidanceGroups()
+    {
+        var avoid = LanguageManager.GetLangBySpecificKey("RSBot.Default", "AvoidanceGroupAvoid", "Avoid");
+        var prefer = LanguageManager.GetLangBySpecificKey("RSBot.Default", "AvoidanceGroupPrefer", "Prefer");
+        var berserk = LanguageManager.GetLangBySpecificKey("RSBot.Default", "AvoidanceGroupBerserk", "Berserk");
+        var none = LanguageManager.GetLangBySpecificKey("RSBot.Default", "AvoidanceGroupNone", "No custom behavior");
+
+        lvAvoidance.Groups["grpAvoid"].Header = avoid;
+        lvAvoidance.Groups["grpPrefer"].Header = prefer;
+        lvAvoidance.Groups["grpBerserk"].Header = berserk;
+        lvAvoidance.Groups["grpNone"].Header = none;
+
+        btnAvoid.Text = avoid;
+        btnPrefer.Text = prefer;
+        btnBerserk.Text = berserk;
+        btnNoCustomBehavior.Text = none;
     }
 
     /// <summary>
@@ -168,14 +380,18 @@ public partial class Main : DoubleBufferedControl
     {
         var avoid = new List<MonsterRarity>();
         var prefer = new List<MonsterRarity>();
+        var berserk = new List<MonsterRarity>(); 
         foreach (ListViewItem item in lvAvoidance.Items)
             if (item.Group == lvAvoidance.Groups["grpAvoid"])
                 avoid.Add((MonsterRarity)item.Tag);
             else if (item.Group == lvAvoidance.Groups["grpPrefer"])
                 prefer.Add((MonsterRarity)item.Tag);
+            else if (item.Group == lvAvoidance.Groups["grpBerserk"])
+                berserk.Add((MonsterRarity)item.Tag);
 
         PlayerConfig.SetArray("RSBot.Avoidance.Avoid", avoid);
         PlayerConfig.SetArray("RSBot.Avoidance.Prefer", prefer);
+        PlayerConfig.SetArray("RSBot.Avoidance.Berserk", berserk);
     }
 
     /// <summary>
@@ -185,8 +401,9 @@ public partial class Main : DoubleBufferedControl
     {
         var prefer = PlayerConfig.GetEnums<MonsterRarity>("RSBot.Avoidance.Prefer").ToLookup(p => "Prefer", p => p);
         var avoid = PlayerConfig.GetEnums<MonsterRarity>("RSBot.Avoidance.Avoid").ToLookup(p => "Avoid", p => p);
+        var berserk = PlayerConfig.GetEnums<MonsterRarity>("RSBot.Avoidance.Berserk").ToLookup(p => "Berserk", p => p);
 
-        foreach (var group in avoid.Union(prefer))
+        foreach (var group in avoid.Union(prefer).Union(berserk))
         foreach (var item in group)
         {
             var listViewItem = lvAvoidance.Items.Cast<ListViewItem>()
@@ -300,6 +517,20 @@ public partial class Main : DoubleBufferedControl
     }
 
     /// <summary>
+    ///     Handles the Click event of the btnBerserk control.
+    /// </summary>
+    /// <param name="sender">The source of the event.</param>
+    /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
+    private void btnBerserk_Click(object sender, EventArgs e)
+    {
+        if (lvAvoidance.SelectedItems.Count <= 0) return;
+        foreach (ListViewItem item in lvAvoidance.SelectedItems)
+            item.Group = lvAvoidance.Groups["grpBerserk"];
+
+        SaveAvoidance();
+    }
+
+    /// <summary>
     ///     Handles the Click event of the btnNoCustomBehavior control.
     /// </summary>
     /// <param name="sender">The source of the event.</param>
@@ -353,5 +584,6 @@ public partial class Main : DoubleBufferedControl
         _settingsLoaded = false;
         LoadSettings();
         _settingsLoaded = true;
+        ApplyTrainingLayout();
     }
 }

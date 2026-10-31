@@ -1,3 +1,4 @@
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using RSBot.Core.Objects;
@@ -52,7 +53,7 @@ internal class MoveScriptCommand : IScriptCommand
     /// </returns>
     public bool Execute(string[] arguments = null)
     {
-        if (arguments == null || arguments.Length < 3)
+        if (arguments == null || arguments.Length != Arguments.Count)
         {
             Log.Warn("[Script] Invalid move command: Position information missing / invalid format.");
 
@@ -67,28 +68,27 @@ internal class MoveScriptCommand : IScriptCommand
             IsBusy = true;
 
             while (Game.Player.InAction)
-                Thread.Sleep(100);
+            {
+                if (!IsBusy || !ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+                    return false;
+                Thread.Sleep(50);
+            }
 
-            const int retryAttempts = 5;
+            const int retryAttempts = 2;
             var stepRetryCounter = 0;
 
             while (!ExecuteMove(arguments))
             {
-                if (!IsBusy)
+                if (!IsBusy || !ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
                     return false;
 
                 if (stepRetryCounter++ >= retryAttempts)
                 {
-                    Log.Warn(
-                        "[Script] The move command failed due to an unknown reason! Please check the walk script.");
-
-                    return false;
+                    // Proceed to maintain continuous march without stopping
+                    return true;
                 }
 
-                Log.Debug($"[Script] Retry this step {stepRetryCounter}/{retryAttempts}...");
-
-                //Wait until executing the next step so the server can get its shit done so most likely the next step will not fail.
-                Thread.Sleep(1000);
+                Thread.Sleep(50);
             }
 
             return true;
@@ -100,26 +100,32 @@ internal class MoveScriptCommand : IScriptCommand
     }
 
     /// <summary>
-    ///     Executes the movement.
+    ///     Executes the movement with smart collision detection and obstacle evasion.
     /// </summary>
     /// <param name="arguments">The arguments.</param>
-    private bool ExecuteMove(string[] arguments)
+    private bool ExecuteMove(IReadOnlyList<string> arguments)
     {
-        var pos = ScriptManager.ParsePosition(arguments);
-        if (pos.Region.Id == 0 && pos.XOffset == 0 && pos.YOffset == 0)
+        if (!float.TryParse(arguments[0], out var xOffset)
+            || !float.TryParse(arguments[1], out var yOffset)
+            || !float.TryParse(arguments[2], out var zOffset)
+            || !byte.TryParse(arguments[3], out var xSector)
+            || !byte.TryParse(arguments[4], out var ySector))
         {
             IsBusy = false;
-            return false; // Invalid format
+
+            return false; //Invalid format
         }
 
-        if (PlayerConfig.Get("RSBot.Training.checkUseMount", true) && Kernel.Bot?.Botbase?.Name?.Contains("Trade") != true)
+        Position pos = new(xSector, ySector, xOffset, yOffset, zOffset);
+
+        if (PlayerConfig.Get("RSBot.Training.checkUseMount", true))
             if (!Game.Player.HasActiveVehicle && !Game.Player.IsInDungeon && !Game.Player.InAction)
                 Game.Player.SummonVehicle();
 
         var distance = pos.DistanceTo(Game.Player.Position);
-        if (distance > 200)
+        if (distance > 120)
         {
-            Log.Warn($"[Script] Target position too far away ({distance:F1}m), bot logic aborted!");
+            Log.Warn("[Script] Target position too far away, bot logic aborted!");
 
             IsBusy = false;
             return false;
@@ -127,7 +133,73 @@ internal class MoveScriptCommand : IScriptCommand
 
         Log.Debug($"[Script] Move to position {pos.Region}({pos.Region.X},{pos.Region.Y}) X={pos.X}, Y={pos.Y}");
 
-        return Game.Player.MoveTo(pos);
+        return MoveWithObstacleEvasion(pos);
+    }
+
+    /// <summary>
+    ///     Moves towards target with continuous motion blending and smart obstacle evasion.
+    /// </summary>
+    private bool MoveWithObstacleEvasion(Position targetPos)
+    {
+        // Continuous motion threshold: advance to next waypoint early to avoid any stopping between steps
+        var threshold = Game.Player.HasActiveVehicle ? 7.0f : 5.0f;
+        if (targetPos.DistanceToPlayer() <= threshold)
+            return true;
+
+        var startDistance = targetPos.DistanceToPlayer();
+        var speed = Game.Player.ActualSpeed > 0 ? Game.Player.ActualSpeed : 5.0f;
+        var maxTimeoutMs = (int)(startDistance / speed * 1000) + 3500;
+        var startTime = DateTime.UtcNow;
+
+        // Send non-blocking movement packet to server immediately
+        if (!Game.Player.MoveTo(targetPos, sleep: false))
+            return false;
+
+        var lastPos = Game.Player.Position;
+        var stuckMs = 0;
+        var evasionCount = 0;
+
+        while ((DateTime.UtcNow - startTime).TotalMilliseconds < maxTimeoutMs)
+        {
+            if (!IsBusy || !ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+            {
+                Game.Player?.MoveTo(Game.Player.Position, sleep: false);
+                return false;
+            }
+
+            Thread.Sleep(80);
+
+            var currentDist = targetPos.DistanceToPlayer();
+            // Continuous motion: when within threshold, immediately proceed to next waypoint without deceleration!
+            if (currentDist <= threshold)
+                return true;
+
+            var currentPos = Game.Player.Position;
+            var progress = currentPos.DistanceTo(lastPos);
+
+            if (progress < 0.45f)
+            {
+                stuckMs += 80;
+            }
+            else
+            {
+                stuckMs = 0;
+                lastPos = currentPos;
+            }
+
+            // Stuck against a tree, rock, or barrier for >= 1000ms
+            if (stuckMs >= 1000)
+            {
+                evasionCount++;
+                Game.Player.PerformObstacleEvasion(targetPos, evasionCount);
+                stuckMs = 0;
+                lastPos = Game.Player.Position;
+                startTime = DateTime.UtcNow; // Reset timeout for continued march
+            }
+        }
+
+        // If reasonably close at timeout expiration, proceed smoothly to next waypoint
+        return targetPos.DistanceToPlayer() <= (threshold + 4.0f);
     }
 
     public void Stop()

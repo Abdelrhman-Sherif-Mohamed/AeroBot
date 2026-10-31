@@ -1,4 +1,4 @@
-﻿namespace RSBot.Party.Views
+namespace RSBot.Party.Views
 {
     partial class Main
     {
@@ -37,9 +37,11 @@
             colMasteries = new System.Windows.Forms.ColumnHeader();
             colLocation = new System.Windows.Forms.ColumnHeader();
             contextParty = new SDUI.Controls.ContextMenuStrip();
+            contextPartyBuffs = new SDUI.Controls.ContextMenuStrip();
             menuBanish = new System.Windows.Forms.ToolStripMenuItem();
             menuLeave = new System.Windows.Forms.ToolStripMenuItem();
             menuItemAddToBuffing = new System.Windows.Forms.ToolStripMenuItem();
+            menuItemRefreshBuffs = new System.Windows.Forms.ToolStripMenuItem();
             separator3 = new SDUI.Controls.Separator();
             panel1 = new SDUI.Controls.Panel();
             btnLeaveParty = new SDUI.Controls.Button();
@@ -153,6 +155,7 @@
             tabMain.SuspendLayout();
             tabCurrentParty.SuspendLayout();
             contextParty.SuspendLayout();
+            contextPartyBuffs.SuspendLayout();
             panel1.SuspendLayout();
             grpPartySettings.SuspendLayout();
             tpAutoParty.SuspendLayout();
@@ -510,7 +513,7 @@
             // 
             // textBoxLeaveIfMasterNotName
             // 
-            textBoxLeaveIfMasterNotName.Location = new System.Drawing.Point(205, 193);
+            textBoxLeaveIfMasterNotName.Location = new System.Drawing.Point(175, 193);
             textBoxLeaveIfMasterNotName.MaxLength = 32767;
             textBoxLeaveIfMasterNotName.MultiLine = false;
             textBoxLeaveIfMasterNotName.Name = "textBoxLeaveIfMasterNotName";
@@ -610,7 +613,7 @@
             label2.GradientAnimation = false;
             label2.Location = new System.Drawing.Point(17, 308);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(240, 18);
+            label2.Size = new System.Drawing.Size(189, 18);
             label2.TabIndex = 11;
             label2.Text = "* If party settings filter matches";
             // 
@@ -1133,11 +1136,11 @@
             // btnPartyRefresh
             // 
             btnPartyRefresh.Color = System.Drawing.Color.Transparent;
-            btnPartyRefresh.Location = new System.Drawing.Point(627, 13);
+            btnPartyRefresh.Location = new System.Drawing.Point(617, 13);
             btnPartyRefresh.Name = "btnPartyRefresh";
             btnPartyRefresh.Radius = 6;
             btnPartyRefresh.ShadowDepth = 4F;
-            btnPartyRefresh.Size = new System.Drawing.Size(75, 21);
+            btnPartyRefresh.Size = new System.Drawing.Size(85, 21);
             btnPartyRefresh.TabIndex = 4;
             btnPartyRefresh.Text = "Refresh";
             btnPartyRefresh.Click += btnPartyRefresh_Click;
@@ -1145,11 +1148,11 @@
             // btnPartySearch
             // 
             btnPartySearch.Color = System.Drawing.Color.Transparent;
-            btnPartySearch.Location = new System.Drawing.Point(548, 13);
+            btnPartySearch.Location = new System.Drawing.Point(528, 13);
             btnPartySearch.Name = "btnPartySearch";
             btnPartySearch.Radius = 6;
             btnPartySearch.ShadowDepth = 4F;
-            btnPartySearch.Size = new System.Drawing.Size(75, 21);
+            btnPartySearch.Size = new System.Drawing.Size(87, 21);
             btnPartySearch.TabIndex = 4;
             btnPartySearch.Text = "Search";
             btnPartySearch.Click += btnPartySearch_Click;
@@ -1159,12 +1162,12 @@
             nudPartySearchMax.BackColor = System.Drawing.Color.Transparent;
             nudPartySearchMax.Font = new System.Drawing.Font("Segoe UI", 9.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             nudPartySearchMax.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            nudPartySearchMax.Location = new System.Drawing.Point(474, 11);
+            nudPartySearchMax.Location = new System.Drawing.Point(442, 11);
             nudPartySearchMax.Maximum = new decimal(new int[] { 140, 0, 0, 0 });
             nudPartySearchMax.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             nudPartySearchMax.MinimumSize = new System.Drawing.Size(80, 25);
             nudPartySearchMax.Name = "nudPartySearchMax";
-            nudPartySearchMax.Size = new System.Drawing.Size(70, 25);
+            nudPartySearchMax.Size = new System.Drawing.Size(80, 25);
             nudPartySearchMax.TabIndex = 3;
             nudPartySearchMax.Value = new decimal(new int[] { 140, 0, 0, 0 });
             // 
@@ -1173,12 +1176,12 @@
             nudPartySearchMin.BackColor = System.Drawing.Color.Transparent;
             nudPartySearchMin.Font = new System.Drawing.Font("Segoe UI", 9.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             nudPartySearchMin.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            nudPartySearchMin.Location = new System.Drawing.Point(376, 11);
+            nudPartySearchMin.Location = new System.Drawing.Point(359, 11);
             nudPartySearchMin.Maximum = new decimal(new int[] { 140, 0, 0, 0 });
             nudPartySearchMin.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             nudPartySearchMin.MinimumSize = new System.Drawing.Size(80, 25);
             nudPartySearchMin.Name = "nudPartySearchMin";
-            nudPartySearchMin.Size = new System.Drawing.Size(70, 25);
+            nudPartySearchMin.Size = new System.Drawing.Size(80, 25);
             nudPartySearchMin.TabIndex = 3;
             nudPartySearchMin.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
@@ -1218,9 +1221,9 @@
             label6.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             label6.Gradient = (new System.Drawing.Color[] { System.Drawing.Color.Gray, System.Drawing.Color.Black });
             label6.GradientAnimation = false;
-            label6.Location = new System.Drawing.Point(450, 16);
+            label6.Location = new System.Drawing.Point(419, 16);
             label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(20, 18);
+            label6.Size = new System.Drawing.Size(22, 18);
             label6.TabIndex = 0;
             label6.Text = "~";
             // 
@@ -1233,7 +1236,7 @@
             label5.GradientAnimation = false;
             label5.Location = new System.Drawing.Point(322, 15);
             label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(50, 18);
+            label5.Size = new System.Drawing.Size(34, 18);
             label5.TabIndex = 0;
             label5.Text = "Level";
             // 
@@ -1364,30 +1367,30 @@
             // 
             btnPrev.Color = System.Drawing.Color.Transparent;
             btnPrev.Enabled = false;
-            btnPrev.Font = new System.Drawing.Font("Arial", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            btnPrev.ForeColor = System.Drawing.Color.FromArgb(64, 64, 64);
+            btnPrev.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnPrev.ForeColor = System.Drawing.Color.FromArgb(235, 238, 245);
             btnPrev.Location = new System.Drawing.Point(315, 14);
             btnPrev.Name = "btnPrev";
             btnPrev.Radius = 6;
             btnPrev.ShadowDepth = 4F;
             btnPrev.Size = new System.Drawing.Size(23, 23);
             btnPrev.TabIndex = 11;
-            btnPrev.Text = "◀";
+            btnPrev.Text = "‹";
             btnPrev.Click += PageNatigateBtn_Click;
             // 
             // btnNext
             // 
             btnNext.Color = System.Drawing.Color.Transparent;
             btnNext.Enabled = false;
-            btnNext.Font = new System.Drawing.Font("Arial", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            btnNext.ForeColor = System.Drawing.Color.FromArgb(64, 64, 64);
+            btnNext.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnNext.ForeColor = System.Drawing.Color.FromArgb(235, 238, 245);
             btnNext.Location = new System.Drawing.Point(387, 14);
             btnNext.Name = "btnNext";
             btnNext.Radius = 6;
             btnNext.ShadowDepth = 4F;
             btnNext.Size = new System.Drawing.Size(23, 23);
             btnNext.TabIndex = 12;
-            btnNext.Text = "▶";
+            btnNext.Text = "›";
             btnNext.Click += PageNatigateBtn_Click;
             // 
             // lbl_partyPageRange
@@ -1484,11 +1487,11 @@
             // 
             // listViewPartyMembers
             // 
-            listViewPartyMembers.BackColor = System.Drawing.Color.White;
+            listViewPartyMembers.BackColor = System.Drawing.Color.FromArgb(21, 27, 36);
             listViewPartyMembers.BorderStyle = System.Windows.Forms.BorderStyle.None;
             listViewPartyMembers.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { chPlayerName, chPlayerLevel });
             listViewPartyMembers.Dock = System.Windows.Forms.DockStyle.Top;
-            listViewPartyMembers.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
+            listViewPartyMembers.ForeColor = System.Drawing.Color.White;
             listViewPartyMembers.FullRowSelect = true;
             listViewPartyMembers.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             listViewPartyMembers.Location = new System.Drawing.Point(2, 24);
@@ -1567,11 +1570,11 @@
             // 
             // listViewGroups
             // 
-            listViewGroups.BackColor = System.Drawing.Color.White;
+            listViewGroups.BackColor = System.Drawing.Color.FromArgb(21, 27, 36);
             listViewGroups.BorderStyle = System.Windows.Forms.BorderStyle.None;
             listViewGroups.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { columnHeaderGroupName, columnHeaderMembersCount });
             listViewGroups.Dock = System.Windows.Forms.DockStyle.Top;
-            listViewGroups.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
+            listViewGroups.ForeColor = System.Drawing.Color.White;
             listViewGroups.FullRowSelect = true;
             listViewGroups.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             listViewGroups.Location = new System.Drawing.Point(2, 24);
@@ -1669,6 +1672,7 @@
             listPartyBuffSkills.BackColor = System.Drawing.Color.White;
             listPartyBuffSkills.BorderStyle = System.Windows.Forms.BorderStyle.None;
             listPartyBuffSkills.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { columnName, columnLimit });
+            listPartyBuffSkills.ContextMenuStrip = contextPartyBuffs;
             listPartyBuffSkills.Dock = System.Windows.Forms.DockStyle.Fill;
             listPartyBuffSkills.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             listPartyBuffSkills.FullRowSelect = true;
@@ -1724,6 +1728,20 @@
             checkHideLowerLevelSkills.Visible = false;
             checkHideLowerLevelSkills.CheckedChanged += checkHideLowerLevelSkills_CheckedChanged;
             // 
+            // contextPartyBuffs
+            // 
+            contextPartyBuffs.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { menuItemRefreshBuffs });
+            contextPartyBuffs.Name = "contextPartyBuffs";
+            contextPartyBuffs.Size = new System.Drawing.Size(153, 70);
+            // 
+            // menuItemRefreshBuffs
+            // 
+            menuItemRefreshBuffs.Enabled = true;
+            menuItemRefreshBuffs.Name = "menuItemRefreshBuffs";
+            menuItemRefreshBuffs.Size = new System.Drawing.Size(152, 22);
+            menuItemRefreshBuffs.Text = "Refresh Buffs";
+            menuItemRefreshBuffs.Click += menuItemRefreshBuffs_Click;
+            // 
             // Main
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
@@ -1736,6 +1754,7 @@
             tabMain.ResumeLayout(false);
             tabCurrentParty.ResumeLayout(false);
             contextParty.ResumeLayout(false);
+            contextPartyBuffs.ResumeLayout(false);
             panel1.ResumeLayout(false);
             grpPartySettings.ResumeLayout(false);
             tpAutoParty.ResumeLayout(false);
@@ -1777,8 +1796,10 @@
         private SDUI.Controls.CheckBox checkCurrentAllowInvitations;
         private SDUI.Controls.GroupBox grpPartySettings;
         private SDUI.Controls.ContextMenuStrip contextParty;
+        private SDUI.Controls.ContextMenuStrip contextPartyBuffs;
         private System.Windows.Forms.ToolStripMenuItem menuBanish;
         private System.Windows.Forms.ToolStripMenuItem menuLeave;
+        private System.Windows.Forms.ToolStripMenuItem menuItemRefreshBuffs;
         private System.Windows.Forms.TabPage tpAutoParty;
         private System.Windows.Forms.TabPage tpPartyMatching;
         private SDUI.Controls.GroupBox grbAutoPartySettings;

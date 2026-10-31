@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using static SDUI.NativeMethods;
 
 namespace SDUI.Controls.Subclasses
@@ -37,10 +38,21 @@ namespace SDUI.Controls.Subclasses
             _windowProcHandle = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_windowProc);
         }
 
+        private ListView _listView;
+
         /// <summary>
         ///  Gets the handle for this window.
         /// </summary>
         public IntPtr Handle { get; private set; }
+
+        /// <summary>
+        ///  Assigns a handle to this <see cref="NativeWindow"/> instance with associated ListView.
+        /// </summary>
+        public void AssignHandle(ListView listView)
+        {
+            _listView = listView;
+            AssignHandle(listView.Handle);
+        }
 
         /// <summary>
         ///  Assigns a handle to this <see cref="NativeWindow"/> instance.
@@ -65,9 +77,19 @@ namespace SDUI.Controls.Subclasses
             SetWindowSubclass(handle, _windowProcHandle, UIntPtr.Zero, UIntPtr.Zero);
 
             IntPtr hHeader = SendMessage(handle, LVM_GETHEADER, 0, 0);
-
-            SetWindowTheme(hHeader, "ItemsView", null); // DarkMode
-            SetWindowTheme(handle, "ItemsView", null); // DarkMode
+            bool isDark = ColorScheme.BackColor.IsDark();
+            AllowDarkModeForWindow(handle, isDark);
+            AllowDarkModeForWindow(hHeader, isDark);
+            if (isDark)
+            {
+                SetWindowTheme(handle, "DarkMode_Explorer", null);
+                SetWindowTheme(hHeader, "DarkMode_Explorer", null);
+            }
+            else
+            {
+                SetWindowTheme(handle, "Explorer", null);
+                SetWindowTheme(hHeader, "Explorer", null);
+            }
 
             OnHandleChange();
         }
@@ -96,74 +118,114 @@ namespace SDUI.Controls.Subclasses
                 switch (m.Msg)
                 {
                     case WM_NOTIFY:
-
                         var pnmhdr = (NMHDR)m.GetLParam(typeof(NMHDR));
+                        IntPtr hHeader = SendMessage(Handle, LVM_GETHEADER, 0, 0);
 
-                        if (pnmhdr.code == NM_CUSTOMDRAW)
+                        if (pnmhdr.hwndFrom == hHeader && pnmhdr.code == NM_CUSTOMDRAW)
                         {
                             var nmcd = (NMCUSTOMDRAW)m.GetLParam(typeof(NMCUSTOMDRAW));
 
                             switch (nmcd.dwDrawStage)
                             {
                                 case (int)CDDS.CDDS_PREPAINT:
-                                    m.Result = new IntPtr((int)CDRF.CDRF_NOTIFYITEMDRAW);
-                                    break;
+                                    Rect hRect = new Rect();
+                                    if (GetClientRect(hHeader, ref hRect))
+                                    {
+                                        using (var g = Graphics.FromHdc(nmcd.hdc))
+                                        {
+                                            var headerBg = ColorScheme.TableHeaderBackColor;
+                                            using var brush = new SolidBrush(headerBg);
+                                            g.FillRectangle(brush, 0, 0, hRect.Right - hRect.Left, hRect.Bottom - hRect.Top);
+
+                                            using var bottomPen = new Pen(ColorScheme.BorderColor);
+                                            g.DrawLine(bottomPen, 0, (hRect.Bottom - hRect.Top) - 1, hRect.Right - hRect.Left, (hRect.Bottom - hRect.Top) - 1);
+                                        }
+                                    }
+
+                                    m.Result = new IntPtr((int)(CDRF.CDRF_NOTIFYITEMDRAW | CDRF.CDRF_NOTIFYPOSTPAINT));
+                                    return m.Result;
+
+                                case (int)CDDS.CDDS_POSTPAINT:
+                                    Rect pRect = new Rect();
+                                    if (GetClientRect(hHeader, ref pRect))
+                                    {
+                                        using (var g = Graphics.FromHdc(nmcd.hdc))
+                                        {
+                                            var headerBg = ColorScheme.TableHeaderBackColor;
+                                            using var brush = new SolidBrush(headerBg);
+
+                                            int totalColWidth = 0;
+                                            if (_listView != null)
+                                            {
+                                                foreach (ColumnHeader col in _listView.Columns)
+                                                    totalColWidth += col.Width;
+                                            }
+
+                                            int headerWidth = pRect.Right - pRect.Left;
+                                            if (totalColWidth < headerWidth)
+                                            {
+                                                g.FillRectangle(brush, totalColWidth, 0, headerWidth - totalColWidth, pRect.Bottom - pRect.Top);
+                                                using var bottomPen = new Pen(ColorScheme.BorderColor);
+                                                g.DrawLine(bottomPen, totalColWidth, (pRect.Bottom - pRect.Top) - 1, headerWidth, (pRect.Bottom - pRect.Top) - 1);
+                                            }
+                                        }
+                                    }
+
+                                    m.Result = new IntPtr((int)CDRF.CDRF_SKIPDEFAULT);
+                                    return m.Result;
+
                                 case (int)CDDS.CDDS_ITEMPREPAINT:
+                                    var colIndex = (int)nmcd.dwItemSpec;
+                                    var rect = new Rectangle(nmcd.rc.Left, nmcd.rc.Top, nmcd.rc.Right - nmcd.rc.Left, nmcd.rc.Bottom - nmcd.rc.Top);
 
-                                    var info = (SubclassInfo)Marshal.PtrToStructure(unchecked((IntPtr)(long)(ulong)dwRefData), typeof(SubclassInfo));
-                                    SetTextColor(nmcd.hdc, info.headerTextColor);
+                                    using (var g = Graphics.FromHdc(nmcd.hdc))
+                                    {
+                                        bool isSelected = (nmcd.uItemState & 0x0001) != 0;
+                                        var itemBg = isSelected
+                                            ? (ColorScheme.BackColor.IsDark() ? Color.FromArgb(45, 58, 79) : Color.FromArgb(215, 222, 235))
+                                            : ColorScheme.TableHeaderBackColor;
 
-                                    m.Result = new IntPtr((int)CDRF.CDRF_DODEFAULT);
+                                        using (var bgBrush = new SolidBrush(itemBg))
+                                            g.FillRectangle(bgBrush, rect);
 
-                                    break;
+                                        using (var pen = new Pen(ColorScheme.BorderColor))
+                                        {
+                                            g.DrawLine(pen, rect.Right - 1, rect.Top + 3, rect.Right - 1, rect.Bottom - 4);
+                                            g.DrawLine(pen, rect.Left, rect.Bottom - 1, rect.Right, rect.Bottom - 1);
+                                        }
+
+                                        if (_listView != null && colIndex >= 0 && colIndex < _listView.Columns.Count)
+                                        {
+                                            var col = _listView.Columns[colIndex];
+                                            var textFlags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine;
+                                            if (col.TextAlign == HorizontalAlignment.Right)
+                                                textFlags |= TextFormatFlags.Right;
+                                            else if (col.TextAlign == HorizontalAlignment.Center)
+                                                textFlags |= TextFormatFlags.HorizontalCenter;
+                                            else
+                                                textFlags |= TextFormatFlags.Left;
+
+                                            var textRect = new Rectangle(rect.Left + 8, rect.Top, Math.Max(0, rect.Width - 16), rect.Height);
+                                            var font = _listView.Font ?? SystemFonts.DefaultFont;
+                                            TextRenderer.DrawText(g, col.Text, font, textRect, ColorScheme.TableHeaderForeColor, textFlags);
+                                        }
+                                    }
+
+                                    m.Result = new IntPtr((int)CDRF.CDRF_SKIPDEFAULT);
+                                    return m.Result;
+
                                 default:
-                                    m.Result = new IntPtr((int)CDRF.CDRF_NOTIFYPOSTPAINT);
-                                    break;
+                                    m.Result = new IntPtr((int)CDRF.CDRF_DODEFAULT);
+                                    return m.Result;
                             }
                         }
                         break;
+
                     case WM_THEMECHANGED:
-
-                        IntPtr hHeader = SendMessage(Handle, LVM_GETHEADER, 0, 0);
-
-                        AllowDarkModeForWindow(Handle, ColorScheme.BackColor.IsDark());
-                        AllowDarkModeForWindow(hHeader, ColorScheme.BackColor.IsDark());
-
-                        var hTheme = OpenThemeData(IntPtr.Zero, "ItemsView");
-
-                        const int HP_HEADERITEM = 1;
-                        const int TMT_FILLCOLOR = 3802;
-                        const int TMT_TEXTCOLOR = 3803;
-
-                        if (hTheme != IntPtr.Zero)
-                        {
-                            COLORREF color;
-                            if (GetThemeColor(hTheme, 0, 0, TMT_TEXTCOLOR, out color) > 0)
-                            {
-                                SendMessage(Handle, LVM_FIRST + 36, IntPtr.Zero, ref color);
-                            }
-                            if (GetThemeColor(hTheme, 0, 0, TMT_FILLCOLOR, out color) > 0)
-                            {
-                                SendMessage(Handle, LVM_FIRST + 38, IntPtr.Zero, ref color);
-                                SendMessage(Handle, LVM_FIRST + 1, IntPtr.Zero, ref color);
-                            }
-                            CloseThemeData(hTheme);
-                        }
-
-                        hTheme = OpenThemeData(hHeader, "Header");
-                        if (hTheme != IntPtr.Zero)
-                        {
-                            SubclassInfo info;
-                            //var info = (SubclassInfo)Marshal.PtrToStructure(unchecked((IntPtr)(long)(ulong)dwRefData), typeof(SubclassInfo));
-
-                            GetThemeColor(hTheme, HP_HEADERITEM, 0, TMT_TEXTCOLOR, out info.headerTextColor);
-                            CloseThemeData(hTheme);
-                        }
-
-                        SendMessage(hHeader, WM_THEMECHANGED, m.WParam, m.LParam);
-
+                        IntPtr hHdr = SendMessage(Handle, LVM_GETHEADER, 0, 0);
                         RedrawWindow(Handle, IntPtr.Zero, IntPtr.Zero, 0x0400 | 0x0001);
-
+                        if (hHdr != IntPtr.Zero)
+                            RedrawWindow(hHdr, IntPtr.Zero, IntPtr.Zero, 0x0400 | 0x0001);
                         break;
                     default:
                         break;

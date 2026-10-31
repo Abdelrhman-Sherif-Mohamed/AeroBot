@@ -1,4 +1,4 @@
-namespace RSBot.Quest.Views
+﻿namespace RSBot.Quest.Views
 {
     partial class Main
     {
@@ -30,9 +30,6 @@ namespace RSBot.Quest.Views
         {
             treeQuests = new System.Windows.Forms.TreeView();
             checkShowCompleted = new SDUI.Controls.CheckBox();
-            btnRefresh = new SDUI.Controls.Button();
-            btnWatch = new SDUI.Controls.Button();
-            btnAbandon = new SDUI.Controls.Button();
             contextQuest = new SDUI.Controls.ContextMenuStrip();
             watchQuestToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
@@ -42,66 +39,28 @@ namespace RSBot.Quest.Views
             // 
             // treeQuests
             // 
-            treeQuests.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
             treeQuests.FullRowSelect = true;
             treeQuests.HideSelection = false;
-            treeQuests.Location = new System.Drawing.Point(12, 12);
+            treeQuests.Location = new System.Drawing.Point(17, 13);
             treeQuests.Name = "treeQuests";
-            treeQuests.Size = new System.Drawing.Size(680, 480);
+            treeQuests.Size = new System.Drawing.Size(424, 431);
             treeQuests.TabIndex = 0;
             treeQuests.NodeMouseClick += treeQuests_NodeMouseClick;
             // 
             // checkShowCompleted
             // 
-            checkShowCompleted.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left;
             checkShowCompleted.AutoSize = true;
             checkShowCompleted.Depth = 0;
-            checkShowCompleted.Location = new System.Drawing.Point(12, 502);
+            checkShowCompleted.Location = new System.Drawing.Point(17, 447);
             checkShowCompleted.Margin = new System.Windows.Forms.Padding(0);
             checkShowCompleted.MouseLocation = new System.Drawing.Point(-1, -1);
             checkShowCompleted.Name = "checkShowCompleted";
             checkShowCompleted.Ripple = true;
-            checkShowCompleted.Size = new System.Drawing.Size(145, 30);
+            checkShowCompleted.Size = new System.Drawing.Size(121, 30);
             checkShowCompleted.TabIndex = 1;
             checkShowCompleted.Text = "Show completed";
             checkShowCompleted.UseVisualStyleBackColor = true;
             checkShowCompleted.CheckedChanged += checkShowCompleted_CheckedChanged;
-            // 
-            // btnRefresh
-            // 
-            btnRefresh.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left;
-            btnRefresh.Location = new System.Drawing.Point(230, 502);
-            btnRefresh.Name = "btnRefresh";
-            btnRefresh.Radius = 4;
-            btnRefresh.Size = new System.Drawing.Size(120, 30);
-            btnRefresh.TabIndex = 2;
-            btnRefresh.Text = "Refresh";
-            btnRefresh.UseVisualStyleBackColor = true;
-            btnRefresh.Click += btnRefresh_Click;
-            // 
-            // btnWatch
-            // 
-            btnWatch.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left;
-            btnWatch.Location = new System.Drawing.Point(360, 502);
-            btnWatch.Name = "btnWatch";
-            btnWatch.Radius = 4;
-            btnWatch.Size = new System.Drawing.Size(140, 30);
-            btnWatch.TabIndex = 3;
-            btnWatch.Text = "Watch / Unwatch";
-            btnWatch.UseVisualStyleBackColor = true;
-            btnWatch.Click += watchQuestToolStripMenuItem_Click;
-            // 
-            // btnAbandon
-            // 
-            btnAbandon.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left;
-            btnAbandon.Location = new System.Drawing.Point(510, 502);
-            btnAbandon.Name = "btnAbandon";
-            btnAbandon.Radius = 4;
-            btnAbandon.Size = new System.Drawing.Size(130, 30);
-            btnAbandon.TabIndex = 4;
-            btnAbandon.Text = "Abandon Quest";
-            btnAbandon.UseVisualStyleBackColor = true;
-            btnAbandon.Click += abandonToolStripMenuItem_Click;
             // 
             // contextQuest
             // 
@@ -134,14 +93,11 @@ namespace RSBot.Quest.Views
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
-            Controls.Add(btnAbandon);
-            Controls.Add(btnWatch);
-            Controls.Add(btnRefresh);
             Controls.Add(checkShowCompleted);
             Controls.Add(treeQuests);
             Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             Name = "Main";
-            Size = new System.Drawing.Size(704, 545);
+            Size = new System.Drawing.Size(460, 490);
             Load += Main_Load;
             contextQuest.ResumeLayout(false);
             ResumeLayout(false);
@@ -152,9 +108,6 @@ namespace RSBot.Quest.Views
 
         private System.Windows.Forms.TreeView treeQuests;
         private SDUI.Controls.CheckBox checkShowCompleted;
-        private SDUI.Controls.Button btnRefresh;
-        private SDUI.Controls.Button btnWatch;
-        private SDUI.Controls.Button btnAbandon;
         private SDUI.Controls.ContextMenuStrip contextQuest;
         private System.Windows.Forms.ToolStripMenuItem watchQuestToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem abandonToolStripMenuItem;

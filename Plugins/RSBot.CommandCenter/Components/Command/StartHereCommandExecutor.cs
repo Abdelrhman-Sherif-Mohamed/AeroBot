@@ -12,14 +12,8 @@ internal class StartHereCommandExecutor : ICommandExecutor
 
     public bool Execute(bool silent)
     {
-        if (Game.Player == null || !Game.Ready)
-        {
-            SonicLog.Notify(silent, "[AeroBot] Enter the game first!", SonicLog.NeedGame);
-            return false;
-        }
-
-        SonicLog.Notify(silent, "[AeroBot] Starting bot at the current location",
-            "بدأ البوت في المكان الحالي وتم حفظه كمنطقة تدريب");
+        if (!silent)
+            Game.ShowNotification("[AeroBot] Starting bot at the current location");
 
         return CommandManager.Execute("area", true) && CommandManager.Execute("start", true);
     }

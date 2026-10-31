@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -193,6 +193,11 @@ public class AwaitCallback
                         break;
                 }
             }
+
+            if (_invoked)
+            {
+                Monitor.PulseAll(_lock);
+            }
         }
     }
 
@@ -204,35 +209,25 @@ public class AwaitCallback
     /// <returns></returns>
     public void AwaitResponse(int milliseconds = TIMEOUT_DEFAULT)
     {
-        if (_waited)
-            return;
-
-        _waited = true;
-
-        if (milliseconds < TIMEOUT_STEP)
-            milliseconds = TIMEOUT_STEP;
-
-        Task.Factory.StartNew(() =>
+        lock (_lock)
         {
-            var invoked = false;
-            do
+            if (_waited || _invoked || _timeout)
+                return;
+
+            _waited = true;
+
+            if (milliseconds < TIMEOUT_STEP)
+                milliseconds = TIMEOUT_STEP;
+
+            if (!_invoked)
             {
-                Thread.Sleep(TIMEOUT_STEP);
-                milliseconds -= TIMEOUT_STEP;
-
-                lock (_lock)
-                {
-                    invoked = _invoked;
-                }
-            } while (!invoked && milliseconds > 0);
-
-            lock (_lock)
-            {
-                _timeout = !_invoked;
-
-                if (_timeout)
-                    Log.Debug($"Callback timeout, ResponseOpcode: 0x{ResponseOpcode:X}");
+                Monitor.Wait(_lock, milliseconds);
             }
-        }).Wait();
+
+            _timeout = !_invoked;
+
+            if (_timeout)
+                Log.Debug($"Callback timeout, ResponseOpcode: 0x{ResponseOpcode:X}");
+        }
     }
 }

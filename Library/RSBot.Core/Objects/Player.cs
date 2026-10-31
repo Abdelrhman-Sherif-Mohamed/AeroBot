@@ -12,7 +12,6 @@ using RSBot.Core.Objects.Job;
 using RSBot.Core.Objects.Quests;
 using RSBot.Core.Objects.Skill;
 using RSBot.Core.Objects.Spawn;
-using RSBot.NavMeshApi;
 
 namespace RSBot.Core.Objects;
 
@@ -683,21 +682,10 @@ public class Player : SpawnedBionic
             return false;
         }
 
-        if (distance <= 1.5)
-            return true;
-
-        // In Silkroad VSRO, mounted players move via 0x7021 (Player Move) packet just like on foot.
-        // We use the vehicle's speed if mounted so arrival time and monitoring are accurate.
-        var effectiveSpeed = (HasActiveVehicle && Vehicle != null && Vehicle.ActualSpeed > 0)
-            ? Vehicle.ActualSpeed
-            : Game.Player.ActualSpeed;
-
-        if (effectiveSpeed <= 0)
-            effectiveSpeed = 5.0f;
-
-        if (Kernel.EnableCollisionDetection && Position.HasCollisionBetween(destination, NavMeshRaycastType.Move))
+        if (HasActiveVehicle)
         {
-            Log.Warn($"[AeroBot] Wall/Obstacle collision detected along path to ({destination.X:F1}, {destination.Y:F1})");
+            Vehicle.MoveTo(destination, sleep);
+            return true;
         }
 
         var packet = new Packet(0x7021);
@@ -718,6 +706,12 @@ public class Player : SpawnedBionic
             packet.WriteInt(destination.YOffset);
         }
 
+        if (!sleep)
+        {
+            PacketManager.SendPacket(packet, PacketDestination.Server);
+            return true;
+        }
+
         var awaitCallback = new AwaitCallback(response =>
         {
             var uniqueId = response.ReadUInt();
@@ -729,92 +723,125 @@ public class Player : SpawnedBionic
 
         if (awaitCallback.IsCompleted)
         {
-            if (!sleep)
-                return true;
+            //Wait to finish the step
+            Thread.Sleep(Convert.ToInt32(distance / Game.Player.ActualSpeed * 1000));
 
-            var estimatedTimeMs = (int)(distance / effectiveSpeed * 1000);
-            var maxTimeoutMs = Math.Max(2500, estimatedTimeMs + 3000);
-            var startTime = DateTime.UtcNow;
-            var lastPos = Position;
-            var lastMovedTime = DateTime.UtcNow;
-
-            while ((DateTime.UtcNow - startTime).TotalMilliseconds < maxTimeoutMs)
-            {
-                Thread.Sleep(100);
-
-                var curDist = Position.DistanceTo(destination);
-                if (curDist <= 2.5f)
-                    return true;
-
-                // Server stop packet 0xB023 sets Moving = false and HasDestination = false
-                if (!Movement.Moving && !Movement.HasDestination && (DateTime.UtcNow - startTime).TotalMilliseconds > 350)
-                {
-                    if (curDist > 3.0f)
-                    {
-                        Log.Warn($"[AeroBot] Movement blocked by server (wall/collision)! Remaining distance: {curDist:F1}m");
-                        TryUnstuck(destination);
-                        return false;
-                    }
-                    return true;
-                }
-
-                // Check position progression
-                var movedDist = Position.DistanceTo(lastPos);
-                if (movedDist > 0.5f)
-                {
-                    lastPos = Position;
-                    lastMovedTime = DateTime.UtcNow;
-                }
-                else
-                {
-                    // No progress for > 1.8 seconds while supposedly moving
-                    if ((DateTime.UtcNow - lastMovedTime).TotalSeconds > 1.8)
-                    {
-                        Log.Warn($"[AeroBot] Character stuck against obstacle/wall! Distance to target: {curDist:F1}m");
-                        TryUnstuck(destination);
-                        return false;
-                    }
-                }
-            }
-
-            return Position.DistanceTo(destination) <= 3.5f;
+            return true;
         }
 
         return false;
     }
 
     /// <summary>
-    ///     Performs a recovery maneuver when stuck against an obstacle or wall.
+    ///     Performs obstacle evasion:
+    ///     1st stuck: back up 5 meters, step 5 meters left, then resume target.
+    ///     2nd stuck: back up 5 meters, step 10 meters right, then resume target.
+    ///     Subsequent stucks: alternate left/right with scaled evasive distances.
     /// </summary>
-    private void TryUnstuck(Position destination)
+    /// <param name="targetPos">The intended destination position.</param>
+    /// <param name="evasionIndex">Attempt number used to alternate between left and right.</param>
+    public void PerformObstacleEvasion(Position targetPos, int evasionIndex = 1)
     {
-        try
+        var currentPos = Position;
+
+        // Calculate unit vector from current position towards target
+        var dx = targetPos.XOffset - currentPos.XOffset;
+        var dy = targetPos.YOffset - currentPos.YOffset;
+        var len = (float)Math.Sqrt(dx * dx + dy * dy);
+        if (len < 0.1f) len = 1.0f;
+
+        var ux = dx / len;
+        var uy = dy / len;
+
+        // Vector math:
+        // Heading = (ux, uy)
+        // Left vector (90 deg CCW) = (-uy, ux)
+        // Right vector (90 deg CW) = (uy, -ux)
+
+        var speed = ActualSpeed > 0 ? ActualSpeed : 5.0f;
+
+        // 1) Go back 5 meters backward (in the opposite direction of the obstacle/target)
+        var backDist = 5.0f;
+        var backX = currentPos.XOffset - (ux * backDist);
+        var backY = currentPos.YOffset - (uy * backDist);
+        Position backPos = new(currentPos.Region, backX, backY, currentPos.ZOffset);
+
+        Log.Notify($"[Navigation] تم رصد عائق في المسار! التراجع 5 أمتار للخلف (محاولة #{evasionIndex})...");
+        MoveTo(backPos, sleep: false);
+
+        var backWaitMs = (int)(backDist / speed * 1000) + 200;
+        var elapsed = 0;
+        while (elapsed < backWaitMs)
         {
-            StopMoving();
-
-            var curX = Position.X;
-            var curY = Position.Y;
-            var dx = destination.X - curX;
-            var dy = destination.Y - curY;
-            var len = MathF.Sqrt(dx * dx + dy * dy);
-
-            if (len > 0.001f)
-            {
-                // Sidestep perpendicular to current path
-                float stepX = -(dy / len) * 2.0f;
-                float stepY = (dx / len) * 2.0f;
-
-                var unstuckPos = new Position(curX + stepX, curY + stepY, Position.Region);
-                Log.Debug($"[AeroBot] Performing unstuck sidestep to ({unstuckPos.X:F1}, {unstuckPos.Y:F1})");
-
-                MoveTo(unstuckPos, false);
-                Thread.Sleep(400);
-            }
+            if (!Components.ScriptManager.Running || Components.ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+                return;
+            Thread.Sleep(50);
+            elapsed += 50;
         }
-        catch (Exception ex)
+
+        // 2) Sidestep according to attempt number:
+        // Attempt 1: 5 meters LEFT
+        // Attempt 2: 10 meters RIGHT
+        // Attempt 3+: alternate
+        float sideVecX;
+        float sideVecY;
+        float sideDist;
+        string sideName;
+
+        if (evasionIndex == 1)
         {
-            Log.Debug($"[AeroBot] TryUnstuck error: {ex.Message}");
+            // 5 meters LEFT
+            sideVecX = -uy;
+            sideVecY = ux;
+            sideDist = 5.0f;
+            sideName = "يساراً (5 أمتار)";
         }
+        else if (evasionIndex == 2)
+        {
+            // 10 meters RIGHT
+            sideVecX = uy;
+            sideVecY = -ux;
+            sideDist = 10.0f;
+            sideName = "يميناً (10 أمتار)";
+        }
+        else if (evasionIndex % 2 == 1)
+        {
+            // Odd attempts (3, 5, ...): LEFT with more distance
+            sideVecX = -uy;
+            sideVecY = ux;
+            sideDist = 10.0f + ((evasionIndex - 3) * 2.5f);
+            sideName = $"يساراً ({sideDist:F0} أمتار)";
+        }
+        else
+        {
+            // Even attempts (4, 6, ...): RIGHT with more distance
+            sideVecX = uy;
+            sideVecY = -ux;
+            sideDist = 15.0f + ((evasionIndex - 4) * 2.5f);
+            sideName = $"يميناً ({sideDist:F0} أمتار)";
+        }
+
+        var posAfterBack = Position;
+        var sideX = posAfterBack.XOffset + (sideVecX * sideDist);
+        var sideY = posAfterBack.YOffset + (sideVecY * sideDist);
+        Position sidePos = new(posAfterBack.Region, sideX, sideY, posAfterBack.ZOffset);
+
+        Log.Notify($"[Navigation] الالتفاف {sideName} لتفادي العائق...");
+        MoveTo(sidePos, sleep: false);
+
+        var sideWaitMs = (int)(sideDist / speed * 1000) + 250;
+        elapsed = 0;
+        while (elapsed < sideWaitMs)
+        {
+            if (!Components.ScriptManager.Running || Components.ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+                return;
+            Thread.Sleep(50);
+            elapsed += 50;
+        }
+
+        // 3) Resume route towards original destination
+        Log.Notify($"[Navigation] تم إتمام مناورة التفادي، استئناف السير نحو الهدف المحدد!");
+        MoveTo(targetPos, sleep: false);
     }
 
     private bool UsePotion(TypeIdFilter filter, ref int tick, ref int duration)

@@ -1,7 +1,9 @@
 ﻿using RSBot.Alchemy.Bundle;
 using RSBot.Alchemy.Bundle.Attribute;
+using RSBot.Alchemy.Bundle.Dismantle;
 using RSBot.Alchemy.Bundle.Enhance;
 using RSBot.Alchemy.Bundle.Magic;
+using RSBot.Alchemy.Bundle.Manufacture;
 using RSBot.Core;
 
 namespace RSBot.Alchemy.Bot;
@@ -15,6 +17,8 @@ internal class Botbase
         EnhanceBundle = new EnhanceBundle();
         MagicBundle = new MagicBundle();
         AttributeBundle = new AttributeBundle();
+        ManufactureBundle = new ManufactureBundle();
+        DismantleBundle = new DismantleBundle();
     }
 
     #endregion Constructor
@@ -45,6 +49,16 @@ internal class Botbase
     public IAlchemyBundle MagicBundle { get; set; }
 
     /// <summary>
+    ///     The make-stuff manager used to resolve or compound alchemy materials
+    /// </summary>
+    public IAlchemyBundle ManufactureBundle { get; }
+
+    /// <summary>
+    ///     The dismantle manager used to break equipment into alchemy materials
+    /// </summary>
+    public IAlchemyBundle DismantleBundle { get; }
+
+    /// <summary>
     ///     The configuration for the Enhancer
     /// </summary>
     public EnhanceBundleConfig EnhanceBundleConfig { get; set; }
@@ -61,6 +75,16 @@ internal class Botbase
     ///     The attributes configuration.
     /// </value>
     public AttributeBundleConfig AttributeBundleConfig { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the configuration for the manufacture manager.
+    /// </summary>
+    public ManufactureBundleConfig ManufactureBundleConfig { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the configuration for the dismantle manager.
+    /// </summary>
+    public DismantleBundleConfig DismantleBundleConfig { get; set; }
 
     #endregion Properties
 
@@ -112,6 +136,34 @@ internal class Botbase
 
             AttributeBundle?.Start();
         }
+
+        if (AlchemyEngine == AlchemyEngine.Manufacture)
+        {
+            if (ManufactureBundleConfig?.Materials == null || ManufactureBundleConfig.Materials.Count == 0)
+            {
+                Log.Warn("[Alchemy] No materials selected for manufacture!");
+
+                Kernel.Bot.Stop();
+
+                return;
+            }
+
+            ManufactureBundle?.Start();
+        }
+
+        if (AlchemyEngine == AlchemyEngine.Dismantle)
+        {
+            if (DismantleBundleConfig?.Equipment == null || DismantleBundleConfig.Equipment.Count == 0)
+            {
+                Log.Warn("[Alchemy] No equipment selected for dismantling!");
+
+                Kernel.Bot.Stop();
+
+                return;
+            }
+
+            DismantleBundle?.Start();
+        }
     }
 
     /// <summary>
@@ -127,6 +179,12 @@ internal class Botbase
 
         if (AlchemyEngine == AlchemyEngine.Attribute)
             AttributeBundle?.Stop();
+
+        if (AlchemyEngine == AlchemyEngine.Manufacture)
+            ManufactureBundle?.Stop();
+
+        if (AlchemyEngine == AlchemyEngine.Dismantle)
+            DismantleBundle?.Stop();
     }
 
     /// <summary>
@@ -178,6 +236,34 @@ internal class Botbase
                 AttributeBundle.Run(AttributeBundleConfig);
 
                 break;
+
+            case AlchemyEngine.Manufacture:
+                if (ManufactureBundle == null || ManufactureBundleConfig == null)
+                {
+                    Log.Warn("[Alchemy] Configuration issue detected!");
+
+                    Kernel.Bot.Stop();
+
+                    return;
+                }
+
+                ManufactureBundle.Run(ManufactureBundleConfig);
+
+                break;
+
+            case AlchemyEngine.Dismantle:
+                if (DismantleBundle == null || DismantleBundleConfig == null)
+                {
+                    Log.Warn("[Alchemy] Configuration issue detected!");
+
+                    Kernel.Bot.Stop();
+
+                    return;
+                }
+
+                DismantleBundle.Run(DismantleBundleConfig);
+
+                break;
         }
     }
 
@@ -188,5 +274,7 @@ internal enum AlchemyEngine
 {
     Enhance,
     Magic,
-    Attribute
+    Attribute,
+    Manufacture,
+    Dismantle
 }

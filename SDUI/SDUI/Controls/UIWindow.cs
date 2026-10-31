@@ -297,6 +297,28 @@ public class UIWindow : UIWindowBase
     private bool controlBox = true;
 
     /// <summary>
+    /// Whether to display the close button of the form
+    /// </summary>
+    private bool _showControlBox = true;
+
+    /// <summary>
+    /// Gets or sets whether to display the close button of the form.
+    /// Detached tool windows keep their title bar but hide the close button.
+    /// </summary>
+    [DefaultValue(true)]
+    [Description("Gets or sets whether to display the close button of the form")]
+    public bool ShowControlBox
+    {
+        get => _showControlBox;
+        set
+        {
+            _showControlBox = value;
+            CalcSystemBoxPos();
+            Invalidate();
+        }
+    }
+
+    /// <summary>
     /// Gets or sets whether to display the control buttons of the form
     /// </summary>
     /*public new bool ControlBox
@@ -528,9 +550,13 @@ public class UIWindow : UIWindowBase
     private const int TAB_HEADER_PADDING = 9;
     private const int TAB_INDICATOR_HEIGHT = 3;
 
-    private const int NAV_WIDTH = 176;
-    private const int NAV_ITEM_HEIGHT = 48;
-    private const int NAV_BADGE_SIZE = 30;
+    private const int NAV_WIDTH = 168;
+    private const int NAV_ITEM_HEIGHT = 42;
+    private const int NAV_BADGE_SIZE = 26;
+
+    private int _navScrollOffset;
+    private int _navMaxScroll;
+    private int _navStep = NAV_ITEM_HEIGHT + 4;
 
     private bool _verticalTabs;
 
@@ -654,7 +680,7 @@ public class UIWindow : UIWindowBase
     {
         _controlBoxLeft = Width;
 
-        if (controlBox)
+        if (controlBox && _showControlBox)
         {
             _controlBoxRect = new(Width - _iconWidthDPI, 0, _iconWidthDPI, _titleHeightDPI);
             _controlBoxLeft = _controlBoxRect.Left - 2;
@@ -699,7 +725,9 @@ public class UIWindow : UIWindowBase
         var titleIconSize = 24 * DPI;
         _formMenuRect = new(10, _titleHeightDPI / 2 - (titleIconSize / 2), titleIconSize, titleIconSize);
 
-        Padding = new Padding(_verticalTabs ? NAV_WIDTH : Padding.Left, (int)(showTitle ? _titleHeightDPI : 0), Padding.Right, Padding.Bottom);
+        // Vertical navigation lives on the left edge. Padding.Left keeps the
+        // page area and child controls neatly docked to the right of the rail.
+        Padding = new Padding(_verticalTabs ? NAV_WIDTH : 0, (int)(showTitle ? _titleHeightDPI : 0), 0, Padding.Bottom);
     }
 
     protected override void OnMouseClick(MouseEventArgs e)
@@ -864,6 +892,25 @@ public class UIWindow : UIWindowBase
         _formMoveMouseDown = false;
 
         animationSource = e.Location;
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        if (_verticalTabs && _navMaxScroll > 0 && e.X <= NAV_WIDTH && e.Y >= _titleHeightDPI)
+        {
+            int delta = Math.Sign(e.Delta) * Math.Max(48, _navStep * 2);
+            int next = Math.Max(0, Math.Min(_navMaxScroll, _navScrollOffset - delta));
+            if (next != _navScrollOffset)
+            {
+                _navScrollOffset = next;
+                UpdateTabRects();
+                Invalidate(new Rectangle(0, 0, NAV_WIDTH, Height));
+            }
+
+            return;
+        }
+
+        base.OnMouseWheel(e);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -1143,7 +1190,7 @@ public class UIWindow : UIWindowBase
             hoverColor = foreColor.Alpha(20);
         }
 
-        if (controlBox)
+        if (controlBox && _showControlBox)
         {
             var closeHoverColor = Color.FromArgb(222, 179, 30, 30);
 
@@ -1255,7 +1302,7 @@ public class UIWindow : UIWindowBase
                 graphics.DrawImage(Icon.ToBitmap(), 10, (_titleHeightDPI / 2) - (faviconSize / 2), faviconSize, faviconSize);
         }
 
-        if (_windowPageControl == null || _windowPageControl.Count == 0)
+        if (_windowPageControl == null || _windowPageControl.Count == 0 || _verticalTabs)
         {
             var stringSize = graphics.MeasureString(Text, Font);
             var textPoint = new PointF((showMenuInsteadOfIcon ? _formMenuRect.X + _formMenuRect.Width : faviconSize + 14), (_titleHeightDPI / 2 - stringSize.Height / 2));
@@ -1571,29 +1618,29 @@ public class UIWindow : UIWindowBase
     {
         bool dark = ColorScheme.BackColor.IsDark();
 
-        var sidebarBg = dark ? Color.FromArgb(13, 19, 33) : Color.FromArgb(245, 247, 250);
+        var sidebarBg = dark ? Color.FromArgb(13, 19, 33) : Color.FromArgb(248, 249, 250);
         var dividerColor = dark ? Color.FromArgb(26, 38, 62) : Color.FromArgb(226, 232, 240);
 
+        int navLeft = 0;
+        int navTop = (int)_titleHeightDPI;
+
         using (var bg = new SolidBrush(sidebarBg))
-            graphics.FillRectangle(bg, 0, 0, NAV_WIDTH, Height);
+            graphics.FillRectangle(bg, navLeft, navTop, NAV_WIDTH, Height - navTop);
 
         using (var edge = new Pen(dividerColor, 1))
-            graphics.DrawLine(edge, NAV_WIDTH - 1, 0, NAV_WIDTH - 1, Height);
+            graphics.DrawLine(edge, NAV_WIDTH - 1, navTop, NAV_WIDTH - 1, Height);
 
-        // Title text next to the window icon
-        var faviconSize = 16 * DPI;
-        using (var titleBrush = new SolidBrush(foreColor))
-            graphics.DrawString(Text, Font, titleBrush,
-                new PointF(faviconSize + 16, (_titleHeightDPI / 2) - (Font.Height / 2)));
+        var clipState = graphics.Save();
+        graphics.SetClip(new Rectangle(navLeft, navTop, NAV_WIDTH, Height - navTop));
 
         int sel = _windowPageControl.SelectedIndex;
 
-        var washHover = dark ? Color.FromArgb(22, 33, 54) : Color.FromArgb(235, 240, 245);
-        var activeBg = dark ? Color.FromArgb(25, 39, 66) : Color.FromArgb(225, 235, 248);
-        var badgeIdle = dark ? Color.FromArgb(22, 32, 50) : Color.FromArgb(230, 235, 242);
-        var textIdle = dark ? Color.FromArgb(148, 163, 184) : Color.FromArgb(100, 116, 139);
-        var textActive = dark ? Color.FromArgb(255, 255, 255) : Color.FromArgb(15, 23, 42);
-        var accentColor = ColorScheme.AccentColor;
+        var washHover = dark ? Color.FromArgb(22, 33, 54) : Color.FromArgb(240, 243, 246);
+        var activeBg = dark ? Color.FromArgb(20, 50, 40) : Color.FromArgb(224, 242, 233);
+        var badgeIdle = dark ? Color.FromArgb(22, 32, 50) : Color.FromArgb(235, 238, 243);
+        var textIdle = dark ? Color.FromArgb(203, 213, 225) : Color.FromArgb(30, 41, 59);
+        var textActive = dark ? Color.FromArgb(52, 211, 153) : Color.FromArgb(30, 130, 80);
+        var accentColor = dark ? Color.FromArgb(52, 211, 153) : Color.FromArgb(46, 171, 107);
 
         using var centerFmt = new StringFormat
         {
@@ -1615,18 +1662,16 @@ public class UIWindow : UIWindowBase
             var page = _windowPageControl.Controls[i];
             bool selected = i == sel;
 
-            var cardRect = new RectangleF(r.X + 4, r.Y + 2, r.Width - 8, r.Height - 4);
+            var cardRect = new RectangleF(r.X + 2, r.Y + 1, r.Width - 4, r.Height - 2);
 
             if (selected)
             {
-                // Modern active item background
                 using var sbg = new SolidBrush(activeBg);
                 graphics.FillPath(sbg, cardRect.Radius(8));
 
-                // Left active accent bar (indicator)
-                var indicator = new RectangleF(cardRect.X + 2, cardRect.Y + 6, 3.5f, cardRect.Height - 12);
+                var indicator = new RectangleF(cardRect.Left + 2, cardRect.Y + 5, 3f, cardRect.Height - 10);
                 using var ib = new SolidBrush(accentColor);
-                graphics.FillPath(ib, indicator.Radius(2));
+                graphics.FillPath(ib, indicator.Radius(1.5f));
             }
             else if (i == _hoverTabIndex)
             {
@@ -1634,18 +1679,18 @@ public class UIWindow : UIWindowBase
                 graphics.FillPath(hbg, cardRect.Radius(8));
             }
 
-            float badge = NAV_BADGE_SIZE;
+            float badge = Math.Min(NAV_BADGE_SIZE, r.Height - 8);
             float by = r.Y + ((r.Height - badge) / 2);
-            var badgeRect = new RectangleF(r.X + 12, by, badge, badge);
-            var badgeBg = selected ? accentColor.Alpha(35) : badgeIdle;
+            var badgeRect = new RectangleF(r.X + 8, by, badge, badge);
+            var badgeBg = selected ? accentColor.Alpha(25) : badgeIdle;
             using (var bb = new SolidBrush(badgeBg))
-                graphics.FillPath(bb, badgeRect.Radius(7));
+                graphics.FillPath(bb, badgeRect.Radius(6));
 
-            var iconColor = selected ? accentColor : textIdle;
+            var iconColor = selected ? accentColor : (dark ? Color.FromArgb(148, 163, 184) : Color.FromArgb(100, 116, 139));
             var iconSvg = SDUI.Helpers.SvgIcons.NavIcon(page.Name);
             if (!string.IsNullOrEmpty(iconSvg))
             {
-                float pad = 7 * DPI;
+                float pad = 5 * DPI;
                 var iconRect = new RectangleF(
                     badgeRect.X + pad, badgeRect.Y + pad,
                     badgeRect.Width - pad * 2, badgeRect.Height - pad * 2);
@@ -1667,9 +1712,27 @@ public class UIWindow : UIWindowBase
                     graphics.DrawString(letter, Font, lb, badgeRect, centerFmt);
             }
 
-            var textRect = new RectangleF(badgeRect.Right + 10, r.Y, r.Right - badgeRect.Right - 14, r.Height);
+            var textRect = new RectangleF(badgeRect.Right + 8, r.Y, r.Right - badgeRect.Right - 8, r.Height);
             using (var tb = new SolidBrush(selected ? textActive : textIdle))
                 graphics.DrawString(page.Text, Font, tb, textRect, leftFmt);
+        }
+
+        graphics.Restore(clipState);
+
+        if (_navMaxScroll > 0)
+        {
+            float trackX = NAV_WIDTH - 4.5f;
+            float trackY = navTop + 8;
+            float trackH = Math.Max(20, Height - navTop - 16);
+            float visibleRatio = trackH / (trackH + _navMaxScroll);
+            float thumbH = Math.Max(28, trackH * visibleRatio);
+            float thumbY = trackY + (trackH - thumbH) * (_navScrollOffset / (float)_navMaxScroll);
+
+            using (var trackBrush = new SolidBrush(dividerColor.Alpha(90)))
+                graphics.FillPath(trackBrush, new RectangleF(trackX, trackY, 2.5f, trackH).Radius(1.25f));
+
+            using (var thumbBrush = new SolidBrush(dark ? Color.FromArgb(70, 90, 120) : Color.FromArgb(160, 174, 192)))
+                graphics.FillPath(thumbBrush, new RectangleF(trackX, thumbY, 2.5f, thumbH).Radius(1.25f));
         }
     }
 
@@ -1677,24 +1740,34 @@ public class UIWindow : UIWindowBase
     {
         pageRect = new();
 
-        //If there isn't a base tab control, the rects shouldn't be calculated
-        //If there aren't tab pages in the base tab control, the list should just be empty which has been set already; exit the void
         if (_windowPageControl == null || _windowPageControl.Count == 0)
             return;
 
-        //Calculate the bounds of each tab header specified in the base tab control
-
         if (_verticalTabs)
         {
-            pageRect.Add(new(8, _titleHeightDPI + 8, NAV_WIDTH - 16, NAV_ITEM_HEIGHT));
-            for (int i = 1; i < _windowPageControl.Count; i++)
-                pageRect.Add(new(8, pageRect[i - 1].Bottom + 4, NAV_WIDTH - 16, NAV_ITEM_HEIGHT));
+            int count = _windowPageControl.Count;
+            int startY = (int)_titleHeightDPI + 6;
+            int available = Math.Max(1, Height - startY - 6);
+
+            int step = count > 0 ? available / count : NAV_ITEM_HEIGHT + 2;
+            step = Math.Min(NAV_ITEM_HEIGHT + 2, Math.Max(32, step));
+            int itemHeight = Math.Max(28, Math.Min(NAV_ITEM_HEIGHT, step - 3));
+
+            int contentHeight = count * step;
+            _navStep = step;
+            _navMaxScroll = Math.Max(0, startY + contentHeight - (Height - 6));
+            if (_navScrollOffset > _navMaxScroll)
+                _navScrollOffset = _navMaxScroll;
+
+            for (int i = 0; i < count; i++)
+                pageRect.Add(new(6, startY + i * step - _navScrollOffset, NAV_WIDTH - 12, itemHeight));
+
             return;
         }
 
         float tabAreaWidth = 44;
 
-        if (controlBox)
+        if (controlBox && _showControlBox)
             tabAreaWidth += _controlBoxRect.Width;
 
         if (MinimizeBox)

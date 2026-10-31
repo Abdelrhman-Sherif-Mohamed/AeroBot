@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using RSBot.Core;
@@ -12,59 +12,43 @@ internal class SummonTransportScriptCommand : IScriptCommand
 
     public bool IsBusy { get; private set; }
 
-    public Dictionary<string, string> Arguments => new();
+    public Dictionary<string, string> Arguments => null;
 
     public bool Execute(string[] arguments = null)
     {
-        if (Game.Player == null)
-            return false;
-
-        if (Game.Player.JobTransport != null)
-        {
-            Log.Notify("[Trade] Job transport is already summoned.");
+        if (Game.Player?.JobTransport != null)
             return true;
-        }
+
+        if (IsBusy)
+            return false;
 
         try
         {
             IsBusy = true;
-
-            while (Game.Player.InAction)
-                Thread.Sleep(100);
-
-            var jobTransportItem = Game.Player.Inventory
-                .GetNormalPartItems(i => (i.Record.CodeName.Contains("COS_T_") || i.Record.CodeName.Contains("ITEM_ETC_TRANS_")) && i.Record.Tid == 4588)
+            var jobTransportItem = Game.Player?.Inventory?
+                .GetNormalPartItems(i => i?.Record != null && (i.Record.CodeName.Contains("COS_T_") || (i.Record.TypeID3 == 2 && i.Record.TypeID4 == 1)))
                 .FirstOrDefault();
 
-            if (jobTransportItem == null)
+            if (jobTransportItem != null)
             {
-                jobTransportItem = Game.Player.Inventory
-                    .GetNormalPartItems(i => i.Record.CodeName.Contains("COS_T_"))
-                    .FirstOrDefault();
+                Log.Notify($"[Script] استدعاء حيوان النقل [{jobTransportItem.Record.GetRealName()}]...");
+                jobTransportItem.Use();
+            }
+            else
+            {
+                Log.Warn("[Script] تعذر استدعاء حيوان النقل: لا يوجد سكرول في الحقيبة.");
+                return false;
             }
 
-            if (jobTransportItem == null)
+            // Wait up to 3 seconds for transport to spawn
+            for (var i = 0; i < 30; i++)
             {
-                Log.Warn("[Trade] Can not summon transport: No transport scroll found in inventory!");
-                return true;
-            }
+                if (Game.Player?.JobTransport != null)
+                    break;
 
-            Log.Notify($"[Trade] Summoning transport scroll [{jobTransportItem.Record.GetRealName()}]...");
-            jobTransportItem.Use();
-
-            var timeout = 50;
-            while (Game.Player.JobTransport == null && timeout-- > 0)
-            {
                 Thread.Sleep(100);
             }
 
-            if (Game.Player.JobTransport != null)
-            {
-                Log.Notify("[Trade] Job transport spawned successfully.");
-                return true;
-            }
-
-            Log.Warn("[Trade] Timed out waiting for job transport to spawn.");
             return true;
         }
         finally

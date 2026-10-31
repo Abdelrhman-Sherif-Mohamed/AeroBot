@@ -38,7 +38,6 @@ public class ReferenceManager
     public List<RefShopGood> ShopGoods { get; } = new(4096);
     public Dictionary<string, RefPackageItemScrap> PackageItemScrap { get; } = new(2048);
     public List<RefTeleport> TeleportData { get; } = new(256);
-    public Dictionary<uint, RefTeleportBuilding> TeleportBuildings { get; } = new(256);
     public List<RefTeleportLink> TeleportLinks { get; } = new(256);
     public Dictionary<int, RefOptionalTeleport> OptionalTeleports { get; } = new(32);
     public Dictionary<uint, RefQuestReward> QuestRewards { get; } = new(1024);
@@ -147,7 +146,7 @@ public class ReferenceManager
 
     private void LoadTeleportData()
     {
-        LoadReferenceFile($"{ServerDep}\\TeleportBuilding.txt", TeleportBuildings);
+        LoadReferenceFile($"{ServerDep}\\TeleportBuilding.txt", CharacterData);
         LoadReferenceFile($"{ServerDep}\\TeleportData.txt", TeleportData);
         LoadReferenceFile($"{ServerDep}\\TeleportLink.txt", TeleportLinks);
         LoadReferenceFile($"{ServerDep}\\refoptionalteleport.txt", OptionalTeleports);
@@ -807,7 +806,6 @@ public class ReferenceManager
         builder.AppendFormat("QuestRewards: {0}\n", QuestRewards.Count);
         builder.AppendFormat("QuestRewardItems: {0}\n", QuestRewardItems.Count);
         builder.AppendFormat("TeleportData: {0}\n", TeleportData.Count);
-        builder.AppendFormat("TeleportBuildings: {0}\n", TeleportBuildings.Count);
         builder.AppendFormat("TeleportLinks: {0}\n", TeleportLinks.Count);
         builder.AppendFormat("OptionalTeleports: {0}\n", OptionalTeleports.Count);
         builder.AppendFormat("MagicOptions: {0}\n", MagicOptions.Count);

@@ -58,7 +58,9 @@ public class Radio : RadioButton
 
     public Radio()
     {
-        SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
+        SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.SupportsTransparentBackColor, true);
+
+        BackColor = Color.Transparent;
 
         animationManager = new Animation.AnimationEngine
         {
@@ -110,21 +112,37 @@ public class Radio : RadioButton
     }
 
     /// <summary>
-    ///     Auto-fit: the radio width grows when AutoSize is enabled so words are never clipped.
+    ///     Auto-fit: the radio width grows so words are never clipped.
     /// </summary>
     private void FitTextToContent()
     {
-        if (!IsHandleCreated || _isFittingText)
+        if (DesignMode || !IsHandleCreated || _isFittingText || !AutoSize || Dock != DockStyle.None)
             return;
 
         try
         {
             _isFittingText = true;
-            if (AutoSize && !string.IsNullOrEmpty(Text))
+            if (!string.IsNullOrEmpty(Text))
             {
-                var need = boxOffset + RADIOBUTTON_SIZE + TextLayout.Gap + TextRenderer.MeasureText(Text, Font).Width + 8;
-                if (need > Width)
+                int gap = Math.Max(10, TextLayout.Gap);
+                var textWidth = TextRenderer.MeasureText(Text, Font).Width;
+                int extraPadding = DrawingExtensions.HasArabic(Text) ? (int)(textWidth * 0.25f) + 16 : 14;
+                var need = boxOffset + RADIOBUTTON_SIZE + gap + textWidth + extraPadding;
+
+                if (Parent != null)
+                {
+                    var maxLimit = Math.Max(Width, Parent.ClientSize.Width - Left - 4);
+                    var targetWidth = Math.Min(need, maxLimit);
+                    if (targetWidth > Width)
+                    {
+                        TextLayout.ShiftRightSiblingsIfNeeded(this, targetWidth, 8);
+                        Width = targetWidth;
+                    }
+                }
+                else if (need > Width)
+                {
                     Width = need;
+                }
             }
         }
         catch
@@ -178,9 +196,22 @@ public class Radio : RadioButton
     {
         var graphics = pevent.Graphics;
         graphics.SmoothingMode = SmoothingMode.HighQuality;
-        graphics.TextRenderingHint = TextRenderingHint.SystemDefault;
+        graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
-        RadioButtonRenderer.DrawParentBackground(pevent.Graphics, ClientRectangle, this);
+        // Native radio-button erasing can leave a solid black rectangle behind
+        // the text. Repaint the parent surface first so transparent radios blend
+        // into cards and panels.
+        if (BackColor == Color.Transparent || BackColor.A == 0)
+            GroupBoxRenderer.DrawParentBackground(graphics, ClientRectangle, this);
+
+        var isLightMode = !ColorScheme.BackColor.IsDark();
+        var isStaleDarkBg = isLightMode && (BackColor == Color.Black || BackColor == Color.FromArgb(0, 0, 0) || BackColor == Color.FromArgb(16, 16, 16));
+
+        if (BackColor != Color.Transparent && !BackColor.IsEmpty && BackColor.A > 0 && !isStaleDarkBg)
+        {
+            using var bgBrush = new SolidBrush(BackColor);
+            graphics.FillRectangle(bgBrush, ClientRectangle);
+        }
 
         var RADIOBUTTON_CENTER = boxOffset + RADIOBUTTON_SIZE_HALF;
 
@@ -188,14 +219,12 @@ public class Radio : RadioButton
 
         var disabledOffColor = Color.LightGray;
 
-        var colorAlpha = Enabled ? (int)(animationProgress * 255.0) :disabledOffColor.A;
-        var backgroundAlpha = Enabled ? (int)(ColorScheme.BorderColor.A * (1.0 - animationProgress)) :disabledOffColor.A;
+        var colorAlpha = Enabled ? (int)(animationProgress * 255.0) : disabledOffColor.A;
         var animationSize = (float)(animationProgress * 8f);
-        var animationSizeHalf = animationSize / 2;
-        animationSize = (float)(animationProgress * 9f);
+        var animationSizeHalf = animationSize / 2f;
 
         using var brush = new SolidBrush(Color.FromArgb(colorAlpha, Enabled ? ColorScheme.AccentColor : disabledOffColor));
-        using var pen = new Pen(brush.Color);
+        using var pen = new Pen(Enabled ? (animationProgress > 0.5 ? ColorScheme.AccentColor : ColorScheme.BorderColor) : disabledOffColor, 1.2f);
 
         // draw ripple animation
         if (Ripple && rippleAnimationManager.IsAnimating())
@@ -214,54 +243,25 @@ public class Radio : RadioButton
             }
         }
 
-        using var ellipseBrush = new SolidBrush(ColorScheme.BorderColor);
-
-        graphics.FillEllipse(
-            ellipseBrush,
-            boxOffset,
-            boxOffset,
-            RADIOBUTTON_SIZE,
-            RADIOBUTTON_SIZE);
-
-        using (var path = DrawingExtensions.CreateRoundPath(boxOffset, boxOffset, RADIOBUTTON_SIZE, RADIOBUTTON_SIZE, 7))
+        // Circle background: Pure white in Light mode, dark input surface in Dark mode
+        var circleBg = ColorScheme.BackColor.IsDark() ? ColorScheme.InputBackColor : Color.White;
+        using (var bgBrush = new SolidBrush(circleBg))
         {
-            // draw radiobutton circle
-            var uncheckedColor = ColorScheme.BackColor.BlendWith(Enabled ? ColorScheme.BorderColor : disabledOffColor, backgroundAlpha);
-
-            using var brush2 = new SolidBrush(uncheckedColor);
-            //graphics.FillPath(brush2, path);
-
-            graphics.FillEllipse(
-                brush2,
-                boxOffset,
-                boxOffset,
-                RADIOBUTTON_INNER_CIRCLE_SIZE,
-                RADIOBUTTON_INNER_CIRCLE_SIZE);
-
-            if (Enabled)
-                graphics.FillEllipse(
-                brush,
-                boxOffset,
-                boxOffset,
-                RADIOBUTTON_SIZE,
-                RADIOBUTTON_SIZE);
-
-            //
-            //    graphics.FillPath(brush, path);
-
+            graphics.FillEllipse(bgBrush, boxOffset, boxOffset, RADIOBUTTON_SIZE, RADIOBUTTON_SIZE);
+            graphics.DrawEllipse(pen, boxOffset, boxOffset, RADIOBUTTON_SIZE, RADIOBUTTON_SIZE);
         }
 
-        if (Checked)
+        // Inner circle dot when checked
+        if (animationProgress > 0)
         {
-            using (var path = DrawingExtensions.CreateRoundPath(RADIOBUTTON_CENTER - animationSizeHalf, RADIOBUTTON_CENTER - animationSizeHalf, animationSize, animationSize, 7))
-                graphics.FillPath(brush, path);
+            graphics.FillEllipse(brush, RADIOBUTTON_CENTER - animationSizeHalf, RADIOBUTTON_CENTER - animationSizeHalf, animationSize, animationSize);
         }
 
-        var textColor = Enabled ? ColorScheme.ForeColor : Color.Gray;
+        var textColor = Enabled ? ColorScheme.ResolveTextColor(ForeColor) : Color.Gray;
 
         // The text wraps naturally onto further lines (never ellipsized); the
         // control grows its height in FitTextToContent so it never clips.
-        var textX = boxOffset + RADIOBUTTON_SIZE + TextLayout.Gap;
+        var textX = boxOffset + RADIOBUTTON_SIZE + Math.Max(10, TextLayout.Gap);
         this.DrawString(graphics, TextAlign, textColor,
             new RectangleF(textX, 0, Math.Max(0, ClientRectangle.Width - textX), ClientRectangle.Height),
             showEllipsis: false, useMnemonic: false, noWrap: true);

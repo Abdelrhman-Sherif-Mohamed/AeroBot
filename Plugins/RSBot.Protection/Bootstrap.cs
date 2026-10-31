@@ -11,7 +11,7 @@ namespace RSBot.Protection;
 public class Bootstrap : IPlugin
 {
     /// <inheritdoc />
-    public string InternalName => "SonicBot.Protection";
+    public string InternalName => "RSBot.Protection";
 
     /// <inheritdoc />
     public string DisplayName => "Protection";

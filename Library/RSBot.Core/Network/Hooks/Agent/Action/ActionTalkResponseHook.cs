@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Components;
+using RSBot.Core.Components;
 
 namespace RSBot.Core.Network.Hooks.Agent.Action;
 
@@ -27,9 +27,7 @@ internal class ActionTalkResponseHook : IPacketHook
     /// <returns></returns>
     public Packet ReplacePacket(Packet packet)
     {
-        if (Kernel.Bot.Running || ShoppingManager.Running)
-            return null;
-
+        // Allow the NPC dialog response (0xB046) to reach the client so the NPC window and dialog are visible
         return packet;
     }
 }

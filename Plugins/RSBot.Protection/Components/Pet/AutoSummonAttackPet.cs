@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using RSBot.Core;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
@@ -55,8 +55,7 @@ public class AutoSummonAttackPet
     /// </summary>
     private static void OnStartBot()
     {
-        if (Game.Player == null ||
-            Game.Player.Growth != null ||
+        if (Game.Player.Growth != null ||
             Game.Player.Fellow != null)
             return;
 

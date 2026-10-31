@@ -1,4 +1,4 @@
-using System.Windows.Forms;
+﻿using System.Windows.Forms;
 using RSBot.Alchemy.Bot;
 using RSBot.Alchemy.Subscriber;
 using RSBot.Core;
@@ -10,9 +10,9 @@ namespace RSBot.Alchemy;
 
 public class Bootstrap : IBotbase
 {
-    private static readonly string _name = "AeroBot.Alchemy";
+    private static readonly string _name = "RSBot.Alchemy";
 
-    public static bool IsActive => Kernel.Bot.Running && (Kernel.Bot.Botbase.Name == _name || Kernel.Bot.Botbase.Name == "SonicBot.Alchemy");
+    public static bool IsActive => Kernel.Bot.Running && Kernel.Bot.Botbase.Name == _name;
 
     public string Name => _name;
 

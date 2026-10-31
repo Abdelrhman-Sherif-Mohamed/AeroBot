@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+using System;
+using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
@@ -34,8 +35,8 @@ public class TextBox : Control
         get { return _passmask; }
         set
         {
-            _textBox.UseSystemPasswordChar = UseSystemPasswordChar;
             _passmask = value;
+            _textBox.UseSystemPasswordChar = value;
             Invalidate();
         }
     }
@@ -117,6 +118,22 @@ public class TextBox : Control
     {
         base.OnFontChanged(e);
         _textBox.Font = Font;
+        UpdateInnerTextBoxBounds();
+    }
+
+    protected override void OnSizeChanged(System.EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        UpdateInnerTextBoxBounds();
+    }
+
+    private void UpdateInnerTextBoxBounds()
+    {
+        if (_textBox == null)
+            return;
+
+        _textBox.Width = Math.Max(1, Width - 10);
+        _textBox.Location = new Point(4, Math.Max(2, (Height - _textBox.Height) / 2));
     }
 
     protected override void OnGotFocus(System.EventArgs e)
@@ -135,7 +152,6 @@ public class TextBox : Control
         _textBox.BackColor = Color.Transparent;
         _textBox.Location = new Point(3, 2);
         _textBox.Font = Font;
-        _textBox.Size = new Size(Width - 10, Height - 11);
         _textBox.UseSystemPasswordChar = UseSystemPasswordChar;
         _textBox.TextChanged += _textbox_TextChanged;
         _textBox.PreviewKeyDown += _textbox_PreviewKeyDown;
@@ -143,8 +159,10 @@ public class TextBox : Control
 
         SetStyle(ControlStyles.UserPaint, true);
         SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+        SetStyle(ControlStyles.ResizeRedraw, true);
 
-        Size = new Size(135, 35);
+        Size = new Size(135, 30);
+        UpdateInnerTextBoxBounds();
         DoubleBuffered = true;
     }
 
@@ -163,32 +181,25 @@ public class TextBox : Control
     {
         ButtonRenderer.DrawParentBackground(e.Graphics, ClientRectangle, this);
 
-        var color = Color.CornflowerBlue;
-
         var graphics = e.Graphics;
         graphics.SmoothingMode = SmoothingMode.HighQuality;
+        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-        var determinedColor = ColorScheme.BackColor.Determine();
-        var backColor = ColorScheme.BackColor.Brightness(-.1f);
+        var inputBg = ColorScheme.InputBackColor;
+        var borderClr = ContainsFocus ? ColorScheme.AccentColor : ColorScheme.BorderColor;
 
-        Height = _textBox.Height + 5;
+        UpdateInnerTextBoxBounds();
         var textbox = _textBox;
-        textbox.Width = Width - 10;
         textbox.TextAlign = TextAlignment;
         textbox.UseSystemPasswordChar = UseSystemPasswordChar;
         textbox.ForeColor = ColorScheme.ForeColor;
-        textbox.BackColor = backColor;
+        textbox.BackColor = inputBg;
 
-        using var backBrush = new SolidBrush(backColor);
-        graphics.FillPath(backBrush, new Rectangle(0, 0, Width - 1, Height - 1).Radius(_radius));
+        using var rectPath = new Rectangle(0, 0, Width - 1, Height - 1).Radius(_radius);
+        using var backBrush = new SolidBrush(inputBg);
+        graphics.FillPath(backBrush, rectPath);
 
-        var colorBegin = determinedColor.Brightness(.1f).Alpha(90);
-        var colorEnd = determinedColor.Brightness(-.1f).Alpha(60);
-
-        using var innerBorderBrush = new LinearGradientBrush(new Rectangle(1, 1, Width - 2, Height - 2), colorBegin, colorEnd, 90);
-        using var innerBorderPen = new Pen(innerBorderBrush);
-
-        graphics.DrawPath(innerBorderPen, new Rectangle(1, 1, Width - _radius, Height - _radius).Radius(_radius));
-        graphics.DrawLine(ColorScheme.BorderColor, new Point(1, 1), new Point(Width - 3, 1));
+        using var borderPen = new Pen(borderClr, 1f);
+        graphics.DrawPath(borderPen, rectPath);
     }
 }

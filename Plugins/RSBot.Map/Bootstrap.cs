@@ -8,7 +8,7 @@ namespace RSBot.Map;
 public class Bootstrap : IPlugin
 {
     /// <inheritdoc />
-    public string InternalName => "SonicBot.Map";
+    public string InternalName => "RSBot.Map";
 
     /// <inheritdoc />
     public string DisplayName => "Map";

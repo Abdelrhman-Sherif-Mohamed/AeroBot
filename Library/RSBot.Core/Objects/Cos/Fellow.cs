@@ -164,6 +164,6 @@ public class Fellow : Cos
         Inventory = new InventoryItemCollection(packet);
 
         if (string.IsNullOrWhiteSpace(Name))
-            Name = LanguageManager.GetLangBySpecificKey("SonicBot", "LabelPetName");
+            Name = LanguageManager.GetLangBySpecificKey("RSBot", "LabelPetName");
     }
 }

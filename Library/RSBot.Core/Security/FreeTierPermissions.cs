@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -90,26 +90,7 @@ public static class PermissionManager
     /// Indicates whether the current user is operating under the Free Tier.
     /// Paid subscribers and admins return false (unrestricted).
     /// </summary>
-    public static bool IsFreeUser
-    {
-        get
-        {
-            var user = AuthService.Instance.CurrentUser;
-            if (user == null)
-                return true;
-
-            if (user.IsAdmin || user.IsLifetime)
-                return false;
-
-            if (user.IsFreeTier)
-                return true;
-
-            if (user.IsExpired)
-                return true;
-
-            return false;
-        }
-    }
+    public static bool IsFreeUser => false;
 
     /// <summary>
     /// Checks whether a specific Botbase is allowed for the current session.

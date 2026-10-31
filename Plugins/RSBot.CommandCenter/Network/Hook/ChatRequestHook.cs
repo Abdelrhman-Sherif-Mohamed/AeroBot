@@ -1,5 +1,4 @@
 ﻿using RSBot.CommandCenter.Components;
-using RSBot.CommandCenter.Components.Command;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Extensions;
@@ -32,38 +31,13 @@ internal class ChatRequestHook : IPacketHook
             packet.ReadByte();
 
         var message = packet.ReadConditonalString();
-        if (string.IsNullOrWhiteSpace(message))
+        if (!message.StartsWith("\\"))
             return packet;
 
-        var trimmed = message.Trim();
-
-        // Support both legacy "\" prefix and natural "!" prefix (e.g. "!start", "\start")
-        var isLegacyCommand = trimmed.StartsWith("\\");
-        var isBangCommand = trimmed.StartsWith("!");
-        if (!isLegacyCommand && !isBangCommand)
-            return packet;
-
-        var content = trimmed.Substring(1).Trim();
-        if (string.IsNullOrEmpty(content))
-            return isLegacyCommand ? null : packet;
-
-        var parts = content.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0)
-            return isLegacyCommand ? null : packet;
-
-        var commandName = parts[0].ToLowerInvariant();
-
-        // Only swallow "!" messages when they match a real bot command,
-        // otherwise let normal chat like "!hello guys" pass through.
-        var executor = CommandManager.GetExecutor(commandName);
-        if (executor == null)
-            return isLegacyCommand ? null : packet;
-
-        InGameCommandContext.Args = parts.Length > 1 ? parts[1..] : System.Array.Empty<string>();
+        var commandName = message.Split('\\')[1];
 
         CommandManager.Execute(commandName);
 
-        // Block the command text so it never appears in game chat
         return null;
     }
 }

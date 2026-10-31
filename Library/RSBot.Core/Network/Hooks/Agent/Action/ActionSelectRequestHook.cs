@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Components;
+using RSBot.Core.Components;
 
 namespace RSBot.Core.Network.Hooks.Agent.Action;
 
@@ -27,9 +27,7 @@ internal class ActionSelectRequestHook : IPacketHook
     /// <returns></returns>
     public Packet ReplacePacket(Packet packet)
     {
-        if (Kernel.Bot.Running || ShoppingManager.Running)
-            return null;
-
+        // Allow the user in the client to freely select NPCs, players, and monsters
         return packet;
     }
 }

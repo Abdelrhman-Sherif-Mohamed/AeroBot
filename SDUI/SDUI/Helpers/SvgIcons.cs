@@ -17,9 +17,16 @@ namespace SDUI.Helpers
             if (string.IsNullOrEmpty(pageName))
                 return null;
 
-            var normalized = pageName.StartsWith("RSBot.") ? "SonicBot." + pageName.Substring(6) : pageName;
+            var normalized = pageName;
+            if (normalized.StartsWith("RSBot."))
+                normalized = "SonicBot." + normalized.Substring(6);
+            else if (normalized.StartsWith("Wolves."))
+                normalized = "SonicBot." + normalized.Substring(7);
+
             switch (normalized)
             {
+                case "SonicBot.Fortress":
+                    return Icon("M2 4v3h2v13h16V7h2V4h-3v3h-2V4h-3v3h-2V4H9v3H7V4H2zm4 5h12v9H6V9zm3 2v5h2v-5H9zm4 0v5h2v-5h-2z");
                 case "SonicBot.General":
                     return Icon("M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z");
                 case "SonicBot.Default":
@@ -47,7 +54,12 @@ namespace SDUI.Helpers
                 case "SonicBot.Log":
                     return Icon("M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z");
                 case "SonicBot.QuestLog":
+                case "SonicBot.Quest":
                     return Icon("M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z");
+                case "SonicBot.Alchemy":
+                    return Icon("M19 19c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2 0-.32.08-.62.21-.89L9 11.5V5H8V3h8v2h-1v6.5l3.79 6.61c.13.27.21.57.21.89zM7.74 19h8.52l-2.26-4H9.99l-2.25 4z");
+                case "SonicBot.Players":
+                    return Icon("M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z");
                 case "SonicBot.ServerInfo":
                     return Icon("M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z");
                 case "SonicBot.CommandCenter":

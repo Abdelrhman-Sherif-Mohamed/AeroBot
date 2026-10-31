@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Components;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects.Spawn;
 
@@ -26,16 +26,16 @@ internal class ActionBuffRemoveResponse : IPacketHandler
 
                 EventManager.FireEvent("OnRemoveBuff", buff);
 
-                var playerSkill = Game.Player.Skills.GetSkillInfoById(buff.Id);
+                var playerSkill = Game.Player.Skills?.GetSkillInfoById(buff.Id);
                 playerSkill?.Reset();
 
-                return;
+                continue;
             }
 
-            if (!SpawnManager.TryGetEntity<SpawnedBionic>(p => p.State.TryGetActiveBuff(token, out _), out var bionic))
+            if (!SpawnManager.TryGetEntity<SpawnedBionic>(p => p.State != null && p.State.TryGetActiveBuff(token, out _), out var bionic))
             {
                 Log.Warn($"{token} not found while trying remove buff with token!");
-                return;
+                continue;
             }
 
             bionic.State.TryRemoveActiveBuff(token, out _);

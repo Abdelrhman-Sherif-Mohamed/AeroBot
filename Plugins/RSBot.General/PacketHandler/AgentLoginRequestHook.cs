@@ -35,6 +35,9 @@ internal class AgentLoginRequestHook : IPacketHook
 
         var username = GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername");
 
+        if (Accounts.SavedAccounts == null)
+            return packet;
+
         var selectedAccount = Accounts.SavedAccounts.Find(p => p.Username == username);
         if (selectedAccount == null)
             return packet;
@@ -53,7 +56,7 @@ internal class AgentLoginRequestHook : IPacketHook
             packet.WriteString(selectedAccount.Password);
 
         packet.WriteByte(Game.ReferenceManager.DivisionInfo.Locale);
-        packet.WriteByteArray(new byte[6]);
+        packet.WriteBytes(new byte[6]);
         packet.Lock();
 
         return packet;

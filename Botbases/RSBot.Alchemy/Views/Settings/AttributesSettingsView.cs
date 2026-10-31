@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using RSBot.Alchemy.Bot;
@@ -9,18 +10,20 @@ using RSBot.Alchemy.Helper;
 using RSBot.Core;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
+using SDUI;
 using SDUI.Controls;
 
 namespace RSBot.Alchemy.Views.Settings;
 
 [ToolboxItem(false)]
-public partial class AttributesSettingsView : DoubleBufferedControl
+public partial class AttributesSettingsView : UserControl
 {
     private List<AttributeInfoPanel> _attributePanels;
 
     public AttributesSettingsView()
     {
         InitializeComponent();
+        DoubleBuffered = true;
 
         CheckForIllegalCrossThreadCalls = false;
 
@@ -76,7 +79,16 @@ public partial class AttributesSettingsView : DoubleBufferedControl
             var selectedItem = Globals.View.SelectedItem;
 
             if (selectedItem == null)
+            {
+                SuspendLayout();
+                var old = Controls.Cast<Control>().ToArray();
+                Controls.Clear();
+                foreach (var control in old)
+                    control.Dispose();
+                ResumeLayout(true);
+
                 return;
+            }
 
             var availableItemAttributes = ItemAttributesInfo.GetAvailableAttributeGroupsForItem(selectedItem.Record);
 
@@ -113,10 +125,13 @@ public partial class AttributesSettingsView : DoubleBufferedControl
                 panel.OnChange += PanelOnChange;
             }
 
-            Hide();
+            SuspendLayout();
+            var oldPanels = Controls.Cast<Control>().ToArray();
             Controls.Clear();
+            foreach (var control in oldPanels)
+                control.Dispose();
             Controls.AddRange(_attributePanels.ToArray());
-            Show();
+            ResumeLayout(true);
 
             Globals.Botbase.AttributeBundleConfig = BundleConfig;
         }
@@ -129,6 +144,67 @@ public partial class AttributesSettingsView : DoubleBufferedControl
     private void PanelOnChange(bool @checked, int maxValue)
     {
         Globals.Botbase.AttributeBundleConfig = BundleConfig;
+    }
+
+    /// <summary>
+    ///     Selects every attribute row that still has stones available.
+    /// </summary>
+    public void SelectAll()
+    {
+        if (_attributePanels == null)
+            return;
+
+        foreach (var panel in _attributePanels)
+        {
+            if (panel == null || !panel.Enabled)
+                continue;
+
+            if (panel.CanBeSelected)
+                panel.Checked = true;
+        }
+
+        Globals.Botbase.AttributeBundleConfig = BundleConfig;
+    }
+
+    /// <summary>
+    ///     Applies the same target percentage to every attribute row.
+    /// </summary>
+    public void SetAllMaxValue(int maxValue)
+    {
+        if (_attributePanels == null)
+            return;
+
+        foreach (var panel in _attributePanels)
+        {
+            if (panel == null || !panel.Enabled)
+                continue;
+
+            panel.SetMaxValue(maxValue);
+        }
+
+        Globals.Botbase.AttributeBundleConfig = BundleConfig;
+    }
+
+    public void ApplyLocalization()
+    {
+        // Attribute captions come from the game reference data; only the shared
+        // row controls need localization.
+        if (_attributePanels == null)
+            return;
+
+        foreach (var panel in _attributePanels)
+            panel?.ApplyLocalization();
+    }
+
+    public void ApplyTheme()
+    {
+        BackColor = Color.Transparent;
+
+        if (_attributePanels == null)
+            return;
+
+        foreach (var panel in _attributePanels)
+            panel?.ApplyTheme();
     }
 
     private void View_EngineChanged(InventoryItem item, AlchemyEngine alchemyEngine)

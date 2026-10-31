@@ -8,7 +8,7 @@ namespace RSBot.Chat;
 public class Bootstrap : IPlugin
 {
     /// <inheritdoc />
-    public string InternalName => "SonicBot.Chat";
+    public string InternalName => "RSBot.Chat";
 
     /// <inheritdoc />
     public string DisplayName => "Chat";
