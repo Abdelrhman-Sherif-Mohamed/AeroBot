@@ -938,7 +938,7 @@ public class Player : SpawnedBionic
             return false;
 
         var elapsed = Kernel.TickCount - _lastUniversalPillTick;
-        if (elapsed < 1050)
+        if (elapsed < 2500)
             return false;
 
         var slotItem = Inventory.GetItem(p => p.Record.IsUniversalPill || p.Record.IsAbnormalPotion);

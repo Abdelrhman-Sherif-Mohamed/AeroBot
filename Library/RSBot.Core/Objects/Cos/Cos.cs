@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Threading;
 using RSBot.Core.Components;
@@ -87,7 +88,23 @@ public class Cos : SpawnedEntity
     /// <value>
     ///     The bad effect.
     /// </value>
-    public BadEffect BadEffect { get; set; }
+    private BadEffect _badEffect;
+    public BadEffect BadEffect
+    {
+        get => _badEffect;
+        set
+        {
+            if (_badEffect != value)
+            {
+                _badEffect = value;
+                if ((_badEffect & BadEffectAll.UniversallPillEffects) == 0)
+                {
+                    _badEffectAttempts = 0;
+                    _lastAttemptedBadEffect = BadEffect.None;
+                }
+            }
+        }
+    }
 
     /// <summary>
     ///     Gets or sets the AbilityPet's Inventory.
@@ -116,6 +133,16 @@ public class Cos : SpawnedEntity
     protected int _lastBadStatusPotionTick;
 
     /// <summary>
+    ///     Tracks the bad effect we are currently attempting to cure.
+    /// </summary>
+    protected BadEffect _lastAttemptedBadEffect;
+
+    /// <summary>
+    ///     Number of attempts made for the current bad effect.
+    /// </summary>
+    protected int _badEffectAttempts;
+
+    /// <summary>
     ///     Uses the health potion.
     /// </summary>
     /// <returns></returns>
@@ -136,22 +163,47 @@ public class Cos : SpawnedEntity
     }
 
     /// <summary>
-    ///     Uses the bad status potion.
+    ///     Uses the bad status potion with a safe throttle and max 2 attempts per bad effect.
     /// </summary>
     /// <returns></returns>
     public virtual bool UseBadStatusPotion()
     {
-        var elapsed = Kernel.TickCount - _lastBadStatusPotionTick;
-        if (elapsed < 1500)
+        if (BadEffect == BadEffect.None)
+        {
+            _badEffectAttempts = 0;
+            _lastAttemptedBadEffect = BadEffect.None;
+            return false;
+        }
+
+        // Reset attempt counter if the bad effect changed
+        if (BadEffect != _lastAttemptedBadEffect)
+        {
+            _lastAttemptedBadEffect = BadEffect;
+            _badEffectAttempts = 0;
+        }
+
+        // Cap consecutive attempts for the same uncured bad effect to avoid potion spam
+        if (_badEffectAttempts >= 2)
             return false;
 
-        var item = Game.Player.Inventory.GetItem(p => p.Record.IsCosBadStatusPotion) ??
-                   Game.Player.Inventory.GetItem(new TypeIdFilter(3, 3, 2, 7));
+        // Minimum 5 seconds cooldown between abnormal state potion uses on vehicle/pet
+        var elapsed = Kernel.TickCount - _lastBadStatusPotionTick;
+        if (elapsed < 5000)
+            return false;
+
+        // Find best matching potion (order by required level descending so highest degree is picked)
+        var cosPotions = Game.Player.Inventory
+            .GetItems(p => p.Record.IsCosBadStatusPotion || (p.Record.TypeID1 == 3 && p.Record.TypeID2 == 3 && p.Record.TypeID3 == 2 && p.Record.TypeID4 == 7));
+
+        var item = cosPotions.OrderByDescending(p => p.Record.ReqLevel1).FirstOrDefault();
         if (item == null)
             return false;
 
         item.UseFor(UniqueId);
         _lastBadStatusPotionTick = Kernel.TickCount;
+        _badEffectAttempts++;
+
+        Log.Notify($"[Protection] Used abnormal state potion for [{Name}] ({_badEffectAttempts}/2)");
 
         return true;
     }

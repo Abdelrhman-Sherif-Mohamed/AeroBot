@@ -1,4 +1,4 @@
-﻿using RSBot.Core;
+using RSBot.Core;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
 
@@ -31,10 +31,12 @@ public class UniversalPillHandler
         if (!useUniversalPill)
             return;
 
-        if ((Game.Player.BadEffect & BadEffectAll.UniversallPillEffects) != 0)
+        if ((Game.Player.BadEffect & BadEffectAll.UniversallPillEffects) != 0 &&
+            (Game.Player.BadEffect & BadEffect.Zombie) == 0)
             Game.Player.UseUniversalPill();
 
-        if ((Game.Player.BadEffect & BadEffectAll.PurificationPillEffects) != 0)
+        if ((Game.Player.BadEffect & BadEffectAll.PurificationPillEffects) != 0 &&
+            (Game.Player.BadEffect & BadEffect.Zombie) == 0)
             Game.Player.UsePurificationPill();
     }
 }

@@ -2,19 +2,23 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• إصلاح جذري لظهور كافة التبويبات والمميزات المفقودة (الخريطة، القلعة، الإضافات، المتجر، الأزياء، اللاعبون، الإحصائيات، الدردشة، الإشعارات):
-- تم حل خطأ التحويل البرمجي (InvalidCastException في ToolStripSeparator) داخل محرك الترجمة والقوائم المنبثقة والذي كان يتسبب في إيقاف حلقة تحميل الإضافات عند تابة الخريطة وحرمان باقي التابات من الظهور.
-- إضافة حماية استثنائية (Safe Extension Loader) تضمن عزل أخطاء أي إضافة بشكل مستقل دون التأثير على بقية المميزات.
-- ظهور كافة الـ 16 تابة بالكامل في الشريط الجانبي والقوائم بدون أي نقص."""
+changelog_ar = """• إصلاح شامل وجذري لمشكلة استهلاك حبوب فك السموم والحالات الشاذة للتريدة والحيوانات (Cos & Trade Bad Status Recovery):
+- تم حل مشكلة الإفراط الشديد في استهلاك حبوب فك السموم (حيث كان البوت يضرب 11 و 12 جرعة متتالية بمجرد إصابة وسيلة النقل بالسم من السيف).
+- رفع فترة الانتظار بين استخدام الجرعات إلى 5 ثوانٍ كاملة (Safe Cooldown) لمنح السيرفر وشبكة الاتصال وقتاً كافياً لإزالة التأثير.
+- وضع حد أقصى ذكي لمحاولات فك السم (Max 2 Attempts) لنفس الحالة الشاذة لمنع إهدار الجرعات نهائياً في حال كانت الحالة غير قابلة للفك أو تتجدد من ضربات السيف المستمرة.
+- اختيار الجرعة المناسبة بأعلى دجري/مستوى متاح في الشنطة لفك سموم الوحوش والسيف عالية المستوى بكفاءة من أول ضربة.
+- استثناء حالة الـ Zombie التي لا يمكن علاجها بالجرعات العادية لمنع إهدار الحبوب عبثاً."""
 
-changelog_en = """• Critical fix for missing tabs and extensions (Map, Fortress, Control, Stall, Avatar Tester, Players, Statistics, Chat, Log):
-- Resolved an InvalidCastException on ToolStripSeparator inside the UI language translation traversal that was prematurely terminating the extension loading loop at the Map tab.
-- Added isolated error boundary (Safe Extension Loader) to ensure any extension anomaly cannot break other tabs.
-- All 16 sidebar tabs and features now load and display completely."""
+changelog_en = """• Comprehensive fix for excessive Abnormal State / Poison Recovery potion consumption on Trade Transports & Pets:
+- Resolved the rapid spamming bug where the bot consumed 11-12 pills in a row upon transport being poisoned by thieves.
+- Increased recovery potion cooldown to a safe 5-second interval, allowing network latency and server updates to clear the effect.
+- Added a smart 2-attempt cap per bad effect episode to completely eliminate potion waste when debuffs are continually reapplied by attacking thieves.
+- Intelligent potion selection prioritizes highest degree/level potions in inventory to cure high-level thief poisons on first hit.
+- Excluded uncurable Zombie status to prevent unnecessary pill usage."""
 
 data = {
-    "version": "2.9.21",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.21.zip",
+    "version": "2.9.22",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.22.zip",
     "mandatory": False,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -31,4 +35,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.21 update to Firebase! Status:', res.status)
+    print('Published 2.9.22 update to Firebase! Status:', res.status)
