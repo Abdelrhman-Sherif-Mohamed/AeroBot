@@ -1,4 +1,4 @@
-﻿using RSBot.Core;
+using RSBot.Core;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
 
@@ -31,23 +31,19 @@ internal class CosBadStatusHandler
             return;
 
         if (Game.Player.Growth != null &&
-            ((Game.Player.Growth.BadEffect & BadEffectAll.UniversallPillEffects) != 0 ||
-             (Game.Player.Growth.BadEffect & BadEffectAll.PurificationPillEffects) != 0))
+            (Game.Player.Growth.BadEffect & BadEffectAll.UniversallPillEffects) != 0)
             Game.Player.Growth.UseBadStatusPotion();
 
         if (Game.Player.Fellow != null &&
-            ((Game.Player.Fellow.BadEffect & BadEffectAll.UniversallPillEffects) != 0 ||
-             (Game.Player.Fellow.BadEffect & BadEffectAll.PurificationPillEffects) != 0))
+            (Game.Player.Fellow.BadEffect & BadEffectAll.UniversallPillEffects) != 0)
             Game.Player.Fellow.UseBadStatusPotion();
 
         if (Game.Player.Transport != null &&
-            ((Game.Player.Transport.BadEffect & BadEffectAll.UniversallPillEffects) != 0 ||
-             (Game.Player.Transport.BadEffect & BadEffectAll.PurificationPillEffects) != 0))
+            (Game.Player.Transport.BadEffect & BadEffectAll.UniversallPillEffects) != 0)
             Game.Player.Transport.UseBadStatusPotion();
 
         if (Game.Player.JobTransport != null &&
-            ((Game.Player.JobTransport.BadEffect & BadEffectAll.UniversallPillEffects) != 0 ||
-             (Game.Player.JobTransport.BadEffect & BadEffectAll.PurificationPillEffects) != 0))
+            (Game.Player.JobTransport.BadEffect & BadEffectAll.UniversallPillEffects) != 0)
             Game.Player.JobTransport.UseBadStatusPotion();
     }
 }

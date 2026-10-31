@@ -1,4 +1,4 @@
-﻿namespace RSBot.Core.Client.ReferenceObjects;
+namespace RSBot.Core.Client.ReferenceObjects;
 
 public class RefObjItem : RefObjCommon
 {
@@ -203,6 +203,11 @@ public class RefObjItem : RefObjCommon
     ///     A value indicating if the item is of type abnormal potion
     /// </summary>
     public bool IsAbnormalPotion => IsStackable && TypeID3 == 2 && TypeID4 == 9;
+
+    /// <summary>
+    ///     A value indicating if the item is of type cos abnormal potion
+    /// </summary>
+    public bool IsCosBadStatusPotion => IsStackable && TypeID3 == 2 && TypeID4 == 7;
 
     /// <summary>
     ///     A value indicating if the item is of type cos hp potion

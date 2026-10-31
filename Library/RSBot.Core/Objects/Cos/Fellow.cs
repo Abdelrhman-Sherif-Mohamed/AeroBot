@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Client.ReferenceObjects;
+using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Components;
 using RSBot.Core.Network;
 
@@ -120,11 +120,16 @@ public class Fellow : Cos
 
     public override bool UseHealthPotion()
     {
+        var elapsed = Kernel.TickCount - _lastHealthPotionTick;
+        if (elapsed < 1050)
+            return false;
+
         var usingItem = Game.Player.Inventory.GetItem(p => p.Record.IsFellowHpPotion);
         if (usingItem == null)
             return false;
 
         usingItem.UseFor(UniqueId);
+        _lastHealthPotionTick = Kernel.TickCount;
 
         return true;
     }

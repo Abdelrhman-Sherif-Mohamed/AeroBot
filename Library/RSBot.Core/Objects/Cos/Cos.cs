@@ -106,16 +106,31 @@ public class Cos : SpawnedEntity
     public SpawnedBionic Bionic => SpawnManager.GetEntity<SpawnedBionic>(UniqueId);
 
     /// <summary>
+    ///     Gets or sets the last hp potion item tick count
+    /// </summary>
+    protected int _lastHealthPotionTick;
+
+    /// <summary>
+    ///     Gets or sets the last bad status potion item tick count
+    /// </summary>
+    protected int _lastBadStatusPotionTick;
+
+    /// <summary>
     ///     Uses the health potion.
     /// </summary>
     /// <returns></returns>
     public virtual bool UseHealthPotion()
     {
+        var elapsed = Kernel.TickCount - _lastHealthPotionTick;
+        if (elapsed < 1050)
+            return false;
+
         var usingItem = Game.Player.Inventory.GetItem(p => p.Record.IsCosHpPotion);
         if (usingItem == null)
             return false;
 
         usingItem.UseFor(UniqueId);
+        _lastHealthPotionTick = Kernel.TickCount;
 
         return true;
     }
@@ -126,12 +141,17 @@ public class Cos : SpawnedEntity
     /// <returns></returns>
     public virtual bool UseBadStatusPotion()
     {
-        var typeIdFilter = new TypeIdFilter(3, 3, 2, 7);
-        var item = Game.Player.Inventory.GetItem(typeIdFilter);
+        var elapsed = Kernel.TickCount - _lastBadStatusPotionTick;
+        if (elapsed < 1500)
+            return false;
+
+        var item = Game.Player.Inventory.GetItem(p => p.Record.IsCosBadStatusPotion) ??
+                   Game.Player.Inventory.GetItem(new TypeIdFilter(3, 3, 2, 7));
         if (item == null)
             return false;
 
         item.UseFor(UniqueId);
+        _lastBadStatusPotionTick = Kernel.TickCount;
 
         return true;
     }
