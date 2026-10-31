@@ -1,15 +1,15 @@
 ﻿DisplayName="مركز الأوامر"
-RSBot.CommandCenter.Main.checkEnable="تفعيل مركز الأوامر"
-RSBot.CommandCenter.Main.btnResetToDefaults="إعادة للافتراضي"
-RSBot.CommandCenter.Main.btnSave="حفظ"
-RSBot.CommandCenter.Main.TabControl.tabPage1="أوامر التعبيرات"
-RSBot.CommandCenter.Main.TabControl.tabPage2="أوامر الشات"
-RSBot.CommandCenter.Main.TabControl.tabPage3="الأوفرلاي"
-RSBot.CommandCenter.Main.TabControl.TabPage.label1="اكتب الأوامر التالية في شات اللعبة"
-RSBot.CommandCenter.Main.TabControl.TabPage.label2="أيقونة عائمة تتبع نافذة اللعبة"
-RSBot.CommandCenter.Main.TabControl.TabPage.checkOverlay="تفعيل أيقونة الأوفرلاي داخل اللعبة"
-RSBot.CommandCenter.Main.TabControl.TabPage.btnShowOverlay="إظهار الأوفرلاي الآن"
-RSBot.CommandCenter.Main.TabControl.TabPage.lblOverlayHint="الأوفرلاي نافذة صغيرة فوق الكل (بدون حقن، آمنة).
+AeroBot.CommandCenter.Main.checkEnable="تفعيل مركز الأوامر"
+AeroBot.CommandCenter.Main.btnResetToDefaults="إعادة للافتراضي"
+AeroBot.CommandCenter.Main.btnSave="حفظ"
+AeroBot.CommandCenter.Main.TabControl.tabPage1="أوامر التعبيرات"
+AeroBot.CommandCenter.Main.TabControl.tabPage2="أوامر الشات"
+AeroBot.CommandCenter.Main.TabControl.tabPage3="الأوفرلاي"
+AeroBot.CommandCenter.Main.TabControl.TabPage.label1="اكتب الأوامر التالية في شات اللعبة"
+AeroBot.CommandCenter.Main.TabControl.TabPage.label2="أيقونة عائمة تتبع نافذة اللعبة"
+AeroBot.CommandCenter.Main.TabControl.TabPage.checkOverlay="تفعيل أيقونة الأوفرلاي داخل اللعبة"
+AeroBot.CommandCenter.Main.TabControl.TabPage.btnShowOverlay="إظهار الأوفرلاي الآن"
+AeroBot.CommandCenter.Main.TabControl.TabPage.lblOverlayHint="الأوفرلاي نافذة صغيرة فوق الكل (بدون حقن، آمنة).
 
 - زر بدء/إيقاف + حالة HP/MP
 - اختصارات المدينة / الحالة / البوت

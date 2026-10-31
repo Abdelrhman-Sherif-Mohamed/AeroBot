@@ -263,7 +263,8 @@ public partial class Main : DoubleBufferedControl
             item.SubItems.Add(GetPartyLevel(player.Name)?.ToString() ?? "-");
             item.SubItems.Add(FormatDistance(player));
             item.SubItems.Add(GetJobName(player.Job));
-            item.SubItems.Add(player.WearsJobSuite ? "نعم" : "لا");
+            bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+            item.SubItems.Add(player.WearsJobSuite ? (ar ? "نعم" : "Yes") : (ar ? "لا" : "No"));
             item.SubItems.Add(GetPlayerStatus(player));
 
             listViewPlayers.Items.Add(item);
@@ -338,7 +339,8 @@ public partial class Main : DoubleBufferedControl
         lblPlayersValue.Text = players.Count.ToString();
         lblThievesValue.Text = thieves.ToString();
         lblHtValue.Text = $"{hunters} / {thieves}";
-        lblRefreshTime.Text = $"آخر تحديث: {DateTime.Now:HH:mm:ss}";
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+        lblRefreshTime.Text = (ar ? "آخر تحديث: " : "Last Update: ") + $"{DateTime.Now:HH:mm:ss}";
     }
 
     private void UpdateTargetCombo(List<SpawnedPlayer> players)
@@ -400,7 +402,8 @@ public partial class Main : DoubleBufferedControl
     {
         var manager = PlayerTraceManager.Instance;
 
-        lblTraceStatus.Text = $"الحالة: {manager.StatusText}";
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+        lblTraceStatus.Text = (ar ? "الحالة: " : "Status: ") + manager.StatusText;
 
         if (manager.IsTracing)
             lblTraceStatus.ForeColor = Color.LimeGreen;
@@ -623,39 +626,40 @@ public partial class Main : DoubleBufferedControl
         if (item == null)
             return "-";
 
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
         if (item.TypeID2 == 1)
         {
             switch (item.TypeID3)
             {
                 case 1:
-                    return "ملابس";
+                    return ar ? "ملابس" : "Garment";
                 case 2:
-                    return "درع خفيف";
+                    return ar ? "درع خفيف" : "Protector";
                 case 3:
-                    return "درع ثقيل";
+                    return ar ? "درع ثقيل" : "Armor";
                 case 4:
-                    return "ترس";
+                    return ar ? "ترس" : "Shield";
                 case 5:
-                    return "إكسسوار";
+                    return ar ? "إكسسوار" : "Accessory";
                 case 6:
-                    return "سلاح";
+                    return ar ? "سلاح" : "Weapon";
                 case 7:
-                    return "زي مهني";
+                    return ar ? "زي مهني" : "Job Suit";
                 case 9:
                 case 10:
                 case 11:
-                    return "درع";
+                    return ar ? "درع" : "Shield";
                 case 12:
-                    return "إكسسوار";
+                    return ar ? "إكسسوار" : "Accessory";
                 case 13:
                 case 14:
-                    return "أفاتار";
+                    return ar ? "أفاتار" : "Avatar";
                 default:
-                    return "معدات";
+                    return ar ? "معدات" : "Equipment";
             }
         }
 
-        return "أخرى";
+        return ar ? "أخرى" : "Other";
     }
 
     private static string GetItemRarity(RefObjItem item)
@@ -663,28 +667,30 @@ public partial class Main : DoubleBufferedControl
         if (item == null)
             return "-";
 
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
         return item.Rarity switch
         {
-            ObjectRarity.ClassA => "عادي",
-            ObjectRarity.ClassB => "أزرق",
+            ObjectRarity.ClassA => ar ? "عادي" : "Normal",
+            ObjectRarity.ClassB => ar ? "أزرق" : "Magic",
             ObjectRarity.ClassC => "SoX",
-            ObjectRarity.ClassD => "طقم",
-            ObjectRarity.ClassE => "نادر",
-            ObjectRarity.ClassF => "نادر+",
+            ObjectRarity.ClassD => ar ? "طقم" : "Set",
+            ObjectRarity.ClassE => ar ? "نادر" : "Rare",
+            ObjectRarity.ClassF => ar ? "نادر+" : "Rare+",
             ObjectRarity.ClassG => "ROC",
-            ObjectRarity.ClassH => "أسطوري",
-            ObjectRarity.ClassI => "فريد",
+            ObjectRarity.ClassH => ar ? "أسطوري" : "Legendary",
+            ObjectRarity.ClassI => ar ? "فريد" : "Unique",
             _ => item.Rarity.ToString()
         };
     }
 
     private static string GetJobName(JobType job)
     {
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
         return job switch
         {
-            JobType.Trade => "تاجر",
-            JobType.Thief => "لص",
-            JobType.Hunter => "صياد",
+            JobType.Trade => ar ? "تاجر" : "Trader",
+            JobType.Thief => ar ? "لص" : "Thief",
+            JobType.Hunter => ar ? "صياد" : "Hunter",
             _ => "-"
         };
     }
@@ -694,29 +700,30 @@ public partial class Main : DoubleBufferedControl
         if (player == null)
             return "-";
 
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
         if (player.State.LifeState == LifeState.Dead)
-            return "ميت";
+            return ar ? "ميت" : "Dead";
 
         var states = new List<string>();
 
         if (player.InCombat)
-            states.Add("قتال");
+            states.Add(ar ? "قتال" : "Combat");
 
         if (player.PvpState == PvpState.Purple)
-            states.Add("بنفسجي");
+            states.Add(ar ? "بنفسجي" : "Purple");
         else if (player.PvpState == PvpState.Red)
-            states.Add("أحمر");
+            states.Add(ar ? "أحمر" : "Red");
 
         if (player.OnTransport)
-            states.Add("مركبة");
+            states.Add(ar ? "مركبة" : "Transport");
 
         if (player.ScrollMode != ScrollMode.None)
-            states.Add("سكرول");
+            states.Add(ar ? "سكرول" : "Scroll");
 
         if (player.Stall != null || player.InteractMode == InteractMode.OPNMKT_DEAL)
-            states.Add("متجر");
+            states.Add(ar ? "متجر" : "Stall");
 
-        return states.Count == 0 ? "طبيعي" : string.Join("، ", states);
+        return states.Count == 0 ? (ar ? "طبيعي" : "Normal") : string.Join(ar ? "، " : ", ", states);
     }
 
     private static Color GetPlayerColor(SpawnedPlayer player)

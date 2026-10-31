@@ -1,4 +1,5 @@
 DisplayName="Chat"
+TabText="Chat"
 RSBot.Chat.Main.TabControl.tabAll="All"
 RSBot.Chat.Main.TabControl.tabPrivate="Private"
 RSBot.Chat.Main.TabControl.tabParty="Party"

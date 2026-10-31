@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -197,10 +197,60 @@ public class LanguageManager
     /// </summary>
     /// <param name="key">The key</param>
     /// <param name="default">The default value that will be returned if the translation could not be found</param>
+    public static void ClearCache()
+    {
+        _values.Clear();
+    }
+
+    /// <summary>
+    ///     Get language value
+    /// </summary>
+    /// <param name="parent">Parent module or assembly name</param>
+    /// <param name="key">The key</param>
+    /// <param name="default">The default value that will be returned if the translation could not be found</param>
     public static string GetLangBySpecificKey(string parent, string key, string @default = "")
     {
-        if (_values.ContainsKey(parent) && _values[parent].ContainsKey(key))
-            return _values[parent][key];
+        var lang = Kernel.Language ?? "en_US";
+        var cacheKey = $"{parent}:{lang}";
+
+        if (!_values.ContainsKey(cacheKey))
+        {
+            try
+            {
+                var path = Path.Combine(_path, parent, lang + ".rsl");
+                if (!File.Exists(path) && lang != "en_US")
+                    path = Path.Combine(_path, parent, "en_US.rsl");
+
+                if (File.Exists(path))
+                    _values[cacheKey] = ParseLanguageFile(path);
+            }
+            catch { }
+        }
+
+        if (_values.TryGetValue(cacheKey, out var dict) && dict.TryGetValue(key, out var val) && !string.IsNullOrWhiteSpace(val))
+            return val;
+
+        // Fallback to en_US if current language is not en_US
+        if (lang != "en_US")
+        {
+            var enCacheKey = $"{parent}:en_US";
+            if (!_values.ContainsKey(enCacheKey))
+            {
+                try
+                {
+                    var enPath = Path.Combine(_path, parent, "en_US.rsl");
+                    if (File.Exists(enPath))
+                        _values[enCacheKey] = ParseLanguageFile(enPath);
+                }
+                catch { }
+            }
+
+            if (_values.TryGetValue(enCacheKey, out var enDict) && enDict.TryGetValue(key, out var enVal) && !string.IsNullOrWhiteSpace(enVal))
+                return enVal;
+        }
+
+        if (_values.TryGetValue(parent, out var fallbackDict) && fallbackDict.TryGetValue(key, out var fallbackVal) && !string.IsNullOrWhiteSpace(fallbackVal))
+            return fallbackVal;
 
         return @default;
     }
@@ -209,7 +259,7 @@ public class LanguageManager
     ///     Translate the control
     /// </summary>
     /// <param name="view">The control view</param>
-    /// <param name="file">The language file path</param>
+    /// <param name="language">The language code</param>
     public static void Translate(Control view, string language = "en_US")
     {
         var type = view.GetType();
@@ -223,18 +273,25 @@ public class LanguageManager
         if (!Directory.Exists(dir))
             Directory.CreateDirectory(dir);
 
-        var stopwatch = Stopwatch.StartNew();
-
         if (!File.Exists(path))
-            return;
-        //File.CreateText(path).Dispose();
-
-        //var instance = (Control)Activator.CreateInstance(type);
+        {
+            // If requested language is not found, fallback to en_US
+            if (language != "en_US")
+            {
+                var fallbackPath = Path.Combine(_path, assembly, "en_US.rsl");
+                if (File.Exists(fallbackPath))
+                    path = fallbackPath;
+                else
+                    return;
+            }
+            else
+                return;
+        }
 
         var values = ParseLanguageFile(path);
-        //CheckMissings(path, assembly, instance, values);
 
-
+        var cacheKey = $"{assembly}:{language}";
+        _values[cacheKey] = values;
         _values[assembly] = values;
 
         TranslateControls(values, view, assembly);
@@ -254,7 +311,9 @@ public class LanguageManager
                 {
                     var subItems = GetAllMenuItems(toolStripItem);
                     foreach (var subMenuItem in subItems)
-                        if (values.TryGetValue($"{headerEx}.{subMenuItem.Name}", out translatedText))
+                        if (values.TryGetValue($"{headerEx}.{subMenuItem.Name}", out translatedText) ||
+                            values.TryGetValue($"{header}.{subMenuItem.Name}", out translatedText) ||
+                            values.TryGetValue(subMenuItem.Name, out translatedText))
                             if (!string.IsNullOrWhiteSpace(translatedText))
                                 subMenuItem.Text = translatedText;
                 }
@@ -262,9 +321,60 @@ public class LanguageManager
                 continue;
             }
 
-            if (values.TryGetValue($"{headerEx}.{control.Name}", out translatedText))
+            if (control is ListView listView)
+            {
+                foreach (ColumnHeader col in listView.Columns)
+                {
+                    if (values.TryGetValue($"{headerEx}.{col.Name}", out translatedText) ||
+                        values.TryGetValue($"{header}.{col.Name}", out translatedText) ||
+                        values.TryGetValue(col.Name, out translatedText))
+                    {
+                        if (!string.IsNullOrWhiteSpace(translatedText))
+                            col.Text = translatedText;
+                    }
+                }
+            }
+
+            if (control.ContextMenuStrip != null)
+            {
+                foreach (var item in control.ContextMenuStrip.Items.OfType<ToolStripMenuItem>())
+                {
+                    var subItems = GetAllMenuItems(item);
+                    foreach (var subItem in subItems)
+                    {
+                        if (values.TryGetValue($"{headerEx}.{subItem.Name}", out translatedText) ||
+                            values.TryGetValue($"{header}.{subItem.Name}", out translatedText) ||
+                            values.TryGetValue(subItem.Name, out translatedText))
+                        {
+                            if (!string.IsNullOrWhiteSpace(translatedText))
+                                subItem.Text = translatedText;
+                        }
+                    }
+                }
+            }
+
+            if (control is TabControl tabCtrl)
+            {
+                foreach (TabPage page in tabCtrl.TabPages)
+                {
+                    if (values.TryGetValue($"{headerEx}.{page.Name}", out translatedText) ||
+                        values.TryGetValue($"{header}.{page.Name}", out translatedText) ||
+                        values.TryGetValue(page.Name, out translatedText))
+                    {
+                        if (!string.IsNullOrWhiteSpace(translatedText))
+                            page.Text = translatedText;
+                    }
+                    TranslateControls(values, page, $"{headerEx}.{page.Name}");
+                }
+            }
+
+            if (values.TryGetValue($"{headerEx}.{control.Name}", out translatedText) ||
+                values.TryGetValue($"{header}.{control.Name}", out translatedText) ||
+                values.TryGetValue(control.Name, out translatedText))
+            {
                 if (!string.IsNullOrWhiteSpace(translatedText))
                     control.Text = translatedText;
+            }
 
             TranslateControls(values, control, headerEx);
         }

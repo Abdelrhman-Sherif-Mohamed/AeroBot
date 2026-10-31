@@ -1,4 +1,5 @@
 DisplayName="Stall"
+TabText="Stall"
 groupStallInfo="Stall Settings"
 lblTitle="Title:"
 lblNote="Note:"

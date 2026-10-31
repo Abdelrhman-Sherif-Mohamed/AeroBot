@@ -268,9 +268,8 @@ public partial class Main : DoubleBufferedControl
     private void btnMimic_Click(object sender, EventArgs e)
     {
         ChoreographyManager.Instance.MimicLeader = !ChoreographyManager.Instance.MimicLeader;
-        btnMimic.Text = ChoreographyManager.Instance.MimicLeader
-            ? "🎭 إلغاء التقليد (Stop Mimic)"
-            : "🎭 تقليد القائد (Mimic Leader)";
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+        btnMimic.Text = ChoreographyManager.Instance.MimicLeader ? (ar ? "🎭 إلغاء التقليد" : "🎭 Stop Mimic") : (ar ? "🎭 تقليد القائد" : "🎭 Mimic Leader");
         if (chkBroadcastParty.Checked)
         {
             ChoreographyManager.Instance.BroadcastCommand(ChoreographyManager.Instance.MimicLeader ? "!MIMIC" : "!NOMIMIC");
@@ -360,10 +359,11 @@ public partial class Main : DoubleBufferedControl
         lstTargetLeaders.EndUpdate();
 
         lblTargetStatus.Text = TargetSupportManager.Instance.StatusText;
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
         if (!string.IsNullOrEmpty(TargetSupportManager.Instance.LastTargetName))
             lblCurrentTarget.Text = $"{TargetSupportManager.Instance.LastTargetName} (UID: {TargetSupportManager.Instance.LastTargetUID})";
         else
-            lblCurrentTarget.Text = "لا يوجد هدف محدد حالياً (None)";
+            lblCurrentTarget.Text = ar ? "لا يوجد هدف محدد حالياً" : "None";
     }
 
     private void chkTargetEnabled_CheckedChanged(object sender, EventArgs e)
@@ -506,4 +506,89 @@ public partial class Main : DoubleBufferedControl
     }
 
     #endregion
+    public void ApplyLanguage()
+    {
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+
+        tabLeaders.Text = ar ? "أوامر التحكم" : "Control Commands";
+        groupSettings.Text = ar ? "الإعدادات العامة" : "General Settings";
+        chkEnabled.Text = ar ? "تفعيل الاستجابة للأوامر عبر الشات" : "Enable Chat Commands";
+        lblCommandsGuide.Text = ar ? "تأكد من تفعيل الأمر عبر كتابة الأوامر في شات الحزب أو الشات العام: START, STOP, TRACE, FOLLOW..." : "Commands accepted in Party or All chat: START, STOP, TRACE, FOLLOW, BUFF...";
+
+        groupLeaders.Text = ar ? "قائمة القادة المصرح لهم" : "Authorized Leaders";
+        lblLeader.Text = ar ? "اسم القائد:" : "Leader Name:";
+        btnAddLeader.Text = ar ? "إضافة" : "Add";
+        btnRemoveLeader.Text = ar ? "حذف" : "Remove";
+        btnGetPartyLeader.Text = ar ? "جلب قائد الفريق الحالي تلقائياً" : "Auto-add Party Leader";
+        colLeaderName.Text = ar ? "اسم القائد" : "Leader Name";
+
+        groupLogs.Text = ar ? "سجل الأوامر المنفذة" : "Commands Execution Log";
+        btnClearLogs.Text = ar ? "مسح السجل" : "Clear Log";
+
+        tabChoreography.Text = ar ? "التشكيلات والاستعراض" : "Choreography";
+        groupFormations.Text = ar ? "التشكيلات الحركية" : "Moving Formations";
+        btnOrbit.Text = "🌀 Orbit";
+        btnCounterOrbit.Text = "🔄 2X Orbit";
+        btnLine.Text = "📏 Line";
+        btnWedge.Text = "🔺 Wedge (V)";
+        btnCircle.Text = "⭕ Circle";
+        btnSquare.Text = "🔲 Square";
+        btnColumn.Text = "🏛️ Column";
+        btnPulse.Text = "💓 Pulse";
+
+        groupEmotes.Text = ar ? "الحركات الاستعراضية والتجمع" : "Ghost Stack & Emotes";
+        btnStack.Text = ar ? "🌀 تجسيد شخص واحد (Stack)" : "🌀 Ghost Stack";
+        btnScatter.Text = ar ? "💥 تفرق سريع" : "💥 Scatter";
+        btnCome.Text = ar ? "🏃 التجمع عند القائد" : "🏃 Come to Leader";
+        btnMimic.Text = ChoreographyManager.Instance.MimicLeader ? (ar ? "🎭 إلغاء التقليد" : "🎭 Stop Mimic") : (ar ? "🎭 تقليد القائد" : "🎭 Mimic Leader");
+        btnDance.Text = ar ? "💃 رقص" : "💃 Dance";
+        btnWave.Text = ar ? "👋 تحية" : "👋 Wave";
+        btnCheer.Text = ar ? "🎉 هتاف" : "🎉 Cheer";
+        btnBow.Text = ar ? "🙇 انحناء" : "🙇 Bow";
+        btnClap.Text = ar ? "👏 تصفيق" : "👏 Clap";
+        btnHalt.Text = ar ? "🛑 إيقاف التشكيل" : "🛑 Halt Formation";
+
+        groupChoreoSettings.Text = ar ? "إعدادات مزامنة التشكيل" : "Choreography Settings";
+        lblChoreoLeader.Text = ar ? "قائد التشكيل:" : "Formation Leader:";
+        lblChoreoRadius.Text = ar ? "نصف القطر (م):" : "Radius (m):";
+        lblChoreoSpeed.Text = ar ? "سرعة التحديث:" : "Update Speed:";
+        lblChoreoSlot.Text = ar ? "موقع التشكيل:" : "Slot Position:";
+        chkBroadcastParty.Text = ar ? "بث أوامر التشكيل لبقية أعضاء الفريق" : "Broadcast commands to party members";
+        lblChoreoStatusTitle.Text = ar ? "حالة الكوريوجرافي الحالية:" : "Current Status:";
+
+        tabTargetSupport.Text = ar ? "مساعدة الاستهداف" : "Target Support";
+        groupTargetSettings.Text = ar ? "إعدادات مزامنة الأهداف" : "Target Synchronization";
+        chkTargetEnabled.Text = ar ? "تفعيل مساندة الضرب مع القائد" : "Enable Target Support";
+        chkDefensive.Text = ar ? "الوضع الدفاعي (الهجوم فقط عند استهداف القائد)" : "Defensive Mode (Only if target attacks leader)";
+        chkAutoAttack.Text = ar ? "بدء الهجوم تلقائياً فور تحديد القائد للهدف" : "Auto-attack when leader selects target";
+        lblTargetDescription.Text = ar 
+            ? "أوامر الشات السريعة:\n• TARGET ON - تفعيل المزامنة\n• TARGET OFF - إيقاف المزامنة"
+            : "Chat Commands:\n• TARGET ON - Enable support\n• TARGET OFF - Disable support";
+
+        groupTargetLeaders.Text = ar ? "قادة الاستهداف" : "Target Support Leaders";
+        lblTargetLeaderPrompt.Text = ar ? "اسم القائد:" : "Leader Name:";
+        btnTargetAddLeader.Text = ar ? "إضافة" : "Add";
+        btnTargetRemoveLeader.Text = ar ? "حذف" : "Remove";
+        btnTargetGetPartyLeader.Text = ar ? "إضافة قائد الفريق الحالي كقائد استهداف" : "Add current party leader";
+        colTargetLeaderName.Text = ar ? "اسم القائد المصرح له" : "Target Leader Name";
+
+        groupTargetStatus.Text = ar ? "حالة الاستهداف المباشرة" : "Live Target Status";
+        lblTargetStatusTitle.Text = ar ? "حالة المزامنة:" : "Status:";
+        lblCurrentTargetTitle.Text = ar ? "الهدف الحالي:" : "Current Target:";
+
+        tabCommandsGuide.Text = ar ? "دليل الأوامر" : "Commands Guide";
+        lblSearch.Text = ar ? "بحث:" : "Search:";
+        lblCategory.Text = ar ? "التصنيف:" : "Category:";
+        btnResetSearch.Text = ar ? "إعادة ضبط" : "Reset Filter";
+
+        colCmdName.Text = ar ? "الأمر" : "Command";
+        colCmdChannel.Text = ar ? "القناة" : "Channel";
+        colCmdCategory.Text = ar ? "التصنيف" : "Category";
+        colCmdDescAr.Text = ar ? "الوصف بالعربي" : "Arabic Description";
+        colCmdDescEn.Text = "English Description";
+        colCmdExample.Text = ar ? "مثال" : "Example";
+
+        UpdateTargetUI();
+    }
+
 }

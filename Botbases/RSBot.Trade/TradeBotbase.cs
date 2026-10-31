@@ -17,7 +17,7 @@ public class TradeBotbase : IBotbase
     public static bool IsActive => Kernel.Bot?.Botbase.Name == "RSBot.Trade" && Kernel.Bot.Running;
     public string Name => "RSBot.Trade";
 
-    public string DisplayName => "التجارة";
+    public string DisplayName => "Trade";
 
     public string TabText => DisplayName;
 
@@ -152,6 +152,8 @@ public class TradeBotbase : IBotbase
     public void Translate()
     {
         LanguageManager.Translate(View, Kernel.Language);
+        if (View is Views.Main tradeView)
+            tradeView.ApplyLanguage();
     }
 
     /// <summary>

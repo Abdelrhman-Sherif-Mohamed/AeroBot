@@ -117,29 +117,89 @@ public partial class Main : DoubleBufferedControl
 
     #region Avatar Tab Logic
 
+    public void ApplyLanguage()
+    {
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+
+        btnTabAvatars.Text = ar ? "👗 تجربة الأزياء التجميلية (Avatars)" : "👗 Avatar Outfits";
+        btnTabSwitches.Text = ar ? "✨ سكنات وهالات السلاح والدرع (Switches)" : "✨ Weapon & Shield Switches";
+
+        groupSearch.Text = ar ? "البحث في قاعدة بيانات الأزياء (Avatar Search)" : "Avatar Search";
+        lblSearch.Text = ar ? "بحث:" : "Search:";
+        btnSearch.Text = ar ? "بحث" : "Search";
+
+        colName.Text = ar ? "الصورة / الاسم" : "Icon / Name";
+        colType.Text = ar ? "نوع القطعة" : "Item Type";
+        colId.Text = "ID";
+        colCode.Text = ar ? "كود السيرفر (Code Name)" : "Code Name";
+
+        btnSetHat.Text = ar ? "تطبيق كـ قبعة" : "Set as Hat";
+        btnSetDress.Text = ar ? "تطبيق كـ فستان" : "Set as Dress";
+        btnSetAccessory.Text = ar ? "تطبيق كـ زينة" : "Set as Accessory";
+        btnSetFlag.Text = ar ? "تطبيق كـ علم" : "Set as Flag";
+
+        groupSelected.Text = ar ? "القطع الحالية المختارة لمعاينة اللبس بالكامل" : "Selected Avatar Outfit";
+        lblHat.Text = ar ? "القبعة:" : "Hat:";
+        lblDress.Text = ar ? "الفستان:" : "Dress:";
+        lblAccessory.Text = ar ? "الزينة:" : "Accessory:";
+        lblFlag.Text = ar ? "العلم:" : "Flag:";
+
+        btnRemoveHat.Text = ar ? "حذف" : "Remove";
+        btnRemoveDress.Text = ar ? "حذف" : "Remove";
+        btnRemoveAccessory.Text = ar ? "حذف" : "Remove";
+        btnRemoveFlag.Text = ar ? "حذف" : "Remove";
+
+        btnSpawnPreview.Text = ar ? "معاينة على الشخصية" : "Preview on Character";
+        btnClearPreview.Text = ar ? "إلغاء المعاينة (الرجوع للأصلي)" : "Restore Original";
+
+        groupSwitches.Text = ar ? "سكنات وهالات الأسلحة والدروع (Weapon & Shield Switches)" : "Weapon & Shield Switches";
+        btnFilterAll.Text = ar ? "الكل" : "All";
+        btnFilterWepGlow.Text = ar ? "✨ هالات سلاح" : "✨ Weapon Glow";
+        btnFilterShGlow.Text = ar ? "🛡️ هالات درع" : "🛡️ Shield Glow";
+        btnFilterD1D16.Text = ar ? "⚔️ سكنات D1-D16" : "⚔️ D1-D16 Skins";
+        btnFilterSpecial.Text = ar ? "⭐ سكنات خاصة" : "⭐ Special Skins";
+
+        lblSwitchSearch.Text = ar ? "بحث:" : "Search:";
+        btnSwitchSearch.Text = ar ? "بحث" : "Search";
+
+        colSwName.Text = ar ? "الصورة / الاسم" : "Icon / Name";
+        colSwCategory.Text = ar ? "النوع / التصنيف" : "Category";
+        colSwId.Text = "ID";
+        colSwCode.Text = ar ? "كود السيرفر (Code Name)" : "Code Name";
+
+        btnTestWeapon.Text = ar ? "تطبيق على السلاح" : "Apply on Weapon";
+        btnTestShield.Text = ar ? "تطبيق على الدرع" : "Apply on Shield";
+        lblOptLevel.Text = ar ? "بلص:" : "Plus (+):";
+        btnUseFromInv.Text = ar ? "استخدام من الحقيبة" : "Use from Inventory";
+        btnRestoreWep.Text = ar ? "استرجاع الأصلي" : "Restore Original";
+
+        UpdateUI();
+    }
+
     private void UpdateUI()
     {
         var mgr = AvatarTesterManager.Instance;
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
 
         lblSelectedHat.Text = mgr.SelectedHatId != 0
             ? GetItemLabelText(mgr.SelectedHatId)
-            : "(لا يوجد)";
+            : (ar ? "(لا يوجد)" : "(None)");
 
         lblSelectedDress.Text = mgr.SelectedDressId != 0
             ? GetItemLabelText(mgr.SelectedDressId)
-            : "(لا يوجد)";
+            : (ar ? "(لا يوجد)" : "(None)");
 
         lblSelectedAccessory.Text = mgr.SelectedAccessoryId != 0
             ? GetItemLabelText(mgr.SelectedAccessoryId)
-            : "(لا يوجد)";
+            : (ar ? "(لا يوجد)" : "(None)");
 
         lblSelectedFlag.Text = mgr.SelectedFlagId != 0
             ? GetItemLabelText(mgr.SelectedFlagId)
-            : "(لا يوجد)";
+            : (ar ? "(لا يوجد)" : "(None)");
 
         lblPreviewStatus.Text = mgr.HasAnyApplied
-            ? "الحالة: مطبق على الشخصية في اللعبة"
-            : "الحالة: المظهر الأصلي للشخصية";
+            ? (ar ? "الحالة: مطبق على الشخصية في اللعبة" : "Status: Applied on character")
+            : (ar ? "الحالة: المظهر الأصلي للشخصية" : "Status: Original appearance");
     }
 
     private string GetItemLabelText(uint itemId)
@@ -415,7 +475,8 @@ public partial class Main : DoubleBufferedControl
         }
 
         lstSwitches.EndUpdate();
-        lblSwitchCount.Text = $"العدد: {items.Count} أداة";
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+        lblSwitchCount.Text = ar ? $"العدد: {items.Count} أداة" : $"Count: {items.Count} items";
     }
 
     private RefObjItem GetSelectedSwitchItem()
@@ -440,20 +501,20 @@ public partial class Main : DoubleBufferedControl
         var item = GetSelectedSwitchItem();
         if (item == null)
         {
-            lblSwitchStatus.Text = "يرجى تحديد أداة سوتش من القائمة أولاً.";
+            lblSwitchStatus.Text = (RSBot.Core.Kernel.Language == "ar_AR" ? "يرجى تحديد أداة سوتش من القائمة أولاً." : "Please select a switch item from list first.");
             return;
         }
 
         if (Game.Player == null || Game.Player.UniqueId == 0)
         {
-            lblSwitchStatus.Text = "يجب أن تكون الشخصية داخل اللعبة لمعاينة السوتش!";
+            lblSwitchStatus.Text = (RSBot.Core.Kernel.Language == "ar_AR" ? "يجب أن تكون الشخصية داخل اللعبة لمعاينة السوتش!" : "Character must be ingame to preview switches!");
             return;
         }
 
         var curWep = Game.Player.Inventory?.GetItemAt(6);
         if (curWep == null || curWep.Record == null || !curWep.Record.IsWeapon)
         {
-            lblSwitchStatus.Text = "يرجى ارتداء سلاح في اللعبة أولاً لمعاينة السوتش عليه!";
+            lblSwitchStatus.Text = (RSBot.Core.Kernel.Language == "ar_AR" ? "يرجى ارتداء سلاح في اللعبة أولاً لمعاينة السوتش عليه!" : "Please equip a weapon in game first!");
             return;
         }
 
@@ -482,20 +543,20 @@ public partial class Main : DoubleBufferedControl
         var item = GetSelectedSwitchItem();
         if (item == null)
         {
-            lblSwitchStatus.Text = "يرجى تحديد أداة سوتش من القائمة أولاً.";
+            lblSwitchStatus.Text = (RSBot.Core.Kernel.Language == "ar_AR" ? "يرجى تحديد أداة سوتش من القائمة أولاً." : "Please select a switch item from list first.");
             return;
         }
 
         if (Game.Player == null || Game.Player.UniqueId == 0)
         {
-            lblSwitchStatus.Text = "يجب أن تكون الشخصية داخل اللعبة لمعاينة السوتش!";
+            lblSwitchStatus.Text = (RSBot.Core.Kernel.Language == "ar_AR" ? "يجب أن تكون الشخصية داخل اللعبة لمعاينة السوتش!" : "Character must be ingame to preview switches!");
             return;
         }
 
         var curShield = Game.Player.Inventory?.GetItemAt(7);
         if (curShield == null || curShield.Record == null || !curShield.Record.IsShield)
         {
-            lblSwitchStatus.Text = "يرجى ارتداء درع (Shield) في اللعبة أولاً لمعاينة السوتش عليه!";
+            lblSwitchStatus.Text = (RSBot.Core.Kernel.Language == "ar_AR" ? "يرجى ارتداء درع (Shield) في اللعبة أولاً لمعاينة السوتش عليه!" : "Please equip a shield in game first!");
             return;
         }
 
@@ -540,7 +601,7 @@ public partial class Main : DoubleBufferedControl
         var item = GetSelectedSwitchItem();
         if (item == null)
         {
-            lblSwitchStatus.Text = "يرجى تحديد أداة سوتش من القائمة أولاً.";
+            lblSwitchStatus.Text = (RSBot.Core.Kernel.Language == "ar_AR" ? "يرجى تحديد أداة سوتش من القائمة أولاً." : "Please select a switch item from list first.");
             return;
         }
 
@@ -558,7 +619,7 @@ public partial class Main : DoubleBufferedControl
     private void btnRestoreWep_Click(object sender, EventArgs e)
     {
         AvatarTesterManager.Instance.RestoreWeaponAndShield();
-        lblSwitchStatus.Text = "تمت استعادة مظهر السلاح والدرع الأصلي للشخصية.";
+        lblSwitchStatus.Text = (RSBot.Core.Kernel.Language == "ar_AR" ? "تمت استعادة مظهر السلاح والدرع الأصلي للشخصية." : "Restored original weapon and shield appearance.");
     }
 
     private void lstSwitches_DoubleClick(object sender, EventArgs e)

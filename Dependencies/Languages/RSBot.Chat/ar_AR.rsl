@@ -1,4 +1,5 @@
-DisplayName="Chat"
+DisplayName="الدردشة"
+TabText="الدردشة"
 RSBot.Chat.Main.TabControl.tabAll="كل"
 RSBot.Chat.Main.TabControl.tabPrivate="خاص"
 RSBot.Chat.Main.TabControl.tabParty="فريق"

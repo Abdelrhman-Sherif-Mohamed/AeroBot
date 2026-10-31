@@ -74,6 +74,25 @@ public partial class Main : UIWindow
             }
         }
         catch { }
+
+        ApplyCurrentLanguage();
+    }
+
+    private void ApplyCurrentLanguage()
+    {
+        btnStartBot.Text = Kernel.Language == "ar_AR" ? "شغل البوت" : "Start Bot";
+        btnStopBot.Text = Kernel.Language == "ar_AR" ? "وقف البوت" : "Stop Bot";
+        btnShowClient.Text = Kernel.Language == "ar_AR" ? "إظهار الكلاينت" : "Show Client";
+        btnClearLog.Text = Kernel.Language == "ar_AR" ? "مسح السجلات" : "Clear Logs";
+
+        menuCurrentProfile.Text = Kernel.Language == "ar_AR"
+            ? $"الملف: {ProfileManager.SelectedProfile}"
+            : $"Profile: {ProfileManager.SelectedProfile}";
+
+        if (Kernel.Proxy == null || !Kernel.Proxy.IsConnectedToAgentserver)
+            lblIngameStatus.Text = Kernel.Language == "ar_AR" ? "غير متصل" : "Not in game";
+        else if (Kernel.Bot != null && Kernel.Bot.Running)
+            lblIngameStatus.Text = Kernel.Language == "ar_AR" ? "يعمل" : "Running";
     }
 
     #endregion Constructor
@@ -448,6 +467,7 @@ public partial class Main : UIWindow
         if (dropdown.Checked)
             return;
 
+        LanguageManager.ClearCache();
         Kernel.Language = dropdown.Tag.ToString();
 
         foreach (ToolStripMenuItem item in languageToolStripMenuItem.DropDownItems)
@@ -461,7 +481,7 @@ public partial class Main : UIWindow
             if (tabpage == null)
                 continue;
 
-            tabpage.Text = LanguageManager.GetLangBySpecificKey(plugin.Key, "DisplayName", tabpage.Text);
+            tabpage.Text = LanguageManager.GetLangBySpecificKey(plugin.Key, "DisplayName", plugin.Value.DisplayName);
         }
 
         foreach (var botbase in Kernel.BotbaseManager.Bots)
@@ -472,20 +492,20 @@ public partial class Main : UIWindow
                 continue;
 
             var tabpage = windowPageControl.Controls[botbase.Key];
-            tabpage.Text = LanguageManager.GetLangBySpecificKey(botbase.Key, "DisplayName", tabpage.Text);
+            tabpage.Text = LanguageManager.GetLangBySpecificKey(botbase.Key, "TabText", botbase.Value.TabText);
         }
 
         LanguageManager.Translate(this, Kernel.Language);
         
-        btnStartBot.Text = Kernel.Language == "ar_AR" ? "شغل البوت" : "Start Bot";
-        btnStopBot.Text = Kernel.Language == "ar_AR" ? "وقف البوت" : "Stop Bot";
-        btnShowClient.Text = Kernel.Language == "ar_AR" ? "إظهار الكلاينت" : "Show Client";
-        btnClearLog.Text = Kernel.Language == "ar_AR" ? "مسح السجلات" : "Clear Logs";
+        ApplyCurrentLanguage();
 
         dropdown.Checked = true;
 
         GlobalConfig.Set("RSBot.Language", Kernel.Language);
         GlobalConfig.Save();
+
+        Invalidate(true);
+        windowPageControl.Invalidate(true);
     }
 
     /// <summary>

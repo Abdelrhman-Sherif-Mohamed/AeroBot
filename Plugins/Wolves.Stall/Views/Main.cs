@@ -82,9 +82,10 @@ public partial class Main : DoubleBufferedControl
 
     private void InitializeStallSlots()
     {
-        var emptyText = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "StallEmptySlot", "- فارغ -");
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+        var emptyText = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "StallEmptySlot", ar ? "- فارغ -" : "- Empty -");
         if (string.IsNullOrEmpty(emptyText) || emptyText == "StallEmptySlot")
-            emptyText = "- فارغ -";
+            emptyText = ar ? "- فارغ -" : "- Empty -";
 
         listViewStall.Items.Clear();
         for (var i = 0; i < 10; i++)
@@ -295,26 +296,27 @@ public partial class Main : DoubleBufferedControl
 
     private void UpdateStallStateUI()
     {
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
         if (StallManager.Instance.IsCreated)
         {
-            var openStatus = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "StatusOpen", "الحالة: مفتوح");
+            var openStatus = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "StatusOpen", ar ? "الحالة: مفتوح" : "Status: Open");
             if (string.IsNullOrEmpty(openStatus) || openStatus == "StatusOpen")
-                openStatus = "الحالة: مفتوح";
-            var modifyStatus = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "StatusModify", "الحالة: تعديل");
+                openStatus = ar ? "الحالة: مفتوح" : "Status: Open";
+            var modifyStatus = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "StatusModify", ar ? "الحالة: تعديل" : "Status: Modifying");
             if (string.IsNullOrEmpty(modifyStatus) || modifyStatus == "StatusModify")
-                modifyStatus = "الحالة: تعديل";
+                modifyStatus = ar ? "الحالة: تعديل" : "Status: Modifying";
 
             lblStatus.Text = StallManager.Instance.IsOpen ? openStatus : modifyStatus;
             lblStatus.ForeColor = StallManager.Instance.IsOpen ? Color.LimeGreen : Color.Orange;
             btnCreateStall.Enabled = false;
             btnToggleState.Enabled = true;
 
-            var modifyBtn = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "btnModifyStall", "تعديل الكشك");
+            var modifyBtn = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "btnModifyStall", ar ? "تعديل المتجر" : "Modify Stall");
             if (string.IsNullOrEmpty(modifyBtn) || modifyBtn == "btnModifyStall")
-                modifyBtn = "تعديل الكشك";
-            var openBtn = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "btnToggleState", "فتح الكشك");
+                modifyBtn = ar ? "تعديل المتجر" : "Modify Stall";
+            var openBtn = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "btnToggleState", ar ? "فتح المتجر" : "Open Stall");
             if (string.IsNullOrEmpty(openBtn) || openBtn == "btnToggleState")
-                openBtn = "فتح الكشك";
+                openBtn = ar ? "فتح المتجر" : "Open Stall";
 
             btnToggleState.Text = StallManager.Instance.IsOpen ? modifyBtn : openBtn;
             btnCloseStall.Enabled = true;
@@ -323,18 +325,18 @@ public partial class Main : DoubleBufferedControl
         }
         else
         {
-            var notCreatedStatus = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "lblStatus", "الحالة: غير منشأ");
+            var notCreatedStatus = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "lblStatus", ar ? "الحالة: غير منشأ" : "Status: Not Created");
             if (string.IsNullOrEmpty(notCreatedStatus) || notCreatedStatus == "lblStatus")
-                notCreatedStatus = "الحالة: غير منشأ";
+                notCreatedStatus = ar ? "الحالة: غير منشأ" : "Status: Not Created";
 
             lblStatus.Text = notCreatedStatus;
             lblStatus.ForeColor = Color.Gray;
             btnCreateStall.Enabled = true;
             btnToggleState.Enabled = false;
 
-            var openBtn = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "btnToggleState", "فتح الكشك");
+            var openBtn = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "btnToggleState", ar ? "فتح المتجر" : "Open Stall");
             if (string.IsNullOrEmpty(openBtn) || openBtn == "btnToggleState")
-                openBtn = "فتح الكشك";
+                openBtn = ar ? "فتح المتجر" : "Open Stall";
 
             btnToggleState.Text = openBtn;
             btnCloseStall.Enabled = false;
@@ -345,9 +347,10 @@ public partial class Main : DoubleBufferedControl
 
     private void UpdateStallItemsUI()
     {
-        var emptyText = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "StallEmptySlot", "- فارغ -");
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+        var emptyText = RSBot.Core.Components.LanguageManager.GetLangBySpecificKey("Wolves.Stall", "StallEmptySlot", ar ? "- فارغ -" : "- Empty -");
         if (string.IsNullOrEmpty(emptyText) || emptyText == "StallEmptySlot")
-            emptyText = "- فارغ -";
+            emptyText = ar ? "- فارغ -" : "- Empty -";
 
         listViewStall.BeginUpdate();
         for (var i = 0; i < 10; i++)
@@ -364,7 +367,7 @@ public partial class Main : DoubleBufferedControl
 
                 lvi.SubItems[1].Text = name;
                 lvi.SubItems[2].Text = stallItem.Quantity.ToString();
-                lvi.SubItems[3].Text = stallItem.Price.ToString("N0", CultureInfo.InvariantCulture) + " ذهب";
+                lvi.SubItems[3].Text = stallItem.Price.ToString("N0", CultureInfo.InvariantCulture) + (ar ? " ذهب" : " Gold");
                 lvi.LoadItemImageAsync(stallItem.Item.Record);
             }
             else

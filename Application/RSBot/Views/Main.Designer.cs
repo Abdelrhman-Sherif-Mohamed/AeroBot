@@ -199,7 +199,7 @@ namespace RSBot.Views
             btnStartBot.Radius = 4;
             btnStartBot.Size = new System.Drawing.Size(124, 28);
             btnStartBot.TabIndex = 0;
-            btnStartBot.Text = "شغل البوت";
+            btnStartBot.Text = "Start Bot";
             btnStartBot.UseVisualStyleBackColor = true;
             btnStartBot.Click += btnStartBot_Click;
             // 
@@ -213,7 +213,7 @@ namespace RSBot.Views
             btnStopBot.Radius = 4;
             btnStopBot.Size = new System.Drawing.Size(124, 28);
             btnStopBot.TabIndex = 1;
-            btnStopBot.Text = "وقف البوت";
+            btnStopBot.Text = "Stop Bot";
             btnStopBot.UseVisualStyleBackColor = true;
             btnStopBot.Click += btnStopBot_Click;
             // 
@@ -226,7 +226,7 @@ namespace RSBot.Views
             btnShowClient.Radius = 4;
             btnShowClient.Size = new System.Drawing.Size(124, 28);
             btnShowClient.TabIndex = 2;
-            btnShowClient.Text = "إظهار الكلاينت";
+            btnShowClient.Text = "Show Client";
             btnShowClient.UseVisualStyleBackColor = true;
             btnShowClient.Click += btnShowClient_Click;
             // 
@@ -239,7 +239,7 @@ namespace RSBot.Views
             btnClearLog.Radius = 4;
             btnClearLog.Size = new System.Drawing.Size(124, 28);
             btnClearLog.TabIndex = 3;
-            btnClearLog.Text = "مسح السجلات";
+            btnClearLog.Text = "Clear Logs";
             btnClearLog.UseVisualStyleBackColor = true;
             btnClearLog.Click += btnClearLog_Click;
             // 

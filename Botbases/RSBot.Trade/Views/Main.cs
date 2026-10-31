@@ -94,6 +94,7 @@ public partial class Main : DoubleBufferedControl
         uiTimer.Tick += UiTimer_Tick;
         uiTimer.Start();
 
+        ApplyLanguage();
         _loadingConfig = false;
 
         ResumeLayout(true);
@@ -2061,4 +2062,79 @@ public partial class Main : DoubleBufferedControl
     }
 
     #endregion
+
+    public void ApplyLanguage()
+    {
+        bool ar = Kernel.Language == "ar_AR";
+
+        tabPageSettings.Text = ar ? "الإعدادات" : "Settings";
+        tabPageGoods.Text = ar ? "البضائع" : "Special Goods";
+        tabPageRoute.Text = ar ? "الطريق" : "Route";
+
+        groupSettings.Text = ar ? "إعدادات التجارة" : "Trade Settings";
+        groupLoopOptions.Text = ar ? "خيارات التشغيل" : "Loop Options";
+
+        checkAttackThiefNpc.Text = ar ? "مهاجمة لصوص NPC" : "Attack NPC Thieves";
+        checkAttackThiefPlayers.Text = ar ? "مهاجمة لصوص اللاعبين" : "Attack Thief Players";
+        checkCounterAttack.Text = ar ? "الهجوم المضاد" : "Counter Attack";
+        checkProtectTransport.Text = ar ? "حماية وسيلة النقل" : "Protect Transport";
+        checkMountTransport.Text = ar ? "امتطاء وسيلة النقل" : "Mount Transport";
+        checkCastBuffs.Text = ar ? "تفعيل البفات" : "Cast Buffs";
+        checkWaitForHunter.Text = ar ? "انتظار الصياد" : "Wait for Hunter nearby";
+        checkAutoStartAfterLogin.Text = ar ? "بدء تلقائي بعد تسجيل الدخول" : "Start Trade after login";
+
+        lblMaxAttackDistance.Text = ar ? "أقصى مسافة هجوم:" : "Max Attack Distance:";
+        lblMaxAttackUnit.Text = ar ? "م" : "m";
+        lblMaxTransportDistance.Text = ar ? "أقصى مسافة نقل:" : "Max Transport Distance:";
+        lblMaxTransportUnit.Text = ar ? "م" : "m";
+
+        lblTradeLoops.Text = ar ? "تكرار جولات التجارة:" : "Repeat Trade Cycle:";
+        lblInfiniteLoops.Text = ar ? "0 = ∞ لا نهائي" : "0 = ∞ infinite";
+
+        checkUseReturnScroll.Text = ar ? "استخدام سكرول العودة بعد الجولة" : "Use Return Scroll after loop";
+        checkSkipTownScript.Text = ar ? "تخطي سكريبت المدينة" : "Skip town scripts";
+        checkSmartThiefCombat.Text = ar ? "قتال اللصوص الذكي" : "Smart Thief Combat";
+        checkSkipNpcIfHasGoods.Text = ar ? "تخطي NPC إذا كانت البضاعة محمّلة" : "Skip NPC if already loaded";
+        checkSmartObstacleEvasion.Text = ar ? "تجنب العوائق الذكي" : "Smart Obstacle Evasion";
+
+        lblRunMode.Text = ar ? "وضع التشغيل:" : "Run Mode:";
+        radioCityToCity.Text = ar ? "من مدينة إلى أخرى" : "City to City";
+        radioRouteList.Text = ar ? "قائمة مسارات مخصصة" : "Custom Route List";
+        radioTracePlayer.Text = ar ? "تتبع لاعب" : "Trace Player";
+
+        lblTracePlayerName.Text = ar ? "اسم اللاعب:" : "Player Name:";
+
+        checkDisableAutoRun.Text = ar ? "تعطيل التشغيل التلقائي" : "Disable auto route activation";
+        linkGuide.Text = ar ? "دليل التجارة" : "Trade Guide (?)";
+
+        colIndex.Text = "#";
+        colStart.Text = ar ? "بدء" : "Start";
+        colEnd.Text = ar ? "نهاية" : "End";
+        colScript.Text = ar ? "السكريبت" : "Script";
+        colActive.Text = ar ? "نشط" : "Active";
+        colLoop.Text = ar ? "حلقة" : "Loop";
+
+        btnAddRoute.Text = ar ? "إضافة مسار" : "Add Route";
+        btnStartTrade.Text = ar ? "بدء التجارة" : "Start Trade";
+        btnStopTrade.Text = ar ? "إيقاف التجارة" : "Stop Trade";
+
+        checkSellGoods.Text = ar ? "بيع البضائع" : "Sell goods";
+        checkBuyGoods.Text = ar ? "شراء البضائع" : "Buy Special Goods";
+        lblGoods.Text = ar ? "الكمية:" : "Qty:";
+        lblNumGoodsDesc.Text = ar ? "0 = أقصى حد ممكن" : "0 = max. possible";
+
+        colGoodsName.Text = ar ? "اسم البضاعة" : "Goods Name";
+        colGoodsAmount.Text = ar ? "الكمية" : "Qty";
+        colGoodsMax.Text = ar ? "أقصى كمية" : "Max Qty";
+
+        btnStartBot.Text = ar ? "شغل البوت" : "Start Bot";
+        btnStopBot.Text = ar ? "وقف البوت" : "Stop Bot";
+        btnShowClient.Text = ar ? "إظهار الكلاينت" : "Show Client";
+        btnClearLogs.Text = ar ? "مسح السجلات" : "Clear Logs";
+
+        menuToggleRoute.Text = ar ? "تفعيل / تعطيل المسار" : "Toggle Active";
+        menuEditLoops.Text = ar ? "تعديل عدد الحلقات" : "Edit Loop Count";
+        menuRemoveRoute.Text = ar ? "حذف المسار" : "Remove Route";
+    }
+
 }

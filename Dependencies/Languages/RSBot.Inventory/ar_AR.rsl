@@ -1,4 +1,5 @@
-DisplayName="Inventory"
+DisplayName="الشنطة"
+TabText="الشنطة"
 RSBot.Inventory.Main.Panel.buttonUseItem="استخدام"
 RSBot.Inventory.Main.Panel.label1="المخزون"
 RSBot.Inventory.Main.Panel.label2="Free Slots:"

@@ -10,7 +10,7 @@ public class Bootstrap : IPlugin
 {
     public string InternalName => "Wolves.AvatarTester";
 
-    public string DisplayName => "الأزياء";
+    public string DisplayName => "Avatar Tester";
 
     public bool DisplayAsTab => true;
 
@@ -27,5 +27,6 @@ public class Bootstrap : IPlugin
     public void Translate()
     {
         LanguageManager.Translate(View, Kernel.Language);
+        (View as Main)?.ApplyLanguage();
     }
 }

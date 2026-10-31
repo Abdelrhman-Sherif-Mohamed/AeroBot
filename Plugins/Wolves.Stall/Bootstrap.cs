@@ -9,7 +9,7 @@ public class Bootstrap : IPlugin
 {
     public string InternalName => "Wolves.Stall";
 
-    public string DisplayName => "المتجر";
+    public string DisplayName => "Stall";
 
     public bool DisplayAsTab => true;
 

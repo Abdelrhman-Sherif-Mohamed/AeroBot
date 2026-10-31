@@ -35,9 +35,12 @@ public partial class AuthWindow : UIWindowBase
         }
         catch { }
 
+        ApplyLanguage();
+
         // Display Hardware ID
         var hwid = HardwareId.GetHwid();
-        lblHwid.Text = $"جهازك: {hwid}";
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+        lblHwid.Text = (ar ? "جهازك: " : "HWID: ") + hwid;
         lblHwid.ForeColor = Color.FromArgb(160, 175, 195);
 
         UpdateTabStyles(true);
@@ -68,25 +71,55 @@ public partial class AuthWindow : UIWindowBase
     {
         try
         {
-            lblServer.Text = "السيرفر: جارٍ الفحص...";
+            bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+            lblServer.Text = ar ? "السيرفر: جارٍ الفحص..." : "Server: Checking...";
             lblServer.ForeColor = Color.DarkGoldenrod;
             var ok = await _authService.TestConnectionAsync();
             if (ok)
             {
-                lblServer.Text = "السيرفر: متصل 🟢";
+                lblServer.Text = ar ? "السيرفر: متصل 🟢" : "Server: Connected 🟢";
                 lblServer.ForeColor = Color.LightGreen;
             }
             else
             {
-                lblServer.Text = "السيرفر: غير متصل 🔴";
+                lblServer.Text = ar ? "السيرفر: غير متصل 🔴" : "Server: Offline 🔴";
                 lblServer.ForeColor = Color.LightCoral;
             }
         }
         catch
         {
-            lblServer.Text = "السيرفر: غير متصل 🔴";
+            bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+            lblServer.Text = ar ? "السيرفر: غير متصل 🔴" : "Server: Offline 🔴";
             lblServer.ForeColor = Color.LightCoral;
         }
+    }
+
+    private void ApplyLanguage()
+    {
+        bool ar = RSBot.Core.Kernel.Language == "ar_AR";
+
+        Text = ar ? "Aerobot - تسجيل الدخول" : "Aerobot - Authentication";
+        lblAppSub.Text = ar ? "نظام تسجيل الدخول الموحد" : "Unified Authentication System";
+
+        btnTabLogin.Text = ar ? "تسجيل الدخول" : "Login";
+        btnTabRegister.Text = ar ? "حساب جديد" : "Create Account";
+
+        lblLoginUser.Text = ar ? "اسم المستخدم (Username):" : "Username:";
+        lblLoginPass.Text = ar ? "كلمة المرور (Password):" : "Password:";
+        chkRememberMe.Text = ar ? "تذكر بيانات الدخول" : "Remember Credentials";
+        chkAutoLogin.Text = ar ? "دخول تلقائي" : "Auto Login";
+        btnLogin.Text = ar ? "تسجيل الدخول →" : "Log In →";
+        btnFreeMode.Text = ar ? "الدخول المجاني" : "Free Mode";
+
+        lblRegNotice.Text = ar 
+            ? "ملاحظة: يمكنك إنشاء حساب جديد مجاناً وبدء استخدام البوت فوراً."
+            : "Note: You can create a new account for free and start using the bot immediately.";
+        lblRegUser.Text = ar ? "اسم المستخدم الجديد:" : "New Username:";
+        lblRegPass.Text = ar ? "كلمة المرور:" : "Password:";
+        lblRegPassConfirm.Text = ar ? "تأكيد كلمة المرور:" : "Confirm Password:";
+        btnRegister.Text = ar ? "إنشاء الحساب الآن" : "Register Account";
+
+        btnAdminPanel.Text = ar ? "لوحة الإدارة" : "Admin Panel";
     }
 
     private void UpdateTabStyles(bool isLogin)

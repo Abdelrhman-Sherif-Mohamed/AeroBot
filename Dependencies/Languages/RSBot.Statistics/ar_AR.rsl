@@ -1,4 +1,5 @@
-DisplayName="Statistics"
+DisplayName="الإحصائيات"
+TabText="الإحصائيات"
 RSBot.Statistics.Main.SplitContainer.SplitterPanel.GroupBox.Panel.Kills="قتل"
 RSBot.Statistics.Main.SplitContainer.SplitterPanel.GroupBox.Panel.ItemsPicked="مواد تم تجميعها"
 RSBot.Statistics.Main.SplitContainer.SplitterPanel.GroupBox.Panel.LevelUps="عدد المستويات"

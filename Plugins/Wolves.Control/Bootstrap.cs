@@ -10,7 +10,7 @@ public class Bootstrap : IPlugin
 {
     public string InternalName => "Wolves.Control";
 
-    public string DisplayName => "التحكم والاستهداف";
+    public string DisplayName => "Control";
 
     public bool DisplayAsTab => true;
 
@@ -28,5 +28,6 @@ public class Bootstrap : IPlugin
     public void Translate()
     {
         LanguageManager.Translate(View, Kernel.Language);
+        (View as Main)?.ApplyLanguage();
     }
 }
