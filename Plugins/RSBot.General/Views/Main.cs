@@ -24,6 +24,11 @@ internal partial class Main : DoubleBufferedControl
     private bool _clientVisible;
 
     /// <summary>
+    ///     Suppresses the client type events while the view is loading or updating itself.
+    /// </summary>
+    private bool _suppressClientTypeEvents;
+
+    /// <summary>
     ///     Initializes a new instance of the <see cref="Main" /> class.
     /// </summary>
     public Main()
@@ -185,8 +190,7 @@ internal partial class Main : DoubleBufferedControl
             Place(txtStaticCaptcha, 84, 6, panelW - 98, 30);
             txtStaticCaptcha.TextAlignment = HorizontalAlignment.Left;
             Place(checkEnableStaticCaptcha, 84, 40, panelW - 98, 26);
-            Place(label6, 84, 66, panelW - 98, 22);
-            label6.TextAlign = ContentAlignment.MiddleLeft;
+            Place(checkAutoCaptcha, 84, 66, panelW - 98, 24);
 
             var half = (panelW - 16 - 12) / 2;
             const int rowH = 28;
@@ -203,17 +207,20 @@ internal partial class Main : DoubleBufferedControl
             Place(radioAutoSelectHigher, 8 + half + 12, 94, half, rowH);
 
             // Right column: client, bot and pending-server settings
+            const int clientCardH = 150;
             const int infoCardH = 112;
-            Place(groupBox3, rightX, columnTop, rightW, infoCardH);
-            Place(groupBox4, rightX, columnTop + infoCardH + 12, rightW, infoCardH);
+            const int cardGap = 12;
+            Place(groupBox3, rightX, columnTop, rightW, clientCardH);
+            Place(groupBox4, rightX, columnTop + clientCardH + cardGap, rightW, infoCardH);
 
-            var queueY = columnTop + infoCardH * 2 + 24;
+            var queueY = columnTop + clientCardH + cardGap + infoCardH + cardGap;
             var queueH = Math.Max(190, bottom - queueY);
             Place(groupBox5, rightX, queueY, rightW, queueH);
 
             Place(checkStayConnected, 16, 30, rightW - 32, rowH);
             Place(label2, 18, 62, rightW - 36, 40);
             label2.TextAlign = ContentAlignment.MiddleLeft;
+            Place(checkAutoDetectClientType, 16, 104, rightW - 32, 26);
 
             Place(checkBoxBotTrayMinimized, 16, 30, rightW - 32, rowH);
             Place(label8, 18, 62, rightW - 36, 40);
@@ -311,6 +318,7 @@ internal partial class Main : DoubleBufferedControl
         txtSilkroadPath.Text = Path.Combine(GlobalConfig.Get<string>("RSBot.SilkroadDirectory"),
             GlobalConfig.Get<string>("RSBot.SilkroadExecutable"));
         checkEnableStaticCaptcha.Checked = GlobalConfig.Get<bool>("RSBot.General.EnableStaticCaptcha");
+        checkAutoCaptcha.Checked = GlobalConfig.Get("RSBot.General.EnableAutoCaptcha", true);
         checkEnableAutoLogin.Checked = GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin");
         checkStartBot.Checked = GlobalConfig.Get<bool>("RSBot.General.StartBot");
         checkUseReturnScroll.Checked = GlobalConfig.Get<bool>("RSBot.General.UseReturnScroll");
@@ -334,12 +342,32 @@ internal partial class Main : DoubleBufferedControl
             radioAutoSelectHigher.Enabled = true;
         }
 
-        comboBoxClientType.SelectedIndex = (int)Game.ClientType;
+        //Do not treat the initial values as a manual client type selection.
+        _suppressClientTypeEvents = true;
+        try
+        {
+            checkAutoDetectClientType.Checked = GlobalConfig.Get("RSBot.Game.AutoDetectClientType", true);
+            comboBoxClientType.SelectedIndex = (int)Game.ClientType;
+        }
+        finally
+        {
+            _suppressClientTypeEvents = false;
+        }
+
+        UpdateCaptchaPanelVisibility();
 
         if (Game.IsValidClientDirectory(GlobalConfig.Get<string>("RSBot.SilkroadDirectory")))
             return;
 
         txtSilkroadPath.BackColor = Color.Red;
+    }
+
+    /// <summary>
+    ///     Shows the captcha settings only for the clients that support it.
+    /// </summary>
+    private void UpdateCaptchaPanelVisibility()
+    {
+        captchaPanel.Visible = Game.ClientType.ToString().StartsWith("Vietnam");
     }
 
     /// <summary>
@@ -579,6 +607,13 @@ internal partial class Main : DoubleBufferedControl
             GlobalConfig.Set("RSBot.SilkroadDirectory", Path.GetDirectoryName(dialog.FileName));
             GlobalConfig.Set("RSBot.SilkroadExecutable", Path.GetFileName(dialog.FileName));
 
+            //A new client folder was picked, so let the automatic detection run again on the next start.
+            GlobalConfig.Set("RSBot.Game.AutoDetectClientType", true);
+
+            var detection = Game.DetectClientVersion(Path.GetDirectoryName(dialog.FileName), false);
+            if (detection.IsDetected)
+                Log.Notify($"[Client] {detection}");
+
             result = MessageBox.Show(msgBoxContent, msgBoxTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
             if (result == DialogResult.No)
@@ -664,6 +699,16 @@ internal partial class Main : DoubleBufferedControl
     private void checkEnableStaticCaptcha_CheckedChanged(object sender, EventArgs e)
     {
         GlobalConfig.Set("RSBot.General.EnableStaticCaptcha", checkEnableStaticCaptcha.Checked.ToString());
+    }
+
+    /// <summary>
+    ///     Handles the CheckedChanged event of the checkAutoCaptcha control.
+    /// </summary>
+    /// <param name="sender">The source of the event.</param>
+    /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
+    private void checkAutoCaptcha_CheckedChanged(object sender, EventArgs e)
+    {
+        GlobalConfig.Set("RSBot.General.EnableAutoCaptcha", checkAutoCaptcha.Checked.ToString());
     }
 
     /// <summary>
@@ -837,23 +882,98 @@ internal partial class Main : DoubleBufferedControl
         if (comboBoxClientType.Parent.Parent == null)
             return;
 
-        if (Game.Player != null)
+        if (comboBoxClientType.SelectedIndex < 0)
+            return;
+
+        if (!_suppressClientTypeEvents && Game.Player != null)
         {
             MessageBox.Show(LanguageManager.GetLang("MsgBoxClientTypeWarn"));
+
+            _suppressClientTypeEvents = true;
+            try
+            {
+                comboBoxClientType.SelectedIndex = (int)Game.ClientType;
+            }
+            finally
+            {
+                _suppressClientTypeEvents = false;
+            }
+
             return;
         }
 
         var clientType = (GameClientType)comboBoxClientType.SelectedIndex;
 
+        if (!_suppressClientTypeEvents)
+        {
+            //The user picked a client type manually, so do not override the choice on the next start.
+            GlobalConfig.Set("RSBot.Game.AutoDetectClientType", false);
+            checkAutoDetectClientType.Checked = false;
+        }
+
         GlobalConfig.Set("RSBot.Game.ClientType", clientType);
         Game.ClientType = clientType;
+
+        if (!_suppressClientTypeEvents)
+            GlobalConfig.Save();
+
+        captchaPanel.Visible = clientType.ToString().StartsWith("Vietnam");
+
+        ApplyGeneralLayout();
+    }
+
+    /// <summary>
+    ///     Handles the CheckedChanged event of the checkAutoDetectClientType control.
+    /// </summary>
+    private void checkAutoDetectClientType_CheckedChanged(object sender, EventArgs e)
+    {
+        GlobalConfig.Set("RSBot.Game.AutoDetectClientType", checkAutoDetectClientType.Checked);
+
+        if (_suppressClientTypeEvents || !checkAutoDetectClientType.Checked)
+            return;
+
+        var detection = Game.DetectClientVersion(apply: false);
+        if (!detection.IsDetected)
+        {
+            Log.Notify($"[Client] {detection}");
+            MessageBox.Show(LanguageManager.GetLangBySpecificKey(
+                "RSBot.General",
+                "ClientTypeAutoDetectFailed",
+                "The client version could not be detected automatically. Please select the client type manually."));
+            return;
+        }
+
+        if (Game.Player != null && detection.ClientType.Value != Game.ClientType)
+        {
+            MessageBox.Show(LanguageManager.GetLang("MsgBoxClientTypeWarn"));
+
+            _suppressClientTypeEvents = true;
+            try
+            {
+                checkAutoDetectClientType.Checked = false;
+            }
+            finally
+            {
+                _suppressClientTypeEvents = false;
+            }
+
+            return;
+        }
+
+        Game.DetectClientVersion(apply: true);
+
+        _suppressClientTypeEvents = true;
+        try
+        {
+            comboBoxClientType.SelectedIndex = (int)Game.ClientType;
+        }
+        finally
+        {
+            _suppressClientTypeEvents = false;
+        }
+
+        UpdateCaptchaPanelVisibility();
         GlobalConfig.Save();
-
-        if (clientType.ToString().StartsWith("Vietnam"))
-            captchaPanel.Visible = true;
-        else
-            captchaPanel.Visible = false;
-
         ApplyGeneralLayout();
     }
 

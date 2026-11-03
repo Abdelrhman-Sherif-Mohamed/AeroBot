@@ -141,6 +141,21 @@ public partial class SplashScreen : UIWindow
             }
         }
 
+        // Wolves Authentication & HWID Licensing System
+        // Require a username/password login (or free tier session) before starting the bot.
+        lblLoading.Text = isArabic ? "جارٍ التحقق من الترخيص..." : "Checking license...";
+        Application.DoEvents();
+
+        using (var authDialog = new AuthWindow())
+        {
+            var authResult = authDialog.ShowDialog(this);
+            if (authResult != DialogResult.OK || !AuthService.Instance.IsAuthenticated)
+            {
+                Environment.Exit(0);
+                return;
+            }
+        }
+
         if (!LoadProfileConfig())
         {
             Environment.Exit(0);
@@ -169,27 +184,56 @@ public partial class SplashScreen : UIWindow
                 GlobalConfig.Set("RSBot.SilkroadDirectory", silkroadDirectory);
                 GlobalConfig.Set("RSBot.SilkroadExecutable", Path.GetFileName(dialog.FileName));
 
-                var title = LanguageManager.GetLang("ClientTypeInputDialogTitle");
-                var content = LanguageManager.GetLang("ClientTypeInputDialogContent");
+                //A new client folder was picked, so let the automatic detection run again.
+                GlobalConfig.Set("RSBot.Game.AutoDetectClientType", true);
 
-                var clientTypeDialog = new InputDialog(title, title, content, InputDialog.InputType.Combobox);
-                clientTypeDialog.ShowInTaskbar = true;
-                clientTypeDialog.StartPosition = FormStartPosition.CenterScreen;
-                clientTypeDialog.Selector.Items.AddRange(Enum.GetNames(typeof(GameClientType)));
-                clientTypeDialog.Selector.SelectedIndex = 2;
-                clientTypeDialog.TopMost = true;
-                clientTypeDialog.StartPosition = FormStartPosition.CenterScreen;
-
-                if (clientTypeDialog.ShowDialog() == DialogResult.OK)
+                var detection = ClientVersionDetector.Detect(silkroadDirectory);
+                if (detection.IsDetected)
                 {
-                    if (Enum.TryParse<GameClientType>(clientTypeDialog.Value.ToString(), out var clientType))
-                        GlobalConfig.Set("RSBot.Game.ClientType", clientType);
+                    GlobalConfig.Set("RSBot.Game.ClientType", detection.ClientType.Value);
+                    GlobalConfig.Set("RSBot.Game.ClientVersion", detection.Version ?? 0);
+                    GlobalConfig.Set("RSBot.Game.ClientVersionSource", detection.Source ?? string.Empty);
+
+                    var detectedTitle = LanguageManager.GetLang("ClientTypeAutoDetectedTitle");
+                    var detectedContent = string.Format(
+                        LanguageManager.GetLang("ClientTypeAutoDetectedContent"),
+                        detection.VersionText,
+                        detection.ClientType.Value);
+
+                    MessageBox.Show(this,
+                        string.IsNullOrWhiteSpace(detectedContent)
+                            ? $"Client version {detection.VersionText} detected. Client type: {detection.ClientType}."
+                            : detectedContent,
+                        string.IsNullOrWhiteSpace(detectedTitle) ? "Client type" : detectedTitle,
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
-                    MessageBox.Show(LanguageManager.GetLang("ClientTypeNotSelected"));
-                    GlobalConfig.Set("RSBot.Game.ClientType", GameClientType.Vietnam);
+                    //Fall back to the manual selection if the version could not be detected.
+                    var title = LanguageManager.GetLang("ClientTypeInputDialogTitle");
+                    var content = LanguageManager.GetLang("ClientTypeInputDialogContent");
+
+                    var clientTypeDialog = new InputDialog(title, title, content, InputDialog.InputType.Combobox);
+                    clientTypeDialog.ShowInTaskbar = true;
+                    clientTypeDialog.StartPosition = FormStartPosition.CenterScreen;
+                    clientTypeDialog.Selector.Items.AddRange(Enum.GetNames(typeof(GameClientType)));
+                    clientTypeDialog.Selector.SelectedIndex = 2;
+                    clientTypeDialog.TopMost = true;
+                    clientTypeDialog.StartPosition = FormStartPosition.CenterScreen;
+
+                    if (clientTypeDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        if (Enum.TryParse<GameClientType>(clientTypeDialog.Value.ToString(), out var clientType))
+                            GlobalConfig.Set("RSBot.Game.ClientType", clientType);
+                    }
+                    else
+                    {
+                        MessageBox.Show(LanguageManager.GetLang("ClientTypeNotSelected"));
+                        GlobalConfig.Set("RSBot.Game.ClientType", GameClientType.Vietnam);
+                    }
                 }
+
+                GlobalConfig.Save();
             }
             else
             {
@@ -213,6 +257,16 @@ public partial class SplashScreen : UIWindow
     /// </param>
     private void ReferenceDataLoaderCompleted(object sender, RunWorkerCompletedEventArgs e)
     {
+        // One-time migration to the new vBot-like light theme. The user can switch
+        // back to dark from the settings menu at any time.
+        if (!GlobalConfig.Get("RSBot.Theme.VBotApplied", false))
+        {
+            GlobalConfig.Set("RSBot.Theme.Auto", false);
+            GlobalConfig.Set("SDUI.Color", Main.LightThemeColor.ToArgb());
+            GlobalConfig.Set("RSBot.Theme.VBotApplied", true);
+            GlobalConfig.Save();
+        }
+
         var detectDarkLight = GlobalConfig.Get("RSBot.Theme.Auto", true);
         if (detectDarkLight)
         {

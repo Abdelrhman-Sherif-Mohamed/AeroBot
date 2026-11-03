@@ -86,6 +86,7 @@ namespace RSBot.Trade.Views
         private SDUI.Controls.CheckBox checkAttackThiefPlayers;
         private SDUI.Controls.CheckBox checkCounterAttack;
         private SDUI.Controls.CheckBox checkProtectTransport;
+        private SDUI.Controls.CheckBox checkDismountToAttackThief;
         private SDUI.Controls.CheckBox checkMountTransport;
         private SDUI.Controls.CheckBox checkCastBuffs;
         private SDUI.Controls.CheckBox checkWaitForHunter;

@@ -1,4 +1,4 @@
-using RSBot.Views.Controls;
+﻿using RSBot.Views.Controls;
 using System.Windows.Forms;
 
 namespace RSBot.Views
@@ -148,7 +148,7 @@ namespace RSBot.Views
             bottomPanel.Name = "bottomPanel";
             bottomPanel.Radius = 0;
             bottomPanel.ShadowDepth = 0F;
-            bottomPanel.Size = new System.Drawing.Size(1022, 140);
+            bottomPanel.Size = new System.Drawing.Size(1022, 136);
             bottomPanel.TabIndex = 2;
             // 
             // lstLog
@@ -163,7 +163,7 @@ namespace RSBot.Views
             lstLog.Location = new System.Drawing.Point(0, 0);
             lstLog.Margin = new Padding(0);
             lstLog.Name = "lstLog";
-            lstLog.Size = new System.Drawing.Size(882, 140);
+            lstLog.Size = new System.Drawing.Size(876, 136);
             lstLog.TabIndex = 0;
             lstLog.UseCompatibleStateImageBehavior = false;
             lstLog.View = View.Details;
@@ -181,12 +181,12 @@ namespace RSBot.Views
             pnlBottomActions.Controls.Add(btnShowClient);
             pnlBottomActions.Controls.Add(btnClearLog);
             pnlBottomActions.Dock = DockStyle.Right;
-            pnlBottomActions.Location = new System.Drawing.Point(882, 0);
+            pnlBottomActions.Location = new System.Drawing.Point(876, 0);
             pnlBottomActions.Margin = new Padding(0);
             pnlBottomActions.Name = "pnlBottomActions";
             pnlBottomActions.Radius = 0;
             pnlBottomActions.ShadowDepth = 0F;
-            pnlBottomActions.Size = new System.Drawing.Size(140, 140);
+            pnlBottomActions.Size = new System.Drawing.Size(146, 136);
             pnlBottomActions.TabIndex = 1;
             // 
             // btnStartBot
@@ -194,10 +194,10 @@ namespace RSBot.Views
             btnStartBot.Color = System.Drawing.Color.FromArgb(46, 171, 107);
             btnStartBot.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             btnStartBot.ForeColor = System.Drawing.Color.White;
-            btnStartBot.Location = new System.Drawing.Point(8, 6);
+            btnStartBot.Location = new System.Drawing.Point(7, 4);
             btnStartBot.Name = "btnStartBot";
             btnStartBot.Radius = 4;
-            btnStartBot.Size = new System.Drawing.Size(124, 28);
+            btnStartBot.Size = new System.Drawing.Size(132, 27);
             btnStartBot.TabIndex = 0;
             btnStartBot.Text = "Start Bot";
             btnStartBot.UseVisualStyleBackColor = true;
@@ -208,10 +208,10 @@ namespace RSBot.Views
             btnStopBot.Color = System.Drawing.Color.FromArgb(217, 83, 79);
             btnStopBot.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             btnStopBot.ForeColor = System.Drawing.Color.White;
-            btnStopBot.Location = new System.Drawing.Point(8, 38);
+            btnStopBot.Location = new System.Drawing.Point(7, 35);
             btnStopBot.Name = "btnStopBot";
             btnStopBot.Radius = 4;
-            btnStopBot.Size = new System.Drawing.Size(124, 28);
+            btnStopBot.Size = new System.Drawing.Size(132, 27);
             btnStopBot.TabIndex = 1;
             btnStopBot.Text = "Stop Bot";
             btnStopBot.UseVisualStyleBackColor = true;
@@ -221,10 +221,10 @@ namespace RSBot.Views
             // 
             btnShowClient.Color = System.Drawing.Color.Transparent;
             btnShowClient.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            btnShowClient.Location = new System.Drawing.Point(8, 70);
+            btnShowClient.Location = new System.Drawing.Point(7, 66);
             btnShowClient.Name = "btnShowClient";
             btnShowClient.Radius = 4;
-            btnShowClient.Size = new System.Drawing.Size(124, 28);
+            btnShowClient.Size = new System.Drawing.Size(132, 27);
             btnShowClient.TabIndex = 2;
             btnShowClient.Text = "Show Client";
             btnShowClient.UseVisualStyleBackColor = true;
@@ -234,10 +234,10 @@ namespace RSBot.Views
             // 
             btnClearLog.Color = System.Drawing.Color.Transparent;
             btnClearLog.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            btnClearLog.Location = new System.Drawing.Point(8, 102);
+            btnClearLog.Location = new System.Drawing.Point(7, 97);
             btnClearLog.Name = "btnClearLog";
             btnClearLog.Radius = 4;
-            btnClearLog.Size = new System.Drawing.Size(124, 28);
+            btnClearLog.Size = new System.Drawing.Size(132, 27);
             btnClearLog.TabIndex = 3;
             btnClearLog.Text = "Clear Logs";
             btnClearLog.UseVisualStyleBackColor = true;

@@ -2,23 +2,45 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• إصلاح شامل وجذري لمشكلة استهلاك حبوب فك السموم والحالات الشاذة للتريدة والحيوانات (Cos & Trade Bad Status Recovery):
-- تم حل مشكلة الإفراط الشديد في استهلاك حبوب فك السموم (حيث كان البوت يضرب 11 و 12 جرعة متتالية بمجرد إصابة وسيلة النقل بالسم من السيف).
-- رفع فترة الانتظار بين استخدام الجرعات إلى 5 ثوانٍ كاملة (Safe Cooldown) لمنح السيرفر وشبكة الاتصال وقتاً كافياً لإزالة التأثير.
-- وضع حد أقصى ذكي لمحاولات فك السم (Max 2 Attempts) لنفس الحالة الشاذة لمنع إهدار الجرعات نهائياً في حال كانت الحالة غير قابلة للفك أو تتجدد من ضربات السيف المستمرة.
-- اختيار الجرعة المناسبة بأعلى دجري/مستوى متاح في الشنطة لفك سموم الوحوش والسيف عالية المستوى بكفاءة من أول ضربة.
-- استثناء حالة الـ Zombie التي لا يمكن علاجها بالجرعات العادية لمنع إهدار الحبوب عبثاً."""
+changelog_ar = """• إعادة تفعيل شاشة تسجيل الدخول بالحساب (Username) وكلمة المرور (Password) وبصمة الجهاز (HWID) عند تشغيل البوت، مع استمرار خيار الدخول المجاني (Free Mode).
 
-changelog_en = """• Comprehensive fix for excessive Abnormal State / Poison Recovery potion consumption on Trade Transports & Pets:
-- Resolved the rapid spamming bug where the bot consumed 11-12 pills in a row upon transport being poisoned by thieves.
-- Increased recovery potion cooldown to a safe 5-second interval, allowing network latency and server updates to clear the effect.
-- Added a smart 2-attempt cap per bad effect episode to completely eliminate potion waste when debuffs are continually reapplied by attacking thieves.
-- Intelligent potion selection prioritizes highest degree/level potions in inventory to cure high-level thief poisons on first hit.
-- Excluded uncurable Zombie status to prevent unnecessary pill usage."""
+• إضافة الكشف التلقائي عن إصدار الكلاينت ونوعه (Client Auto-Detection) مع مفتاح تشغيل/إيقاف في إعدادات General، وربط اختيار نوع الكلاينت يدوياً بإيقاف الكشف التلقائي.
+
+• إضافة حل الكابتشا تلقائياً باستخدام Windows OCR لسيرفرات فيتنام، مع مفتاح تفعيل جديد في الإعدادات وإخفاء إعدادات الكابتشا لغير سيرفرات فيتنام.
+
+• إصلاحات شاملة لقتال اللصوص في التريدة: اختيار أقرب هدف صالح، مطاردة اللص حتى الدخول في مدى الهجوم، الترجل من وسيلة النقل لمهاجمته (مفعّل افتراضياً)، تجاهل الأهداف غير القابلة للوصول بعد مهلة، وعدم إيقاف مسار التجارة للأبد.
+
+• تحسين إدارة مسارات التجارة: اختيار مدينة البداية والنهاية (مع كشف مدينة البداية تلقائياً) وإضافة المسار وعكسه معاً، وأسماء المدن بالعربية، وحفظ المسارات التي تُعدّل قبل تسجيل الدخول وربطها بالشخصية بعد الدخول.
+
+• إضافة فرز ودمج أكوام العناصر المتكررة داخل المخزن الشخصي والمخزن الجماعي (Storage & Guild Storage)، وليس الحقيبة فقط.
+
+• فصل صفحة حدث Happy Event عن صفحة الحقيبة لإصلاح مشاكل العرض والتبويبات.
+
+• تحديث الواجهة: حجم نافذة تلقائي يناسب الشاشة، ترتيب ثابت للتابات، ثيم فاتح جديد (vBot-like) مع إمكانية الرجوع للداكن، وتحسين شكل الأزرار والسجلات وأعمدة السجل.
+
+• تحديثات وترجمات عربية وإنجليزية للمكونات الجديدة، وتحسينات عامة في الأداء والاستقرار."""
+
+changelog_en = """• Re-enabled the username/password + HWID login screen at startup, while keeping the Free Mode option available.
+
+• Added automatic Silkroad client version/type detection with an enable/disable toggle in General settings; selecting a client type manually now disables auto-detection.
+
+• Added automatic captcha solving using Windows OCR for Vietnam servers, with a new toggle in settings and captcha settings hidden for other clients.
+
+• Major trade thief-combat overhaul: pick the closest valid target, chase the thief into attack range, dismount the transport to fight (enabled by default), blacklist unreachable targets after a timeout, and never leave the trade route paused forever.
+
+• Improved trade route management: choose the start and destination cities (with current-city auto-detect) and add both forward and reverse routes, Arabic city names, and persist routes configured before login once the character loads.
+
+• Added stack sorting/merging for the personal storage and guild storage, not just the character inventory.
+
+• Separated the Happy Event page from the inventory page to fix layout/tab issues.
+
+• UI refresh: automatic window sizing that fits the screen, deterministic sidebar order, a new vBot-like light theme with an option to switch back to dark, and improved action buttons and log columns.
+
+• Updated Arabic/English translations for the new components plus general performance and stability improvements."""
 
 data = {
-    "version": "2.9.22",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.22.zip",
+    "version": "2.9.23",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.23.zip",
     "mandatory": False,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -35,4 +57,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.22 update to Firebase! Status:', res.status)
+    print('Published 2.9.23 update to Firebase! Status:', res.status)

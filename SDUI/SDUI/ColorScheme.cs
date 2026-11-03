@@ -75,9 +75,14 @@ public class ColorScheme
     public static Color CardColor => CustomCardColor ?? (BackColor.IsDark() ? Color.FromArgb(24, 31, 42) : Color.FromArgb(255, 255, 255));
 
     /// <summary>
+    /// App chrome (title bar, side rail, footer) color. Light: #F8F9FA, Dark: #0B1220
+    /// </summary>
+    public static Color ChromeColor => BackColor.IsDark() ? Color.FromArgb(11, 18, 32) : Color.FromArgb(248, 249, 250);
+
+    /// <summary>
     /// Secondary Card / Inner Container Background: #1e2530
     /// </summary>
-    public static Color CardColor2 => CustomCardColor2 ?? (BackColor.IsDark() ? Color.FromArgb(30, 37, 48) : Color.FromArgb(248, 250, 252));
+    public static Color CardColor2 => CustomCardColor2 ?? (BackColor.IsDark() ? Color.FromArgb(30, 37, 48) : Color.FromArgb(248, 249, 250));
 
     /// <summary>
     /// Primary Text: Pure White in Dark, Pure Black in Light
@@ -121,7 +126,7 @@ public class ColorScheme
     /// <summary>
     /// Input Fields & Containers Border: #3b485d
     /// </summary>
-    public static Color BorderColor => CustomBorderColor ?? (BackColor.IsDark() ? Color.FromArgb(59, 72, 93) : Color.FromArgb(226, 232, 240));
+    public static Color BorderColor => CustomBorderColor ?? (BackColor.IsDark() ? Color.FromArgb(59, 72, 93) : Color.FromArgb(229, 231, 235));
 
     /// <summary>
     /// Button Background Color
@@ -183,7 +188,7 @@ public class ColorScheme
             if (CustomAccentColor.HasValue)
                 return CustomAccentColor.Value;
 
-            return BackColor.IsDark() ? Color.FromArgb(16, 185, 129) : Color.FromArgb(2, 132, 199);
+            return BackColor.IsDark() ? Color.FromArgb(16, 185, 129) : Color.FromArgb(34, 160, 107);
         }
     }
 

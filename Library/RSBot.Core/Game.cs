@@ -143,6 +143,11 @@ public class Game
     public static GameClientType ClientType { get; set; }
 
     /// <summary>
+    ///     Gets the result of the last client version detection.
+    /// </summary>
+    public static ClientVersionInfo DetectedClientVersion { get; private set; }
+
+    /// <summary>
     ///     Starts the game.
     /// </summary>
     public static void Start()
@@ -363,11 +368,46 @@ public class Game
     }
 
     /// <summary>
+    ///     Detects the version of the configured Silkroad client and optionally applies the matching
+    ///     <see cref="GameClientType" />.
+    /// </summary>
+    /// <param name="directory">The client directory. Defaults to <c>RSBot.SilkroadDirectory</c>.</param>
+    /// <param name="apply">Whether to store and apply the detected client type.</param>
+    public static ClientVersionInfo DetectClientVersion(string directory = null, bool apply = true)
+    {
+        directory ??= GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
+
+        var detection = ClientVersionDetector.Detect(directory);
+        DetectedClientVersion = detection;
+
+        if (!apply || !detection.IsDetected)
+            return detection;
+
+        ClientType = detection.ClientType.Value;
+
+        GlobalConfig.Set("RSBot.Game.ClientType", ClientType);
+        GlobalConfig.Set("RSBot.Game.ClientVersion", detection.Version ?? 0);
+        GlobalConfig.Set("RSBot.Game.ClientVersionSource", detection.Source ?? string.Empty);
+
+        GlobalConfig.Save();
+
+        Log.Notify($"[Client] Detected {detection}");
+
+        return detection;
+    }
+
+    /// <summary>
     ///     Initializes this instance.
     /// </summary>
     public static void Initialize()
     {
         ClientType = GlobalConfig.GetEnum("RSBot.Game.ClientType", GameClientType.Vietnam);
+
+        //Automatically detect the client version unless the user disabled it
+        //or selected a client type manually.
+        if (GlobalConfig.Get("RSBot.Game.AutoDetectClientType", true))
+            DetectClientVersion();
+
         ReferenceManager = new ReferenceManager();
         Party = new Party();
 

@@ -33,6 +33,8 @@ public static class PlayerConfig
     /// </summary>
     /// <param name="key">The key.</param>
     /// <returns></returns>
+    public static bool IsLoaded => _config != null;
+
     public static bool Exists(string key)
     {
         if (_config == null)

@@ -1,3 +1,4 @@
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,6 +8,22 @@ namespace RSBot.Trade.Components;
 
 internal static class TradeConfig
 {
+    /// <summary>
+    ///     Route lists that were configured before a character got loaded. The
+    ///     character configuration is not available at that point, so the
+    ///     changes are kept in memory and flushed once it becomes available.
+    /// </summary>
+    private static List<string> _pendingRouteLists = new();
+
+    private static Dictionary<string, List<string>> _pendingRoutes =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly Dictionary<string, bool> _pendingRouteActive =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly Dictionary<string, int> _pendingRouteLoops =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public static string TracePlayerName
     {
         get => PlayerConfig.Get("RSBot.Trade.TracePlayerName", "");
@@ -55,10 +72,11 @@ internal static class TradeConfig
 
     /// <summary>
     ///     Dismount transport immediately when attacking or engaged with a thief.
+    ///     A mounted character can not attack, so this is enabled by default.
     /// </summary>
     public static bool DismountToAttackThief
     {
-        get => PlayerConfig.Get("RSBot.Trade.DismountToAttackThief", false);
+        get => PlayerConfig.Get("RSBot.Trade.DismountToAttackThief", true);
         set => PlayerConfig.Set("RSBot.Trade.DismountToAttackThief", value);
     }
 
@@ -173,6 +191,9 @@ internal static class TradeConfig
     /// </summary>
     public static bool IsRouteActive(string fileName)
     {
+        if (!PlayerConfig.IsLoaded)
+            return !_pendingRouteActive.TryGetValue(fileName, out var active) || active;
+
         return PlayerConfig.Get($"RSBot.Trade.RouteActive.{fileName}", true);
     }
 
@@ -181,6 +202,12 @@ internal static class TradeConfig
     /// </summary>
     public static void SetRouteActive(string fileName, bool active)
     {
+        if (!PlayerConfig.IsLoaded)
+        {
+            _pendingRouteActive[fileName] = active;
+            return;
+        }
+
         PlayerConfig.Set($"RSBot.Trade.RouteActive.{fileName}", active);
     }
 
@@ -189,6 +216,9 @@ internal static class TradeConfig
     /// </summary>
     public static int GetRouteLoop(string fileName)
     {
+        if (!PlayerConfig.IsLoaded)
+            return _pendingRouteLoops.TryGetValue(fileName, out var loops) ? loops : 1;
+
         return PlayerConfig.Get($"RSBot.Trade.RouteLoop.{fileName}", 1);
     }
 
@@ -197,7 +227,15 @@ internal static class TradeConfig
     /// </summary>
     public static void SetRouteLoop(string fileName, int loops)
     {
-        PlayerConfig.Set($"RSBot.Trade.RouteLoop.{fileName}", System.Math.Clamp(loops, 1, 999));
+        loops = System.Math.Clamp(loops, 1, 999);
+
+        if (!PlayerConfig.IsLoaded)
+        {
+            _pendingRouteLoops[fileName] = loops;
+            return;
+        }
+
+        PlayerConfig.Set($"RSBot.Trade.RouteLoop.{fileName}", loops);
     }
 
     /// <summary>
@@ -205,6 +243,13 @@ internal static class TradeConfig
     /// </summary>
     public static void RemoveRouteList(string name)
     {
+        if (!PlayerConfig.IsLoaded)
+        {
+            _pendingRouteLists.Remove(name);
+            _pendingRoutes.Remove(name);
+            return;
+        }
+
         var lists = RouteScriptList;
         if (!lists.Remove(name))
             return;
@@ -276,6 +321,16 @@ internal static class TradeConfig
     {
         get
         {
+            if (!PlayerConfig.IsLoaded)
+            {
+                if (!_pendingRouteLists.Contains("Default"))
+                    _pendingRouteLists.Insert(0, "Default");
+
+                return new List<string>(_pendingRouteLists);
+            }
+
+            FlushPendingRoutes();
+
             var result = PlayerConfig.GetArray<string>("RSBot.Trade.RouteScriptList", ';').ToList();
 
             if (!result.Contains("Default"))
@@ -283,7 +338,22 @@ internal static class TradeConfig
 
             return result;
         }
-        set => PlayerConfig.SetArray("RSBot.Trade.RouteScriptList", value, ";");
+        set
+        {
+            if (!PlayerConfig.IsLoaded)
+            {
+                _pendingRouteLists = value == null
+                    ? new List<string>()
+                    : new List<string>(value);
+
+                if (!_pendingRouteLists.Contains("Default"))
+                    _pendingRouteLists.Insert(0, "Default");
+
+                return;
+            }
+
+            PlayerConfig.SetArray("RSBot.Trade.RouteScriptList", value, ";");
+        }
     }
 
 
@@ -291,6 +361,27 @@ internal static class TradeConfig
     {
         get
         {
+            if (!PlayerConfig.IsLoaded)
+            {
+                if (!_pendingRouteLists.Contains("Default"))
+                    _pendingRouteLists.Insert(0, "Default");
+
+                var pendingResult = new Dictionary<string, List<string>>(16);
+
+                foreach (var scriptList in _pendingRouteLists)
+                {
+                    var scripts = _pendingRoutes.TryGetValue(scriptList, out var pending)
+                        ? pending.Where(File.Exists).ToList()
+                        : new List<string>();
+
+                    pendingResult[scriptList] = scripts;
+                }
+
+                return pendingResult;
+            }
+
+            FlushPendingRoutes();
+
             var result = new Dictionary<string, List<string>>(16);
 
             foreach (var scriptList in RouteScriptList)
@@ -306,10 +397,83 @@ internal static class TradeConfig
         }
         set
         {
+            if (value == null)
+                return;
+
+            if (!PlayerConfig.IsLoaded)
+            {
+                _pendingRoutes = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var scriptList in value)
+                    _pendingRoutes[scriptList.Key] = new List<string>(scriptList.Value);
+
+                _pendingRouteLists = value.Keys.ToList();
+
+                if (!_pendingRouteLists.Contains("Default"))
+                    _pendingRouteLists.Insert(0, "Default");
+
+                return;
+            }
+
+            FlushPendingRoutes();
+
             foreach (var scriptList in value)
                 PlayerConfig.SetArray($"RSBot.Trade.RouteScriptList.{scriptList.Key}", scriptList.Value);
 
             RouteScriptList = value.Keys.ToList();
         }
+    }
+
+    /// <summary>
+    ///     Writes the route lists that were configured before the character
+    ///     configuration was available into the character configuration.
+    /// </summary>
+    public static void FlushPendingRoutes()
+    {
+        if (!PlayerConfig.IsLoaded ||
+            (_pendingRouteLists.Count == 0 && _pendingRoutes.Count == 0 &&
+             _pendingRouteActive.Count == 0 && _pendingRouteLoops.Count == 0))
+            return;
+
+        var lists = PlayerConfig.GetArray<string>("RSBot.Trade.RouteScriptList", ';').ToList();
+
+        foreach (var list in _pendingRouteLists)
+        {
+            if (!lists.Contains(list))
+                lists.Add(list);
+        }
+
+        if (!lists.Contains("Default"))
+            lists.Insert(0, "Default");
+
+        PlayerConfig.SetArray("RSBot.Trade.RouteScriptList", lists, ";");
+
+        foreach (var route in _pendingRoutes)
+        {
+            var scripts = PlayerConfig
+                .GetArray<string>($"RSBot.Trade.RouteScriptList.{route.Key}")
+                .ToList();
+
+            foreach (var file in route.Value)
+            {
+                if (scripts.Any(existing => string.Equals(existing, file, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                scripts.Add(file);
+            }
+
+            PlayerConfig.SetArray($"RSBot.Trade.RouteScriptList.{route.Key}", scripts);
+        }
+
+        foreach (var route in _pendingRouteActive)
+            PlayerConfig.Set($"RSBot.Trade.RouteActive.{route.Key}", route.Value);
+
+        foreach (var route in _pendingRouteLoops)
+            PlayerConfig.Set($"RSBot.Trade.RouteLoop.{route.Key}", route.Value);
+
+        _pendingRouteLists.Clear();
+        _pendingRoutes.Clear();
+        _pendingRouteActive.Clear();
+        _pendingRouteLoops.Clear();
     }
 }

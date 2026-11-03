@@ -550,9 +550,9 @@ public class UIWindow : UIWindowBase
     private const int TAB_HEADER_PADDING = 9;
     private const int TAB_INDICATOR_HEIGHT = 3;
 
-    private const int NAV_WIDTH = 168;
-    private const int NAV_ITEM_HEIGHT = 42;
-    private const int NAV_BADGE_SIZE = 26;
+    private const int NAV_WIDTH = 166;
+    private const int NAV_ITEM_HEIGHT = 31;
+    private const int NAV_BADGE_SIZE = 18;
 
     private int _navScrollOffset;
     private int _navMaxScroll;
@@ -1156,22 +1156,35 @@ public class UIWindow : UIWindowBase
 
         graphics.SetHighQuality();
 
-        // Sonic Royal chrome: subtle title gradient + accent hairline
+        // Clean flat title bar (vBot style) in light mode, subtle chrome in dark mode.
         if (_titleHeightDPI > 0 && Width > 0)
         {
             var baseCol = ColorScheme.BackColor;
-            var topCol = Color.FromArgb(
-                baseCol.A,
-                Math.Min(255, baseCol.R + 14),
-                Math.Min(255, baseCol.G + 16),
-                Math.Min(255, baseCol.B + 24));
             var titleRect = new RectangleF(0, 0, Width, _titleHeightDPI);
-            using (var chrome = new System.Drawing.Drawing2D.LinearGradientBrush(
-                       titleRect, topCol, baseCol,
-                       System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+
+            if (baseCol.IsDark())
+            {
+                var topCol = Color.FromArgb(
+                    baseCol.A,
+                    Math.Min(255, baseCol.R + 14),
+                    Math.Min(255, baseCol.G + 16),
+                    Math.Min(255, baseCol.B + 24));
+                using var chrome = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    titleRect, topCol, baseCol,
+                    System.Drawing.Drawing2D.LinearGradientMode.Vertical);
                 graphics.FillRectangle(chrome, titleRect);
-            using (var hair = new Pen(ColorScheme.AccentColor, 1))
+            }
+            else
+            {
+                using var chrome = new SolidBrush(Color.FromArgb(248, 249, 250));
+                graphics.FillRectangle(chrome, titleRect);
+            }
+
+            if (_drawTitleBorder)
+            {
+                using var hair = new Pen(ColorScheme.BorderColor, 1);
                 graphics.DrawLine(hair, 0, _titleHeightDPI - 1, Width, _titleHeightDPI - 1);
+            }
         }
 
         if (titleColor != Color.Empty)
@@ -1409,9 +1422,13 @@ public class UIWindow : UIWindowBase
         }
 
         //Draw tab headers
-        foreach (Control page in _windowPageControl.Controls)
+        for (int pageIndex = 0; pageIndex < _windowPageControl.Count; pageIndex++)
         {
-            var currentTabIndex = _windowPageControl.Controls.IndexOf(page);
+            var page = _windowPageControl.GetPage(pageIndex);
+            if (page == null)
+                continue;
+
+            var currentTabIndex = pageIndex;
 
             var rect = pageRect[currentTabIndex];
 
@@ -1600,6 +1617,11 @@ public class UIWindow : UIWindowBase
                 pageAreaAnimationManager.SetProgress(0);
                 pageAreaAnimationManager.StartNewAnimation(AnimationDirection.In);
             };
+            _windowPageControl.PagesChanged += delegate
+            {
+                UpdateTabRects();
+                Invalidate();
+            };
             _windowPageControl.ControlAdded += delegate
             {
                 Invalidate();
@@ -1618,8 +1640,8 @@ public class UIWindow : UIWindowBase
     {
         bool dark = ColorScheme.BackColor.IsDark();
 
-        var sidebarBg = dark ? Color.FromArgb(13, 19, 33) : Color.FromArgb(248, 249, 250);
-        var dividerColor = dark ? Color.FromArgb(26, 38, 62) : Color.FromArgb(226, 232, 240);
+        var sidebarBg = dark ? Color.FromArgb(15, 23, 42) : Color.FromArgb(248, 249, 250);
+        var dividerColor = dark ? Color.FromArgb(30, 41, 59) : Color.FromArgb(229, 231, 235);
 
         int navLeft = 0;
         int navTop = (int)_titleHeightDPI;
@@ -1635,12 +1657,12 @@ public class UIWindow : UIWindowBase
 
         int sel = _windowPageControl.SelectedIndex;
 
-        var washHover = dark ? Color.FromArgb(22, 33, 54) : Color.FromArgb(240, 243, 246);
-        var activeBg = dark ? Color.FromArgb(20, 50, 40) : Color.FromArgb(224, 242, 233);
-        var badgeIdle = dark ? Color.FromArgb(22, 32, 50) : Color.FromArgb(235, 238, 243);
-        var textIdle = dark ? Color.FromArgb(203, 213, 225) : Color.FromArgb(30, 41, 59);
-        var textActive = dark ? Color.FromArgb(52, 211, 153) : Color.FromArgb(30, 130, 80);
-        var accentColor = dark ? Color.FromArgb(52, 211, 153) : Color.FromArgb(46, 171, 107);
+        var washHover = dark ? Color.FromArgb(30, 41, 59) : Color.FromArgb(241, 245, 249);
+        var activeBg = dark ? Color.FromArgb(17, 61, 44) : Color.FromArgb(231, 244, 236);
+        var textIdle = dark ? Color.FromArgb(203, 213, 225) : Color.FromArgb(55, 65, 81);
+        var textActive = dark ? Color.FromArgb(52, 211, 153) : Color.FromArgb(31, 122, 77);
+        var iconIdle = dark ? Color.FromArgb(148, 163, 184) : Color.FromArgb(107, 114, 128);
+        var iconActive = dark ? Color.FromArgb(52, 211, 153) : Color.FromArgb(34, 160, 107);
 
         using var centerFmt = new StringFormat
         {
@@ -1649,6 +1671,7 @@ public class UIWindow : UIWindowBase
             Trimming = StringTrimming.EllipsisCharacter,
             FormatFlags = StringFormatFlags.NoWrap
         };
+        using var navFont = new Font(Font.FontFamily, 9f, FontStyle.Regular, GraphicsUnit.Point);
         using var leftFmt = new StringFormat
         {
             LineAlignment = StringAlignment.Center,
@@ -1659,41 +1682,36 @@ public class UIWindow : UIWindowBase
         for (int i = 0; i < pageRect.Count; i++)
         {
             var r = pageRect[i];
-            var page = _windowPageControl.Controls[i];
+            var page = _windowPageControl.GetPage(i);
+            if (page == null)
+                continue;
             bool selected = i == sel;
 
-            var cardRect = new RectangleF(r.X + 2, r.Y + 1, r.Width - 4, r.Height - 2);
+            var cardRect = new RectangleF(r.X + 8, r.Y + 1, r.Width - 16, r.Height - 2);
+            if (cardRect.Width <= 0 || cardRect.Height <= 0)
+                continue;
 
             if (selected)
             {
                 using var sbg = new SolidBrush(activeBg);
-                graphics.FillPath(sbg, cardRect.Radius(8));
-
-                var indicator = new RectangleF(cardRect.Left + 2, cardRect.Y + 5, 3f, cardRect.Height - 10);
-                using var ib = new SolidBrush(accentColor);
-                graphics.FillPath(ib, indicator.Radius(1.5f));
+                graphics.FillPath(sbg, cardRect.Radius(6));
             }
             else if (i == _hoverTabIndex)
             {
                 using var hbg = new SolidBrush(washHover);
-                graphics.FillPath(hbg, cardRect.Radius(8));
+                graphics.FillPath(hbg, cardRect.Radius(6));
             }
 
-            float badge = Math.Min(NAV_BADGE_SIZE, r.Height - 8);
-            float by = r.Y + ((r.Height - badge) / 2);
-            var badgeRect = new RectangleF(r.X + 8, by, badge, badge);
-            var badgeBg = selected ? accentColor.Alpha(25) : badgeIdle;
-            using (var bb = new SolidBrush(badgeBg))
-                graphics.FillPath(bb, badgeRect.Radius(6));
+            float iconSize = Math.Min(NAV_BADGE_SIZE, cardRect.Height - 6);
+            var iconRect = new RectangleF(
+                cardRect.X + 10,
+                cardRect.Y + ((cardRect.Height - iconSize) / 2),
+                iconSize, iconSize);
 
-            var iconColor = selected ? accentColor : (dark ? Color.FromArgb(148, 163, 184) : Color.FromArgb(100, 116, 139));
+            var iconColor = selected ? iconActive : iconIdle;
             var iconSvg = SDUI.Helpers.SvgIcons.NavIcon(page.Name);
             if (!string.IsNullOrEmpty(iconSvg))
             {
-                float pad = 5 * DPI;
-                var iconRect = new RectangleF(
-                    badgeRect.X + pad, badgeRect.Y + pad,
-                    badgeRect.Width - pad * 2, badgeRect.Height - pad * 2);
                 try
                 {
                     graphics.DrawSvg(iconSvg, iconColor, iconRect);
@@ -1702,19 +1720,19 @@ public class UIWindow : UIWindowBase
                 {
                     var letter = string.IsNullOrEmpty(page.Text) ? "?" : page.Text.Substring(0, 1);
                     using var lb = new SolidBrush(iconColor);
-                    graphics.DrawString(letter, Font, lb, badgeRect, centerFmt);
+                    graphics.DrawString(letter, navFont, lb, iconRect, centerFmt);
                 }
             }
             else
             {
                 var letter = string.IsNullOrEmpty(page.Text) ? "?" : page.Text.Substring(0, 1);
                 using (var lb = new SolidBrush(iconColor))
-                    graphics.DrawString(letter, Font, lb, badgeRect, centerFmt);
+                    graphics.DrawString(letter, navFont, lb, iconRect, centerFmt);
             }
 
-            var textRect = new RectangleF(badgeRect.Right + 8, r.Y, r.Right - badgeRect.Right - 8, r.Height);
+            var textRect = new RectangleF(iconRect.Right + 9, r.Y, cardRect.Right - iconRect.Right - 14, r.Height);
             using (var tb = new SolidBrush(selected ? textActive : textIdle))
-                graphics.DrawString(page.Text, Font, tb, textRect, leftFmt);
+                graphics.DrawString(page.Text, navFont, tb, textRect, leftFmt);
         }
 
         graphics.Restore(clipState);
@@ -1746,21 +1764,19 @@ public class UIWindow : UIWindowBase
         if (_verticalTabs)
         {
             int count = _windowPageControl.Count;
-            int startY = (int)_titleHeightDPI + 6;
-            int available = Math.Max(1, Height - startY - 6);
+            int startY = (int)_titleHeightDPI + 8;
 
-            int step = count > 0 ? available / count : NAV_ITEM_HEIGHT + 2;
-            step = Math.Min(NAV_ITEM_HEIGHT + 2, Math.Max(32, step));
-            int itemHeight = Math.Max(28, Math.Min(NAV_ITEM_HEIGHT, step - 3));
+            const int step = NAV_ITEM_HEIGHT + 2;
+            const int itemHeight = NAV_ITEM_HEIGHT;
 
             int contentHeight = count * step;
             _navStep = step;
-            _navMaxScroll = Math.Max(0, startY + contentHeight - (Height - 6));
+            _navMaxScroll = Math.Max(0, startY + contentHeight - (Height - 8));
             if (_navScrollOffset > _navMaxScroll)
                 _navScrollOffset = _navMaxScroll;
 
             for (int i = 0; i < count; i++)
-                pageRect.Add(new(6, startY + i * step - _navScrollOffset, NAV_WIDTH - 12, itemHeight));
+                pageRect.Add(new(0, startY + i * step - _navScrollOffset, NAV_WIDTH, itemHeight));
 
             return;
         }

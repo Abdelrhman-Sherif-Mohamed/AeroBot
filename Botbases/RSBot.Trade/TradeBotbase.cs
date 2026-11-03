@@ -92,6 +92,10 @@ public class TradeBotbase : IBotbase
     /// </summary>
     private void OnLoadCharacter()
     {
+        // Routes may have been configured before the character was selected.
+        // Now that the player configuration is available, persist them.
+        TradeConfig.FlushPendingRoutes();
+
         if (!TradeConfig.AutoStartAfterLogin)
             return;
 

@@ -178,6 +178,10 @@ public partial class Main : DoubleBufferedControl
         checkProtectTransport.CheckedChanged += checkSettings_CheckedChanged;
         AddCheckRow(table, checkProtectTransport, 25);
 
+        checkDismountToAttackThief = MakeCheckBox("الترجل لمهاجمة اللصوص");
+        checkDismountToAttackThief.CheckedChanged += checkSettings_CheckedChanged;
+        AddCheckRow(table, checkDismountToAttackThief, 25);
+
         checkMountTransport = MakeCheckBox("امتطاء وسيلة النقل");
         checkMountTransport.CheckedChanged += checkSettings_CheckedChanged;
         AddCheckRow(table, checkMountTransport, 25);
@@ -654,7 +658,7 @@ public partial class Main : DoubleBufferedControl
         var panel = new System.Windows.Forms.Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(15, 23, 42),
+            BackColor = Color.Transparent,
             Padding = new Padding(8, 4, 8, 6),
             Margin = new Padding(0)
         };
@@ -663,11 +667,10 @@ public partial class Main : DoubleBufferedControl
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             BackColor = Color.Transparent
         };
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 24F));
-        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
         grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
         panelLogHeader = new System.Windows.Forms.Panel
@@ -758,8 +761,8 @@ public partial class Main : DoubleBufferedControl
             Dock = DockStyle.Fill,
             ReadOnly = true,
             BorderStyle = BorderStyle.None,
-            BackColor = Color.FromArgb(2, 6, 23),
-            ForeColor = Color.FromArgb(226, 232, 240),
+            BackColor = Color.White,
+            ForeColor = Color.FromArgb(17, 24, 39),
             Font = new Font("Consolas", 9F),
             WordWrap = false,
             HideSelection = false,
@@ -771,8 +774,7 @@ public partial class Main : DoubleBufferedControl
         panelLogBody.Controls.Add(rtbLog);
 
         grid.Controls.Add(panelLogHeader, 0, 0);
-        grid.Controls.Add(panelLogButtons, 0, 1);
-        grid.Controls.Add(panelLogBody, 0, 2);
+        grid.Controls.Add(panelLogBody, 0, 1);
         panel.Controls.Add(grid);
 
         return panel;
@@ -952,6 +954,23 @@ public partial class Main : DoubleBufferedControl
         EventManager.SubscribeEvent("OnStartBot", new System.Action(OnBotStateChanged));
         EventManager.SubscribeEvent("OnStopBot", new System.Action(OnBotStateChanged));
         EventManager.SubscribeEvent("OnAddLog", new Action<string, LogLevel>(AppendLog));
+        EventManager.SubscribeEvent("OnLoadCharacter", new System.Action(OnCharacterLoaded));
+    }
+
+    /// <summary>
+    ///     Persists the routes that were configured before the character got
+    ///     loaded and refreshes the view with the loaded configuration.
+    /// </summary>
+    private void OnCharacterLoaded()
+    {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new System.Action(OnCharacterLoaded));
+            return;
+        }
+
+        TradeConfig.FlushPendingRoutes();
+        ReloadView();
     }
 
     private void Main_Load(object sender, EventArgs e)
@@ -1056,6 +1075,7 @@ public partial class Main : DoubleBufferedControl
         checkAttackThiefPlayers.Checked = TradeConfig.AttackThiefPlayers;
         checkCounterAttack.Checked = TradeConfig.CounterAttack;
         checkProtectTransport.Checked = TradeConfig.ProtectTransport;
+        checkDismountToAttackThief.Checked = TradeConfig.DismountToAttackThief;
         checkMountTransport.Checked = TradeConfig.MountTransport;
         checkCastBuffs.Checked = TradeConfig.CastBuffs;
         checkWaitForHunter.Checked = TradeConfig.WaitForHunter;
@@ -1161,6 +1181,7 @@ public partial class Main : DoubleBufferedControl
         TradeConfig.AttackThiefPlayers = checkAttackThiefPlayers.Checked;
         TradeConfig.CounterAttack = checkCounterAttack.Checked;
         TradeConfig.ProtectTransport = checkProtectTransport.Checked;
+        TradeConfig.DismountToAttackThief = checkDismountToAttackThief.Checked;
         TradeConfig.MountTransport = checkMountTransport.Checked;
         TradeConfig.CastBuffs = checkCastBuffs.Checked;
         TradeConfig.WaitForHunter = checkWaitForHunter.Checked;
@@ -1276,6 +1297,19 @@ public partial class Main : DoubleBufferedControl
 
     #region Routes
 
+    /// <summary>
+    ///     Arabic display names for the trade cities, keyed by their canonical name.
+    /// </summary>
+    private static readonly Dictionary<string, string> TradeCityNames =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Jangan"] = "جانجان",
+            ["Donwhang"] = "دونغوانغ",
+            ["Hotan"] = "هوتان",
+            ["Samarkand"] = "سمرقند",
+            ["Constantinople"] = "القسطنطينية"
+        };
+
     private void RefreshRoutes()
     {
         if (lvRoutes == null || IsDisposed)
@@ -1301,14 +1335,17 @@ public partial class Main : DoubleBufferedControl
                 var start = string.Empty;
                 var end = string.Empty;
 
-                // The endpoints are resolved by reading the file directly so
-                // that refreshing this table never replaces the script that is
-                // currently loaded in the main window.
-                var endpoints = TryReadRouteEndpoints(file);
-                if (endpoints.HasValue && Game.ReferenceManager != null)
+                // The route name is the most reliable source for the endpoints,
+                // because it is available even before the game data got loaded.
+                // Reading the script is only used as a fallback.
+                if (!TryGetRouteCitiesFromFileName(file, out start, out end))
                 {
-                    start = Game.ReferenceManager.GetTranslation(endpoints.Value.start.Region.ToString());
-                    end = Game.ReferenceManager.GetTranslation(endpoints.Value.end.Region.ToString());
+                    var endpoints = TryReadRouteEndpoints(file);
+                    if (endpoints.HasValue && Game.ReferenceManager != null)
+                    {
+                        start = Game.ReferenceManager.GetTranslation(endpoints.Value.start.Region.ToString());
+                        end = Game.ReferenceManager.GetTranslation(endpoints.Value.end.Region.ToString());
+                    }
                 }
 
                 var active = TradeConfig.IsRouteActive(file);
@@ -1458,6 +1495,15 @@ public partial class Main : DoubleBufferedControl
         }
     }
 
+    private enum AddRouteResult
+    {
+        Added,
+        AlreadyExists,
+        MissingScript,
+        InvalidCity,
+        SameCity
+    }
+
     private void btnAddRoute_Click(object sender, EventArgs e)
     {
         var selectedList = comboRouteList.SelectedItem?.ToString();
@@ -1468,46 +1514,236 @@ public partial class Main : DoubleBufferedControl
             return;
         }
 
-        using var dialog = new OpenFileDialog
+        var startCity = comboStartCity.SelectedItem?.ToString();
+        var destinationCity = comboDestCity.SelectedItem?.ToString();
+
+        if (string.Equals(startCity, "Auto-Detect", StringComparison.OrdinalIgnoreCase))
         {
-            Title = "اختر ملفات مسارات التجارة",
-            Filter = "RSBot Script (*.rbs)|*.rbs|كل الملفات (*.*)|*.*",
-            AddExtension = true,
-            CheckFileExists = true,
-            Multiselect = true
-        };
+            if (Game.Player == null)
+            {
+                MessageBox.Show("لا يمكن تحديد مدينة البداية تلقائياً قبل تسجيل الدخول. اختر مدينة البداية يدوياً ثم أضف المسار.",
+                    "مدينة البداية", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
 
-        var tradeDirectory = Path.Combine(ScriptManager.InitialDirectory, "Trade");
-        if (Directory.Exists(tradeDirectory))
-            dialog.InitialDirectory = tradeDirectory;
+            startCity = RouteBundle.DetectCurrentCity();
+        }
 
-        var owner = FindForm();
-        var result = owner != null ? dialog.ShowDialog(owner) : dialog.ShowDialog();
-        if (result != DialogResult.OK)
-            return;
+        var result = AddTradeRoutePair(selectedList, startCity, destinationCity,
+            out var added, out var missingScript);
+
+        switch (result)
+        {
+            case AddRouteResult.InvalidCity:
+                MessageBox.Show("يرجى اختيار مدينة البداية ومدينة النهاية أولاً.", "بيانات المسار",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+
+            case AddRouteResult.SameCity:
+                MessageBox.Show("لا يمكن إضافة مسار من مدينة إلى نفس المدينة. اختر مدينتين مختلفتين.",
+                    "بيانات المسار", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+
+            case AddRouteResult.MissingScript:
+                MessageBox.Show(
+                    $"لم يتم العثور على سكريبت المسار [{missingScript}] داخل مجلد Data\\Scripts\\Trade.\n" +
+                    "تأكد من وجود الملف ثم أعد المحاولة.",
+                    "السكريبت غير موجود", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+
+            case AddRouteResult.AlreadyExists:
+                MessageBox.Show(
+                    $"المسار [{GetTradeCityName(startCity)} → {GetTradeCityName(destinationCity)}] " +
+                    "ومساره العكسي موجودان بالفعل في هذه القائمة.",
+                    "قائمة المسارات", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+        }
+
+        RefreshRoutes();
+
+        if (lvRoutes.Items.Count > 0)
+        {
+            var last = lvRoutes.Items.Count - 1;
+            lvRoutes.Items[last].Selected = true;
+            lvRoutes.EnsureVisible(last);
+        }
+
+        var routeNames = string.Join(" + ", added.Select(Path.GetFileNameWithoutExtension));
+        Log.Notify(
+            $"[Trade] تمت إضافة مسار {GetTradeCityName(startCity)} ↔ {GetTradeCityName(destinationCity)} " +
+            $"إلى القائمة [{selectedList}] ({routeNames}).");
+    }
+
+    /// <summary>
+    ///     Adds the forward and the reverse route scripts of a city pair to the
+    ///     selected route list.
+    /// </summary>
+    private static AddRouteResult AddTradeRoutePair(string selectedList, string startCity, string destinationCity,
+        out List<string> added, out string missingScript)
+    {
+        added = new List<string>();
+        missingScript = null;
+
+        var from = NormalizeTradeCity(startCity);
+        var to = NormalizeTradeCity(destinationCity);
+
+        if (string.IsNullOrEmpty(from) || string.IsNullOrEmpty(to))
+            return AddRouteResult.InvalidCity;
+
+        if (string.Equals(from, to, StringComparison.OrdinalIgnoreCase))
+            return AddRouteResult.SameCity;
+
+        var forward = FindTradeRouteScript(from, to);
+        if (forward == null)
+        {
+            missingScript = $"{from} to {to}";
+            return AddRouteResult.MissingScript;
+        }
+
+        var reverse = FindTradeRouteScript(to, from);
+        if (reverse == null)
+        {
+            missingScript = $"{to} to {from}";
+            return AddRouteResult.MissingScript;
+        }
 
         var dict = TradeConfig.RouteScripts;
         if (!dict.TryGetValue(selectedList, out var routes))
-            return;
+            routes = new List<string>();
 
-        var added = 0;
-        foreach (var file in dialog.FileNames)
+        foreach (var file in new[] { forward, reverse })
         {
             if (routes.Any(r => string.Equals(r, file, StringComparison.OrdinalIgnoreCase)))
                 continue;
 
             routes.Add(file);
-            added++;
+            added.Add(file);
         }
 
-        if (added == 0)
-            return;
+        if (added.Count == 0)
+            return AddRouteResult.AlreadyExists;
 
         dict[selectedList] = routes;
         TradeConfig.RouteScripts = dict;
 
-        RefreshRoutes();
-        Log.Notify($"[Trade] تمت إضافة {added} مسار إلى القائمة {selectedList}.");
+        return AddRouteResult.Added;
+    }
+
+    /// <summary>
+    ///     Resolves a city name (or a script name fragment) to its canonical name.
+    /// </summary>
+    private static string NormalizeTradeCity(string city)
+    {
+        if (string.IsNullOrWhiteSpace(city))
+            return string.Empty;
+
+        var value = city.Trim();
+
+        if (value.Contains("jangan", StringComparison.OrdinalIgnoreCase))
+            return "Jangan";
+
+        if (value.Contains("donwhang", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("downhang", StringComparison.OrdinalIgnoreCase))
+            return "Donwhang";
+
+        if (value.Contains("hotan", StringComparison.OrdinalIgnoreCase))
+            return "Hotan";
+
+        if (value.Contains("samarkand", StringComparison.OrdinalIgnoreCase))
+            return "Samarkand";
+
+        if (value.Contains("constantinople", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("costantinople", StringComparison.OrdinalIgnoreCase))
+            return "Constantinople";
+
+        return value;
+    }
+
+    /// <summary>
+    ///     Returns the Arabic display name of a city.
+    /// </summary>
+    private static string GetTradeCityName(string city)
+    {
+        if (string.IsNullOrWhiteSpace(city))
+            return string.Empty;
+
+        var canonical = NormalizeTradeCity(city);
+        return TradeCityNames.TryGetValue(canonical, out var name) ? name : city.Trim();
+    }
+
+    /// <summary>
+    ///     Reads the start and the destination city from a route script name
+    ///     (for example "Jangan to Donwhang.rbs").
+    /// </summary>
+    private static bool TryGetRouteCitiesFromFileName(string file, out string start, out string end)
+    {
+        start = string.Empty;
+        end = string.Empty;
+
+        var parts = Path.GetFileNameWithoutExtension(file)
+            .Split(new[] { " to " }, StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length != 2)
+            return false;
+
+        var from = NormalizeTradeCity(parts[0]);
+        var to = NormalizeTradeCity(parts[1]);
+
+        if (string.IsNullOrEmpty(from) || string.IsNullOrEmpty(to))
+            return false;
+
+        start = GetTradeCityName(from);
+        end = GetTradeCityName(to);
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Finds the route script between two cities. Both spellings that are
+    ///     used by the bundled scripts (Downhang/Costantinople) are supported.
+    /// </summary>
+    private static string FindTradeRouteScript(string fromCity, string toCity)
+    {
+        var tradeDirectory = Path.Combine(ScriptManager.InitialDirectory, "Trade");
+        if (!Directory.Exists(tradeDirectory))
+            return null;
+
+        var from = NormalizeTradeCity(fromCity);
+        var to = NormalizeTradeCity(toCity);
+
+        if (string.IsNullOrEmpty(from) || string.IsNullOrEmpty(to))
+            return null;
+
+        string bestFile = null;
+        var bestScore = -1;
+
+        foreach (var file in Directory.GetFiles(tradeDirectory, "*.rbs"))
+        {
+            var parts = Path.GetFileNameWithoutExtension(file)
+                .Split(new[] { " to " }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length != 2)
+                continue;
+
+            if (!string.Equals(NormalizeTradeCity(parts[0]), from, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(NormalizeTradeCity(parts[1]), to, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // Prefer the files with the canonical spelling over the legacy
+            // "Downhang"/"Costantinople" duplicates.
+            var score = 0;
+            if (string.Equals(parts[0].Trim(), from, StringComparison.Ordinal))
+                score += 2;
+            if (string.Equals(parts[1].Trim(), to, StringComparison.Ordinal))
+                score += 2;
+            if (score <= bestScore)
+                continue;
+
+            bestScore = score;
+            bestFile = file;
+        }
+
+        return bestFile;
     }
 
     private void btnNewRouteList_Click(object sender, EventArgs e)
@@ -2078,6 +2314,7 @@ public partial class Main : DoubleBufferedControl
         checkAttackThiefPlayers.Text = ar ? "مهاجمة لصوص اللاعبين" : "Attack Thief Players";
         checkCounterAttack.Text = ar ? "الهجوم المضاد" : "Counter Attack";
         checkProtectTransport.Text = ar ? "حماية وسيلة النقل" : "Protect Transport";
+        checkDismountToAttackThief.Text = ar ? "الترجل لمهاجمة اللصوص" : "Dismount to fight thieves";
         checkMountTransport.Text = ar ? "امتطاء وسيلة النقل" : "Mount Transport";
         checkCastBuffs.Text = ar ? "تفعيل البفات" : "Cast Buffs";
         checkWaitForHunter.Text = ar ? "انتظار الصياد" : "Wait for Hunter nearby";

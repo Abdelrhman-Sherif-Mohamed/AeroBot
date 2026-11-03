@@ -8,10 +8,6 @@ using RSBot.Core.Network;
 using RSBot.Core.Network.Protocol;
 using RSBot.General.Models;
 
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 using Server = RSBot.General.Models.Server;
 
 namespace RSBot.General.Components;

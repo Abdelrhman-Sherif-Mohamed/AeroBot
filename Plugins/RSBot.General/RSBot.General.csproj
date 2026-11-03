@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <Nullable>disable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
     <ImplicitUsings>disable</ImplicitUsings>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	<OutputPath>.\..\..\Build\Data\Plugins</OutputPath>
 	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 	<Description>A open source bot for Silkroad Online</Description>
@@ -19,5 +20,21 @@
     <ProjectReference Include="..\..\Library\RSBot.Core\RSBot.Core.csproj" />
     <ProjectReference Include="..\..\SDUI\SDUI\SDUI.csproj" />
   </ItemGroup>
+
+  <!--
+    Windows.Media.Ocr is provided by the WinRT projections. Plugins are loaded
+    with Assembly.LoadFrom, so make sure the projections are next to the
+    executable (the default probe path) as well as next to the plugin.
+  -->
+  <Target Name="CopyWinRtProjectionsToApplication" AfterTargets="Build">
+    <ItemGroup>
+      <WinRtProjections Include="$(TargetDir)WinRT.Runtime.dll" />
+      <WinRtProjections Include="$(TargetDir)Microsoft.Windows.SDK.NET.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WinRtProjections)"
+          DestinationFolder="$(MSBuildThisFileDirectory)..\..\Build"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(WinRtProjections.FullPath)')" />
+  </Target>
 
 </Project>

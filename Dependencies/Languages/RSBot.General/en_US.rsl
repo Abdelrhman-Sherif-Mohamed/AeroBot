@@ -6,6 +6,9 @@ RSBot.General.Main.GroupBox.checkBoxBotTrayMinimized="Move bot to system tray wh
 RSBot.General.Main.GroupBox.label2="If the client exits due to a crash, the bot will automatically switch
  to clientless mode and continue its tasks"
 RSBot.General.Main.GroupBox.checkStayConnected="Stay connected if client exits unexpectedly"
+RSBot.General.Main.GroupBox.checkAutoDetectClientType="Detect client type automatically"
+checkAutoDetectClientType="Detect client type automatically"
+ClientTypeAutoDetectFailed="The client version could not be detected automatically. Please select the client type manually."
 RSBot.General.Main.GroupBox.btnClientHideShow="Client Visibility"
 RSBot.General.Main.GroupBox.btnStartClient="Start Client"
 RSBot.General.Main.GroupBox.btnStartClientless="Start Clientless"

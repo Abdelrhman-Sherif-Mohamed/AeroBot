@@ -167,10 +167,10 @@ public class Button : System.Windows.Forms.Button
         {
             // Crisp, adaptive neutral button background:
             // Dark Mode: deep charcoal surface #1E2636
-            // Light Mode: clean light gray #F3F4F6 (never solid black!)
+            // Light Mode: clean white outline button (vBot style)
             color = ColorScheme.BackColor.IsDark()
                 ? Color.FromArgb(30, 38, 54)
-                : Color.FromArgb(243, 244, 246);
+                : Color.FromArgb(255, 255, 255);
         }
 
         using var brush = new SolidBrush(color);

@@ -212,6 +212,58 @@ public class InventoryItemCollection : ICollection<InventoryItem>
     }
 
     /// <summary>
+    ///     Merges partial stacks of stackable items inside this collection.
+    /// </summary>
+    /// <param name="moveItem">Callback used to move an amount from a source slot to a destination slot.</param>
+    /// <param name="minimumSlot">The minimum slot to include in the sort operation.</param>
+    /// <param name="maxIterations">The maximum number of iterations, used to avoid deadlocks.</param>
+    /// <returns>The number of iterations that were performed.</returns>
+    protected int SortStackableItems(Func<byte, byte, ushort, bool> moveItem, byte minimumSlot = 0,
+        int maxIterations = 10)
+    {
+        var iterations = 0;
+
+        //Ignore items which move operations failed in the next iteration
+        var blacklistedItems = new List<uint>(4);
+
+        for (var iIteration = 0; iIteration < maxIterations; iIteration++)
+        {
+            iterations++;
+
+            var itemsToStackGroups = this.Where(i =>
+                    i.Slot >= minimumSlot && i.Record.IsStackable && i.Record.MaxStack > i.Amount &&
+                    !blacklistedItems.Contains(i.ItemId))
+                .GroupBy(i => i.ItemId);
+
+            if (!itemsToStackGroups.Any())
+                break;
+
+            var itemsToStack = itemsToStackGroups.FirstOrDefault(g => g.Count() >= 2)
+                ?.OrderBy(i => i.Slot)
+                .ToList();
+
+            if (itemsToStack == null)
+                break;
+
+            var source = itemsToStack.FirstOrDefault();
+            if (source == null)
+                continue;
+
+            var destination = itemsToStack.FirstOrDefault(i => i.Record.ID == source.ItemId && i.Slot != source.Slot);
+            if (destination == null)
+                continue;
+
+            var amount = destination.Record.MaxStack - destination.Amount;
+            var actualAmount = source.Amount > amount ? amount : source.Amount;
+
+            if (!moveItem(source.Slot, destination.Slot, (ushort)actualAmount))
+                blacklistedItems.Add(source.ItemId);
+        }
+
+        return iterations;
+    }
+
+    /// <summary>
     ///     Gets all items by predicate, oredered by slot.
     /// </summary>
     /// <param name="predicate">The predicate.</param>

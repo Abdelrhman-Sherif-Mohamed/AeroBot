@@ -38,6 +38,7 @@ namespace RSBot.General.Views
             groupBox3 = new SDUI.Controls.GroupBox();
             label2 = new SDUI.Controls.Label();
             checkStayConnected = new SDUI.Controls.CheckBox();
+            checkAutoDetectClientType = new SDUI.Controls.CheckBox();
             groupBox2 = new SDUI.Controls.GroupBox();
             btnClientHideShow = new SDUI.Controls.Button();
             btnStartClient = new SDUI.Controls.Button();
@@ -57,10 +58,10 @@ namespace RSBot.General.Views
             checkUseReturnScroll = new SDUI.Controls.CheckBox();
             captchaPanel = new System.Windows.Forms.Panel();
             separator2 = new SDUI.Controls.Separator();
-            label6 = new SDUI.Controls.Label();
             label5 = new SDUI.Controls.Label();
             txtStaticCaptcha = new SDUI.Controls.TextBox();
             checkEnableStaticCaptcha = new SDUI.Controls.CheckBox();
+            checkAutoCaptcha = new SDUI.Controls.CheckBox();
             autoLoginTopPanel = new System.Windows.Forms.Panel();
             comboAccounts = new SDUI.Controls.ComboBox();
             label7 = new SDUI.Controls.Label();
@@ -213,6 +214,7 @@ namespace RSBot.General.Views
             groupBox3.BackColor = System.Drawing.Color.Transparent;
             groupBox3.Controls.Add(label2);
             groupBox3.Controls.Add(checkStayConnected);
+            groupBox3.Controls.Add(checkAutoDetectClientType);
             groupBox3.Location = new System.Drawing.Point(389, 60);
             groupBox3.Name = "groupBox3";
             groupBox3.Padding = new System.Windows.Forms.Padding(3, 10, 3, 3);
@@ -258,6 +260,22 @@ namespace RSBot.General.Views
             checkStayConnected.Text = "Stay connected if client exits unexpectedly";
             checkStayConnected.UseVisualStyleBackColor = false;
             checkStayConnected.CheckedChanged += checkStayConnected_CheckedChanged;
+            // 
+            // checkAutoDetectClientType
+            // 
+            checkAutoDetectClientType.AutoSize = true;
+            checkAutoDetectClientType.BackColor = System.Drawing.Color.Transparent;
+            checkAutoDetectClientType.Depth = 0;
+            checkAutoDetectClientType.Location = new System.Drawing.Point(20, 104);
+            checkAutoDetectClientType.Margin = new System.Windows.Forms.Padding(0);
+            checkAutoDetectClientType.MouseLocation = new System.Drawing.Point(-1, -1);
+            checkAutoDetectClientType.Name = "checkAutoDetectClientType";
+            checkAutoDetectClientType.Ripple = true;
+            checkAutoDetectClientType.Size = new System.Drawing.Size(257, 30);
+            checkAutoDetectClientType.TabIndex = 23;
+            checkAutoDetectClientType.Text = "Detect client type automatically";
+            checkAutoDetectClientType.UseVisualStyleBackColor = false;
+            checkAutoDetectClientType.CheckedChanged += checkAutoDetectClientType_CheckedChanged;
             // 
             // groupBox2
             // 
@@ -524,7 +542,7 @@ namespace RSBot.General.Views
             // captchaPanel
             // 
             captchaPanel.Controls.Add(separator2);
-            captchaPanel.Controls.Add(label6);
+            captchaPanel.Controls.Add(checkAutoCaptcha);
             captchaPanel.Controls.Add(label5);
             captchaPanel.Controls.Add(txtStaticCaptcha);
             captchaPanel.Controls.Add(checkEnableStaticCaptcha);
@@ -543,25 +561,6 @@ namespace RSBot.General.Views
             separator2.Name = "separator2";
             separator2.Size = new System.Drawing.Size(349, 2);
             separator2.TabIndex = 29;
-            // 
-            // label6
-            // 
-            label6.ApplyGradient = false;
-            label6.AutoSize = true;
-            label6.Enabled = false;
-            label6.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label6.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            label6.Gradient = new System.Drawing.Color[]
-    {
-    System.Drawing.Color.Gray,
-    System.Drawing.Color.Black
-    };
-            label6.GradientAnimation = false;
-            label6.Location = new System.Drawing.Point(63, 61);
-            label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(260, 13);
-            label6.TabIndex = 21;
-            label6.Text = "Please use this only if the captcha never changes.";
             // 
             // label5
             // 
@@ -605,9 +604,25 @@ namespace RSBot.General.Views
             checkEnableStaticCaptcha.Ripple = true;
             checkEnableStaticCaptcha.Size = new System.Drawing.Size(174, 30);
             checkEnableStaticCaptcha.TabIndex = 4;
-            checkEnableStaticCaptcha.Text = "Enable static captcha solve";
+            checkEnableStaticCaptcha.Text = "Enable static captcha (only if it never changes)";
             checkEnableStaticCaptcha.UseVisualStyleBackColor = false;
             checkEnableStaticCaptcha.CheckedChanged += checkEnableStaticCaptcha_CheckedChanged;
+            // 
+            // checkAutoCaptcha
+            // 
+            checkAutoCaptcha.AutoSize = true;
+            checkAutoCaptcha.BackColor = System.Drawing.Color.Transparent;
+            checkAutoCaptcha.Depth = 0;
+            checkAutoCaptcha.Location = new System.Drawing.Point(66, 62);
+            checkAutoCaptcha.Margin = new System.Windows.Forms.Padding(0);
+            checkAutoCaptcha.MouseLocation = new System.Drawing.Point(-1, -1);
+            checkAutoCaptcha.Name = "checkAutoCaptcha";
+            checkAutoCaptcha.Ripple = true;
+            checkAutoCaptcha.Size = new System.Drawing.Size(200, 30);
+            checkAutoCaptcha.TabIndex = 5;
+            checkAutoCaptcha.Text = "Solve captcha automatically (OCR)";
+            checkAutoCaptcha.UseVisualStyleBackColor = false;
+            checkAutoCaptcha.CheckedChanged += checkAutoCaptcha_CheckedChanged;
             // 
             // autoLoginTopPanel
             // 
@@ -907,7 +922,7 @@ namespace RSBot.General.Views
         private SDUI.Controls.TextBox txtStaticCaptcha;
         private SDUI.Controls.Label label5;
         private SDUI.Controls.CheckBox checkEnableStaticCaptcha;
-        private SDUI.Controls.Label label6;
+        private SDUI.Controls.CheckBox checkAutoCaptcha;
         private SDUI.Controls.Label label7;
         private SDUI.Controls.ComboBox comboCharacter;
         private SDUI.Controls.GroupBox groupBox2;
@@ -918,6 +933,7 @@ namespace RSBot.General.Views
         private SDUI.Controls.CheckBox checkStartBot;
         private SDUI.Controls.GroupBox groupBox3;
         private SDUI.Controls.CheckBox checkStayConnected;
+        private SDUI.Controls.CheckBox checkAutoDetectClientType;
         private SDUI.Controls.Label label2;
         private SDUI.Controls.Button btnClientHideShow;
         private SDUI.Controls.GroupBox groupBox4;

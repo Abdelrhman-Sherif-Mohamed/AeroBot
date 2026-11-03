@@ -27,6 +27,6 @@ internal class CaptchaDataResponse : IPacketHandler
     /// <param name="packet">The packet.</param>
     public void Invoke(Packet packet)
     {
-        AutoLogin.SendStaticCaptcha();
+        AutoCaptcha.HandleChallenge(packet);
     }
 }

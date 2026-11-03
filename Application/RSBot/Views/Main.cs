@@ -52,15 +52,14 @@ public partial class Main : UIWindow
 
         Text = "Aerobot - Ultimate Edition";
 
-        // Compact form dimensions (matches 1038 x 593 reference), user can resize freely
+        // Responsive window sizing: fits every desktop, never larger than the working area.
         Resizable = true;
         MaximizeBox = true;
         StartPosition = FormStartPosition.CenterScreen;
-        Size = new Size(1038, 755);
-        MinimumSize = new Size(960, 680);
-        MaximumSize = Size.Empty;
+        TitleHeight = 32;
         VerticalTabs = true;
         WindowPageControl = windowPageControl;
+        ApplyDefaultWindowSize();
 
         try
         {
@@ -78,21 +77,195 @@ public partial class Main : UIWindow
         ApplyCurrentLanguage();
     }
 
+    /// <summary>
+    ///     Picks a window size that fits the current monitor and keeps the layout usable.
+    /// </summary>
+    private void ApplyDefaultWindowSize()
+    {
+        var area = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1366, 768);
+
+        int width = Math.Min(area.Width - 16, Math.Max(920, Math.Min(1180, (int)(area.Width * 0.72))));
+        int height = Math.Min(area.Height - 16, Math.Max(640, Math.Min(780, (int)(area.Height * 0.82))));
+
+        Size = new Size(width, height);
+        MinimumSize = new Size(Math.Min(920, width), Math.Min(640, height));
+        MaximumSize = Size.Empty;
+    }
+
+    /// <summary>
+    ///     Preferred order of the sidebar pages. The current botbase takes the third slot.
+    /// </summary>
+    private static readonly string[] NavigationOrder =
+    {
+        "RSBot.General",
+        "RSBot.Items",
+        "RSBot.Skills",
+        "RSBot.Protection",
+        "RSBot.Party",
+        "RSBot.Inventory",
+        "RSBot.Map",
+        "Wolves.Fortress",
+        "Wolves.Control",
+        "Wolves.Stall",
+        "Wolves.AvatarTester",
+        "Wolves.Players",
+        "RSBot.Statistics",
+        "RSBot.Chat",
+        "RSBot.Log"
+    };
+
+    /// <summary>
+    ///     Applies a fixed, deterministic sidebar order so pages never jump around.
+    /// </summary>
+    private void ApplyNavigationOrder()
+    {
+        if (windowPageControl == null)
+            return;
+
+        var pages = new List<Control>(windowPageControl.Count);
+        for (int i = 0; i < windowPageControl.Count; i++)
+            pages.Add(windowPageControl.GetPage(i));
+
+        windowPageControl.SetPageOrder(pages.OrderBy(GetNavigationRank).ToList());
+    }
+
+    private static int GetNavigationRank(Control control)
+    {
+        if (control == null)
+            return int.MaxValue;
+
+        // The active botbase page always sits right after "General" and "Items".
+        if (Kernel.BotbaseManager?.Bots != null && Kernel.BotbaseManager.Bots.ContainsKey(control.Name))
+            return 2;
+
+        var index = Array.IndexOf(NavigationOrder, control.Name);
+        if (index < 0)
+            return 100;
+
+        return index < 2 ? index : index + 1;
+    }
+
+    /// <summary>
+    ///     Applies the vBot-like light chrome to the main window.
+    /// </summary>
+    private void ApplyVisualStyle()
+    {
+        BackColor = ColorScheme.BackColor;
+        TitleHeight = 32;
+        VerticalTabs = true;
+
+        if (stripStatus != null)
+        {
+            stripStatus.BackColor = ColorScheme.ChromeColor;
+            stripStatus.ForeColor = ColorScheme.SecondaryForeColor;
+            stripStatus.Padding = new Padding(12, 0, 14, 0);
+        }
+
+        if (lblIngameStatus != null)
+            lblIngameStatus.ForeColor = ColorScheme.SecondaryForeColor;
+
+        if (menuCurrentProfile != null)
+            menuCurrentProfile.ForeColor = ColorScheme.SecondaryForeColor;
+
+        if (bottomPanel != null)
+        {
+            bottomPanel.BackColor = ColorScheme.ChromeColor;
+            bottomPanel.Border = new Padding(0, 1, 0, 0);
+            bottomPanel.BorderColor = ColorScheme.BorderColor;
+            bottomPanel.Padding = new Padding(8, 6, 6, 6);
+        }
+
+        if (pnlBottomActions != null)
+        {
+            pnlBottomActions.BackColor = Color.Transparent;
+            pnlBottomActions.Border = new Padding(1, 0, 0, 0);
+            pnlBottomActions.BorderColor = ColorScheme.BorderColor;
+        }
+
+        if (lstLog != null)
+        {
+            lstLog.BackColor = ColorScheme.BackColor.IsDark()
+                ? Color.FromArgb(15, 23, 42)
+                : Color.FromArgb(244, 245, 247);
+            lstLog.ForeColor = ColorScheme.ForeColor;
+            lstLog.BorderStyle = BorderStyle.FixedSingle;
+            lstLog.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular, GraphicsUnit.Point);
+
+            if (lstLog.SmallImageList == null)
+            {
+                var spacer = new Bitmap(1, 20);
+                lstLog.SmallImageList = new ImageList { ImageSize = new Size(1, 20) };
+                lstLog.SmallImageList.Images.Add(spacer);
+            }
+        }
+
+        StyleActionButtons();
+        AdjustLogColumns();
+    }
+
+    /// <summary>
+    ///     Restores the vBot action button styling after the theme engine runs.
+    /// </summary>
+    private void StyleActionButtons()
+    {
+        bool ar = Kernel.Language == "ar_AR";
+
+        btnStartBot.Text = ar ? "شغل البوت" : "Start Bot";
+        btnStopBot.Text = ar ? "وقف البوت" : "Stop Bot";
+        btnShowClient.Text = ar ? "إظهار الكلاينت" : "Show Client";
+        btnClearLog.Text = ar ? "مسح السجلات" : "Clear Logs";
+
+        var neutralBack = ColorScheme.BackColor.IsDark() ? ColorScheme.CardColor2 : Color.White;
+        var neutralFore = ColorScheme.BackColor.IsDark() ? ColorScheme.ForeColor : Color.FromArgb(55, 65, 81);
+
+        StyleActionButton(btnStartBot, Color.FromArgb(34, 160, 107), Color.White);
+        StyleActionButton(btnStopBot, neutralBack, neutralFore);
+        StyleActionButton(btnShowClient, neutralBack, neutralFore);
+        StyleActionButton(btnClearLog, neutralBack, neutralFore);
+    }
+
+    private static void StyleActionButton(SDUI.Controls.Button button, Color backColor, Color foreColor)
+    {
+        if (button == null)
+            return;
+
+        button.Color = backColor;
+        button.BackColor = Color.Transparent;
+        button.ForeColor = foreColor;
+        button.Radius = 4;
+        button.ShadowDepth = 0;
+        button.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
+        button.Invalidate();
+    }
+
+    /// <summary>
+    ///     Keeps the log columns proportional when the window is resized.
+    /// </summary>
+    private void AdjustLogColumns()
+    {
+        if (lstLog == null || lstLog.IsDisposed)
+            return;
+
+        int width = Math.Max(220, lstLog.ClientSize.Width - 4);
+        colTime.Width = 78;
+        colType.Width = 82;
+        colMsg.Width = Math.Max(80, width - colTime.Width - colType.Width);
+    }
+
     private void ApplyCurrentLanguage()
     {
-        btnStartBot.Text = Kernel.Language == "ar_AR" ? "شغل البوت" : "Start Bot";
-        btnStopBot.Text = Kernel.Language == "ar_AR" ? "وقف البوت" : "Stop Bot";
-        btnShowClient.Text = Kernel.Language == "ar_AR" ? "إظهار الكلاينت" : "Show Client";
-        btnClearLog.Text = Kernel.Language == "ar_AR" ? "مسح السجلات" : "Clear Logs";
+        ApplyVisualStyle();
 
-        menuCurrentProfile.Text = Kernel.Language == "ar_AR"
+        bool ar = Kernel.Language == "ar_AR";
+
+        menuCurrentProfile.Text = ar
             ? $"الملف: {ProfileManager.SelectedProfile}"
             : $"Profile: {ProfileManager.SelectedProfile}";
 
         if (Kernel.Proxy == null || !Kernel.Proxy.IsConnectedToAgentserver)
-            lblIngameStatus.Text = Kernel.Language == "ar_AR" ? "غير متصل" : "Not in game";
+            lblIngameStatus.Text = ar ? "غير متصل" : "Not in game";
         else if (Kernel.Bot != null && Kernel.Bot.Running)
-            lblIngameStatus.Text = Kernel.Language == "ar_AR" ? "يعمل" : "Running";
+            lblIngameStatus.Text = ar ? "يعمل" : "Running";
     }
 
     #endregion Constructor
@@ -150,19 +323,9 @@ public partial class Main : UIWindow
     public void RefreshTheme(bool save = true)
     {
         BackColor = ColorScheme.BackColor;
-        stripStatus.BackColor = BackColor.IsDark() ? ColorScheme.BorderColor : Color.FromArgb(33, 150, 243);
-        stripStatus.ForeColor = ColorScheme.ForeColor;
-        lblIngameStatus.ForeColor = ColorScheme.ForeColor;
-
-        if (lstLog != null && !lstLog.IsDisposed)
-        {
-            lstLog.BackColor = BackColor.IsDark() ? Color.FromArgb(15, 23, 42) : Color.FromArgb(255, 255, 255);
-            lstLog.ForeColor = ColorScheme.ForeColor;
-        }
 
         ChangeControlsTheme(this);
-
-
+        ApplyVisualStyle();
 
         Invalidate(true);
 
@@ -250,8 +413,13 @@ public partial class Main : UIWindow
         control.Name = newBotbase.Value.Name;
         control.Text = LanguageManager.GetLangBySpecificKey(newBotbase.Value.Name, "TabText", newBotbase.Value.TabText);
         control.Enabled = true;
+
+        var oldBotbaseControl = !string.IsNullOrWhiteSpace(oldBotbaseName)
+            ? windowPageControl.Controls[oldBotbaseName]
+            : null;
+
         windowPageControl.Controls.Add(control);
-        windowPageControl.Controls.SetChildIndex(control, 1);
+        windowPageControl.MovePageTo(control, 2);
         ChangeControlsTheme(control);
 
 
@@ -264,8 +432,8 @@ public partial class Main : UIWindow
         foreach (ToolStripMenuItem item in botsToolStripMenuItem.DropDown.Items)
             item.Checked = newBotbase.Value.Name == item.Name;
 
-        if (!string.IsNullOrWhiteSpace(oldBotbaseName) && windowPageControl.Controls.ContainsKey(oldBotbaseName))
-            windowPageControl.Controls.RemoveByKey(oldBotbaseName);
+        if (oldBotbaseControl != null && !ReferenceEquals(oldBotbaseControl, control))
+            windowPageControl.Controls.Remove(oldBotbaseControl);
     }
 
     /// <summary>
@@ -472,20 +640,12 @@ public partial class Main : UIWindow
         }
 
         ConfigureSidebar();
-        BackColor = ColorScheme.BackColor;
-        menuCurrentProfile.Text = "Profile: " + ProfileManager.SelectedProfile;
-
         VerticalTabs = true;
         WindowPageControl = windowPageControl;
 
-        Size = new Size(1038, 755);
-        MinimumSize = new Size(960, 680);
-        MaximumSize = Size.Empty;
-        VerticalTabs = true;
-        WindowPageControl = windowPageControl;
-        Resizable = true;
-        MaximizeBox = true;
-        StartPosition = FormStartPosition.CenterScreen;
+        ApplyNavigationOrder();
+        ApplyCurrentLanguage();
+        ApplyVisualStyle();
 
         EventManager.FireEvent("OnInitialized");
     }
@@ -681,8 +841,7 @@ public partial class Main : UIWindow
             return;
         }
 
-        
-
+        AdjustLogColumns();
     }
 
     protected override void OnShown(EventArgs e)
@@ -861,6 +1020,9 @@ public partial class Main : UIWindow
         btnStartStop.Text = !string.IsNullOrWhiteSpace(lang) ? lang : "STOP BOT";
         btnStartStop.Color = System.Drawing.Color.FromArgb(220, 53, 69);
         btnStartStop.BackColor = System.Drawing.Color.FromArgb(220, 53, 69);
+
+        if (btnStartBot != null) btnStartBot.Enabled = false;
+        if (btnStopBot != null) btnStopBot.Enabled = true;
     }
 
     /// <summary>
@@ -878,6 +1040,9 @@ public partial class Main : UIWindow
         btnStartStop.Text = !string.IsNullOrWhiteSpace(lang) ? lang : "START BOT";
         btnStartStop.Color = System.Drawing.Color.FromArgb(33, 150, 243);
         btnStartStop.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+
+        if (btnStartBot != null) btnStartBot.Enabled = true;
+        if (btnStopBot != null) btnStopBot.Enabled = false;
     }
 
     /// <summary>

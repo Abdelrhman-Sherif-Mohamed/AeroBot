@@ -12,6 +12,9 @@ RSBot.General.Main.GroupBox.checkBoxBotTrayMinimized="نقل البوت الى �
 RSBot.General.Main.GroupBox.label2="إذا تم قفل البوت بسبب كراش سينتقل البوت
  الى وضع ’بدون كلينت, ويستمر في عمله"
 RSBot.General.Main.GroupBox.checkStayConnected="البقاء متصل اذا تم قفل الكلينت فجأة"
+RSBot.General.Main.GroupBox.checkAutoDetectClientType="اكتشاف نوع الكلينت تلقائياً"
+checkAutoDetectClientType="اكتشاف نوع الكلينت تلقائياً"
+ClientTypeAutoDetectFailed="لم يتم التعرف على إصدار الكلينت تلقائياً. من فضلك اختار نوع الكلينت يدوياً."
 RSBot.General.Main.GroupBox.btnClientHideShow="ظهور الكلينت"
 RSBot.General.Main.GroupBox.btnStartClient="بدء الكلينت"
 RSBot.General.Main.GroupBox.btnStartClientless="بدء بدون كلينت"

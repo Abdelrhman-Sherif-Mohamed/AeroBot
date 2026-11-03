@@ -149,48 +149,9 @@ public class CharacterInventory : InventoryItemCollection
         IsSorting = true;
         Log.Debug("Sorting the character inventory...");
 
-        //Use iterations to avoid deadlocks!
-        const int maxIterations = 10;
-        var iterations = 0;
-
-        //Ignore items which move operations failed in the next iteration
-        var blacklistedItems = new List<uint>(4);
-
-        for (var iIteration = 0; iIteration < maxIterations; iIteration++)
-        {
-            iterations++;
-
-            var itemsToStackGroups = this.Where(i =>
-                    i.Slot > 12 && i.Record.IsStackable && i.Record.MaxStack > i.Amount &&
-                    !blacklistedItems.Contains(i.ItemId))
-                .GroupBy(i => i.ItemId);
-
-            if (!itemsToStackGroups.Any())
-                break;
-
-            var itemsToStack = itemsToStackGroups.FirstOrDefault(g => g.Count() >= 2)
-                ?.OrderBy(i => i.Slot)
-                .ToList();
-
-            if (itemsToStack == null)
-                break;
-
-            var source = itemsToStack.FirstOrDefault();
-            if (source == null)
-                continue;
-
-            var destination = itemsToStack.FirstOrDefault(i => i.Record.ID == source.ItemId && i.Slot != source.Slot);
-            if (destination == null)
-                continue;
-
-            var amount = destination.Record.MaxStack - destination.Amount;
-            var actualAmount = source.Amount > amount ? amount : source.Amount;
-
-            if (!MoveItem(source.Slot, destination.Slot, (ushort)actualAmount))
-                blacklistedItems.Add(source.ItemId);
-        }
+        var iterations = SortStackableItems(MoveItem, NORMAL_PART_MIN_SLOT);
 
         IsSorting = false;
-        Log.Debug($"Sorting finished after {iterations}/{maxIterations}");
+        Log.Debug($"Sorting finished after {iterations}/10");
     }
 }

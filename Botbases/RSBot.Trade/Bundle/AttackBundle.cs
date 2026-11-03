@@ -12,6 +12,34 @@ namespace RSBot.Trade.Bundle;
 internal class AttackBundle
 {
     /// <summary>
+    ///     Distance (in meters) below which the player stops walking and starts attacking.
+    /// </summary>
+    private const double EngageDistance = 3.0;
+
+    /// <summary>
+    ///     Extra distance (in meters) the bot may chase a thief before it gives
+    ///     up and returns to the trade route.
+    /// </summary>
+    private const double ChaseLeash = 15.0;
+
+    private static readonly TimeSpan MoveInterval = TimeSpan.FromMilliseconds(300);
+    private static readonly TimeSpan SelectInterval = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan DismountInterval = TimeSpan.FromMilliseconds(750);
+
+    private static readonly TimeSpan DismountTimeout = TimeSpan.FromSeconds(6);
+    private static readonly TimeSpan CombatTimeout = TimeSpan.FromSeconds(45);
+
+    private DateTime _lastMove = DateTime.MinValue;
+    private DateTime _lastSelect = DateTime.MinValue;
+    private DateTime _lastDismount = DateTime.MinValue;
+    private DateTime _dismountStartedAt = DateTime.MinValue;
+    private DateTime _combatStartedAt = DateTime.MinValue;
+    private uint _combatTargetUid;
+    private uint _ignoredTargetUid;
+    private DateTime _ignoreTargetUntil = DateTime.MinValue;
+    private bool _pausedScript;
+
+    /// <summary>
     ///     A value indicating if the bundle is busy attacking the selected target.
     /// </summary>
     public bool IsAttacking { get; private set; }
@@ -22,11 +50,22 @@ internal class AttackBundle
     public bool Busy => IsAttacking;
 
     /// <summary>
+    ///     Whether NPC thieves should be attacked. Smart combat mode enables the
+    ///     basic protection behaviours and also enables both attack types.
+    /// </summary>
+    private static bool AttackThiefNpcs => TradeConfig.AttackThiefNpcs || TradeConfig.SmartThiefCombat;
+
+    /// <summary>
+    ///     Whether thief players should be attacked.
+    /// </summary>
+    private static bool AttackThiefPlayers => TradeConfig.AttackThiefPlayers || TradeConfig.SmartThiefCombat;
+
+    /// <summary>
     ///     Initializes the bundle
     /// </summary>
     public void Initialize()
     {
-        IsAttacking = false;
+        Reset(false);
     }
 
     /// <summary>
@@ -34,7 +73,7 @@ internal class AttackBundle
     /// </summary>
     public void Start()
     {
-        IsAttacking = false;
+        Reset(false);
     }
 
     private static readonly ushort[] TownRegionIds =
@@ -53,41 +92,72 @@ internal class AttackBundle
     };
 
     /// <summary>
-    ///     Checks if an entity is strictly a Thief (either a Thief Player wearing Job suite or a Thief NPC).
-    ///     Normal wild monsters will strictly return FALSE.
+    ///     Returns true if the entity is a "real" NPC (merchant, specialty trader,
+    ///     guard, ...).
+    ///     <para>
+    ///         Important: <see cref="SpawnedMonster" /> derives from
+    ///         <see cref="SpawnedNpc" />, so checking for <see cref="SpawnedNpc" />
+    ///         would also match every monster (and therefore every thief NPC).
+    ///     </para>
+    /// </summary>
+    public static bool IsRealNpc(SpawnedBionic bionic)
+    {
+        return bionic is SpawnedNpcNpc;
+    }
+
+    /// <summary>
+    ///     Checks if an entity is strictly a Thief (either a Thief Player wearing a
+    ///     job suit or a Thief NPC). Normal wild monsters will strictly return FALSE.
     /// </summary>
     public static bool IsThief(SpawnedBionic bionic)
     {
-        if (bionic == null || bionic.State.LifeState != LifeState.Alive)
+        if (bionic == null || bionic.State == null || bionic.State.LifeState != LifeState.Alive)
             return false;
 
-        // 1. Thief Player (player wearing thief job suite)
+        // 1. Thief player (player wearing the thief job suit / in thief job mode)
         if (bionic is SpawnedPlayer player)
-        {
-            return player.WearsJobSuite && player.Job == JobType.Thief;
-        }
+            return IsThiefPlayer(player);
 
-        // 2. Thief NPC (Monster spawned for trade runs: TypeID4 == 2 or thief codenames)
-        if (bionic is SpawnedMonster monster && monster.Record != null)
+        // 2. Thief NPC (job monsters spawned for trade runs)
+        if (bionic is SpawnedMonster monster)
         {
-            if (monster.Record.TypeID4 == 2)
+            var record = monster.Record;
+            if (record == null)
+                return false;
+
+            // NPC_MOB_TIEF - the thief mobs of the job system
+            if (record.TypeID4 == 2)
                 return true;
 
-            var code = monster.Record.CodeName;
-            if (!string.IsNullOrEmpty(code))
-            {
-                if (code.Contains("THIEF", StringComparison.OrdinalIgnoreCase) ||
-                    code.Contains("BANDIT", StringComparison.OrdinalIgnoreCase) ||
-                    code.Contains("BRIGAND", StringComparison.OrdinalIgnoreCase) ||
-                    code.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase) ||
-                    code.Contains("ROBBER", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
+            var code = record.CodeName;
+            return !string.IsNullOrEmpty(code) &&
+                   (code.Contains("TIEF", StringComparison.OrdinalIgnoreCase) ||
+                    code.Contains("THIEF", StringComparison.OrdinalIgnoreCase));
         }
 
         return false;
+    }
+
+    /// <summary>
+    ///     Checks if a spawned player is a thief.
+    /// </summary>
+    private static bool IsThiefPlayer(SpawnedPlayer player)
+    {
+        if (player == null || player.Job != JobType.Thief)
+            return false;
+
+        // Regular case: the thief wears the job suit and the server reported it.
+        if (player.WearsJobSuite)
+            return true;
+
+        // Fallback for servers that do not send the job suit info correctly:
+        // a thief-job player that is targeting us or our transport is hostile.
+        var playerUniqueId = Game.Player?.UniqueId ?? 0;
+        var transportUniqueId = Game.Player?.JobTransport?.UniqueId ?? 0;
+
+        return player.TargetId != 0 &&
+               (player.TargetId == playerUniqueId ||
+                (transportUniqueId != 0 && player.TargetId == transportUniqueId));
     }
 
     /// <summary>
@@ -104,11 +174,12 @@ internal class AttackBundle
         if (ShoppingManager.Running)
             return true;
 
-        // If player is in dialog with an NPC or has an NPC selected (merchant, specialty trader, smuggler)
+        // If player is in dialog with an NPC (merchant, specialty trader, smuggler)
         if (Game.Player.State?.DialogState is { IsInDialog: true })
             return true;
 
-        if (Game.SelectedEntity is SpawnedNpc)
+        // A selected real NPC means we are interacting with it, not fighting.
+        if (IsRealNpc(Game.SelectedEntity))
             return true;
 
         var regionId = Game.Player.Position.Region.Id;
@@ -122,137 +193,252 @@ internal class AttackBundle
         if (xSec == 168 && ySec == 97)
             return true;
 
-        // Donwhang city sector
-        if (xSec == 167 && ySec == 96)
-            return true;
-
-        // Hotan city sector
-        if (xSec == 163 && ySec == 93)
-            return true;
-
-        // Samarkand city sector
-        if (xSec == 165 && ySec == 99)
-            return true;
-
-        // Constantinople city sectors
-        if ((xSec <= 162 && ySec >= 100) || (xSec == 79 && ySec == 105))
+        // Constantinople city sector
+        if (xSec == 79 && ySec == 105)
             return true;
 
         return false;
     }
 
     /// <summary>
-    ///     Ticks this bundle.
-    ///     Strictly targets and attacks Thief NPCs and Thief Players ONLY.
+    ///     Ticks this bundle. Strictly targets and attacks Thief NPCs and Thief
+    ///     Players ONLY.
     /// </summary>
     public void Tick()
     {
-        if (!TradeBotbase.IsActive || IsPlayerInTown())
+        if (!TradeBotbase.IsActive)
         {
-            if (IsAttacking)
-            {
-                IsAttacking = false;
-                if (Game.SelectedEntity != null && IsThief(Game.SelectedEntity))
-                {
-                    Game.SelectedEntity.TryDeselect();
-                }
-            }
+            Reset(false);
             return;
         }
 
-        bool smartCombat = TradeConfig.SmartThiefCombat;
-        bool attackThiefPlayers = TradeConfig.AttackThiefPlayers || smartCombat;
-        bool attackThiefNpcs = TradeConfig.AttackThiefNpcs || smartCombat;
+        var player = Game.Player;
+        if (player == null || player.State == null || player.State.LifeState != LifeState.Alive)
+        {
+            Reset(false);
+            return;
+        }
 
-        // Check if we have an active target
+        // Never fight in a safe zone or while a scroll is being used.
+        if (IsPlayerInTown() || player.State.ScrollState != ScrollState.Cancel)
+        {
+            Reset(true);
+            return;
+        }
+
         var target = Game.SelectedEntity;
 
-        // If an NPC is currently selected (talking, trading, shopping), never deselect it or treat it as combat target!
-        if (target is SpawnedNpc)
-            return;
-
-        if (target is { State.LifeState: LifeState.Dead } or { IsBehindObstacle: true } || (target != null && !IsThief(target)))
+        // A real NPC (merchant, trader, ...) must never be treated as a combat
+        // target and must never be deselected here.
+        if (IsRealNpc(target))
         {
-            if (target is not SpawnedNpc)
-                target?.TryDeselect();
+            if (IsAttacking)
+                Reset(false);
+
+            return;
+        }
+
+        // Drop an outdated / invalid target (dead, behind an obstacle, not a
+        // thief or disabled by the configuration). Also stop chasing a target
+        // that dragged us too far away from the route.
+        if (target != null &&
+            (!IsSelectable(target) ||
+             target.DistanceToPlayer > TradeConfig.MaxAttackDistance + ChaseLeash))
+        {
+            Log.Debug($"[Trade] Dropping invalid combat target [{target.UniqueId}]");
+
+            target.TryDeselect();
+            Game.SelectedEntity = null;
             target = null;
         }
 
-        if (target != null && IsThief(target))
+        if (target == null)
+            target = FindPotentialTarget();
+
+        if (target == null)
         {
-            // If target is player but player attack is disabled, skip
-            if (target is SpawnedPlayer && !attackThiefPlayers)
-            {
-                target.TryDeselect();
-                target = null;
-            }
-            // If target is NPC but NPC attack is disabled, skip
-            else if (target is SpawnedMonster && !attackThiefNpcs)
-            {
-                target.TryDeselect();
-                target = null;
-            }
-            else
-            {
-                // If we have an active thief target but are mounted, dismount to attack if configured!
-                if (TradeConfig.DismountToAttackThief && Game.Player.HasActiveVehicle)
-                {
-                    Log.Notify("[Trade] تم رصد لص! الترجل من وسيلة النقل لبدء القتال.");
-                    Game.Player.JobTransport?.Dismount();
-                    Game.Player.StopMoving();
-                    if (ScriptManager.Running && !ScriptManager.Paused)
-                        ScriptManager.Pause();
-                }
+            if (IsAttacking)
+                FinishCombat();
 
-                IsAttacking = true;
+            return;
+        }
 
-                if (TradeConfig.CastBuffs)
-                    EventManager.FireEvent("Bundle.Buff.Invoke");
+        if (Game.SelectedEntity?.UniqueId != target.UniqueId)
+        {
+            // Throttle the select packets while the server has not answered yet.
+            if (DateTime.UtcNow - _lastSelect < SelectInterval)
+                return;
 
-                EventManager.FireEvent("Bundle.Attack.Invoke");
+            _lastSelect = DateTime.UtcNow;
+
+            if (!target.TrySelect())
+            {
+                Log.Debug($"[Trade] Could not select thief [{target.UniqueId}]");
                 return;
             }
         }
 
-        // Target is null or invalid: search for potential thief target
-        var potentialTarget = FindPotentialTarget();
-        if (potentialTarget != null)
+        Engage(target);
+    }
+
+    /// <summary>
+    ///     Engages the given thief: dismounts if needed, walks into range and
+    ///     triggers the attack.
+    /// </summary>
+    private void Engage(SpawnedBionic target)
+    {
+        var player = Game.Player;
+        if (player == null)
+            return;
+
+        // A single target must not keep the trade route paused forever (e.g.
+        // attacks rejected by the server inside a safe zone, unreachable
+        // target, ...).
+        if (_combatTargetUid != target.UniqueId)
         {
-            if (TradeConfig.DismountToAttackThief && Game.Player.HasActiveVehicle)
+            _combatTargetUid = target.UniqueId;
+            _combatStartedAt = DateTime.UtcNow;
+        }
+        else if (DateTime.UtcNow - _combatStartedAt > CombatTimeout)
+        {
+            Log.Warn($"[Trade] Could not defeat the thief [{target.UniqueId}]. Ignoring it and continuing the route.");
+
+            _ignoredTargetUid = target.UniqueId;
+            _ignoreTargetUntil = DateTime.UtcNow.AddSeconds(20);
+            _combatTargetUid = 0;
+            _combatStartedAt = DateTime.MinValue;
+
+            if (Game.SelectedEntity?.UniqueId == target.UniqueId)
             {
-                Log.Notify("[Trade] تم رصد لص قريب! الترجل من وسيلة النقل للمهاجمة.");
-                Game.Player.JobTransport?.Dismount();
-                Game.Player.StopMoving();
-                if (ScriptManager.Running && !ScriptManager.Paused)
-                    ScriptManager.Pause();
+                Game.SelectedEntity.TryDeselect();
+                Game.SelectedEntity = null;
             }
 
-            potentialTarget.TrySelect();
-            IsAttacking = true;
-
-            if (TradeConfig.CastBuffs)
-                EventManager.FireEvent("Bundle.Buff.Invoke");
-
-            EventManager.FireEvent("Bundle.Attack.Invoke");
+            FinishCombat();
             return;
         }
 
-        // No more thieves! If we were attacking, clean up and resume!
-        if (IsAttacking)
+        // A mounted character can not attack at all.
+        if (player.HasActiveVehicle)
         {
-            IsAttacking = false;
-            Log.Notify("[Trade] All nearby thieves defeated!");
-
-            // Remount transport if possible (otherwise TransportBundle will keep trying periodically while moving)
-            if (TradeConfig.MountTransport && !Game.Player.HasActiveVehicle && Game.Player.JobTransport != null && !Game.Player.InAction)
+            if (!TradeConfig.DismountToAttackThief)
             {
-                Game.Player.JobTransport.Mount();
+                if (IsAttacking)
+                    FinishCombat();
+
+                return;
             }
 
-            // Resume trade route script immediately from where we left off!
-            Log.Notify("[Trade] Combat finished. Resuming trade route!");
-            ScriptManager.ResumeScript();
+            if (_dismountStartedAt == DateTime.MinValue)
+                _dismountStartedAt = DateTime.UtcNow;
+
+            // The server refused to dismount us (or we are stuck on the
+            // transport). Give up instead of pausing the trade route forever.
+            if (DateTime.UtcNow - _dismountStartedAt > DismountTimeout)
+            {
+                Log.Warn("[Trade] Could not dismount the transport to fight the thief. Continuing the route.");
+
+                _dismountStartedAt = DateTime.MinValue;
+                _ignoredTargetUid = target.UniqueId;
+                _ignoreTargetUntil = DateTime.UtcNow.AddSeconds(15);
+
+                if (Game.SelectedEntity?.UniqueId == target.UniqueId)
+                {
+                    Game.SelectedEntity.TryDeselect();
+                    Game.SelectedEntity = null;
+                }
+
+                FinishCombat();
+
+                return;
+            }
+
+            // Keep the route paused and the transport bundle from remounting
+            // while we are getting off the transport.
+            IsAttacking = true;
+            EnsureScriptPaused();
+
+            if (DateTime.UtcNow - _lastDismount >= DismountInterval)
+            {
+                _lastDismount = DateTime.UtcNow;
+                Log.Notify("[Trade] Thief detected! Dismounting the transport to fight.");
+
+                var vehicle = player.Vehicle;
+                if (vehicle != null)
+                    vehicle.Dismount();
+                else
+                    player.JobTransport?.Dismount();
+
+                player.StopMoving();
+            }
+
+            return;
         }
+
+        _dismountStartedAt = DateTime.MinValue;
+
+        IsAttacking = true;
+        EnsureScriptPaused();
+
+        // Walk to the thief until it is in attack range.
+        if (target.DistanceToPlayer > EngageDistance)
+        {
+            if (DateTime.UtcNow - _lastMove >= MoveInterval)
+            {
+                _lastMove = DateTime.UtcNow;
+                player.MoveTo(target.Position, sleep: false);
+            }
+
+            return;
+        }
+
+        if (player.Movement.Moving)
+            player.StopMoving();
+
+        if (TradeConfig.CastBuffs)
+            EventManager.FireEvent("Bundle.Buff.Invoke");
+
+        EventManager.FireEvent("Bundle.Attack.Invoke");
+    }
+
+    /// <summary>
+    ///     Returns a value indicating whether the given entity is a valid combat
+    ///     target according to the current configuration.
+    /// </summary>
+    private static bool IsValidTarget(SpawnedBionic bionic)
+    {
+        if (bionic == null || bionic.State == null)
+            return false;
+
+        if (bionic.State.LifeState != LifeState.Alive)
+            return false;
+
+        if (bionic.IsBehindObstacle)
+            return false;
+
+        if (bionic is SpawnedPlayer)
+            return AttackThiefPlayers && IsThiefPlayer((SpawnedPlayer)bionic);
+
+        if (bionic is SpawnedMonster)
+            return AttackThiefNpcs && IsThief(bionic);
+
+        // Real NPCs and COS can never be combat targets.
+        return false;
+    }
+
+    /// <summary>
+    ///     Returns whether the entity can be picked as a target right now. This
+    ///     is <see cref="IsValidTarget" /> plus the temporary blacklist that is
+    ///     used when a thief could not be engaged (e.g. a failed dismount).
+    /// </summary>
+    private bool IsSelectable(SpawnedBionic bionic)
+    {
+        if (!IsValidTarget(bionic))
+            return false;
+
+        return _ignoredTargetUid == 0 ||
+               bionic.UniqueId != _ignoredTargetUid ||
+               DateTime.UtcNow >= _ignoreTargetUntil;
     }
 
     /// <summary>
@@ -261,102 +447,174 @@ internal class AttackBundle
     /// </summary>
     private SpawnedBionic FindPotentialTarget()
     {
-        if (IsPlayerInTown() || Game.Player == null)
+        var player = Game.Player;
+        if (player == null || IsPlayerInTown())
             return null;
 
-        bool smartCombat = TradeConfig.SmartThiefCombat;
-        bool protectTransport = TradeConfig.ProtectTransport || smartCombat;
-        bool counterAttack = TradeConfig.CounterAttack || smartCombat;
-        bool attackThiefNpcs = TradeConfig.AttackThiefNpcs || smartCombat;
-        bool attackThiefPlayers = TradeConfig.AttackThiefPlayers || smartCombat;
+        // Cannot attack while mounted and dismounting is disabled - do not
+        // select a target we are unable to fight.
+        if (player.HasActiveVehicle && !TradeConfig.DismountToAttackThief)
+            return null;
 
-        // Priority 1: Protect transport (highest priority - only thieves attacking vehicle)
-        if (protectTransport && Game.Player.JobTransport != null)
+        var protectTransport = TradeConfig.ProtectTransport || TradeConfig.SmartThiefCombat;
+        var counterAttack = TradeConfig.CounterAttack || TradeConfig.SmartThiefCombat;
+
+        // Priority 1: Protect transport (highest priority - only thieves attacking the vehicle)
+        if (protectTransport && player.JobTransport != null)
         {
-            if (SpawnManager.TryGetEntity<SpawnedBionic>(Game.Player.JobTransport.UniqueId, out var transportBionic))
+            var transport = player.JobTransport;
+
+            if (SpawnManager.TryGetEntity<SpawnedBionic>(transport.UniqueId, out var transportBionic))
             {
-                var attackers = transportBionic.GetAttackers();
-                if (attackers != null && attackers.Count > 0)
-                {
-                    var attacker = attackers.FirstOrDefault(a => a != null && !a.IsBehindObstacle && IsThief(a));
-                    if (attacker != null)
-                    {
-                        if (attacker is SpawnedPlayer && !attackThiefPlayers) { }
-                        else if (attacker is SpawnedMonster && !attackThiefNpcs) { }
-                        else return attacker;
-                    }
-                }
+                var attacker = transportBionic.GetAttackers()
+                    .FirstOrDefault(a => a != null && a.UniqueId != transport.UniqueId && IsSelectable(a));
+
+                if (attacker != null)
+                    return attacker;
             }
 
-            // Fallback for transport: check if any thief mob nearby is targeting our transport
-            if (attackThiefNpcs)
+            // Fallback: any thief mob nearby that is targeting our transport.
+            if (AttackThiefNpcs && SpawnManager.TryGetEntity<SpawnedMonster>(
+                    m => m != null && IsSelectable(m) && m.TargetId == transport.UniqueId && IsInRange(m),
+                    out var mobAttackingTransport))
             {
-                var transportUid = Game.Player.JobTransport.UniqueId;
-                if (SpawnManager.TryGetEntity<SpawnedMonster>(
-                        m => m != null && IsThief(m) && m.TargetId == transportUid &&
-                             !m.IsBehindObstacle && m.DistanceToPlayer < TradeConfig.MaxAttackDistance,
-                        out var mobAttackingTransport))
-                {
-                    return mobAttackingTransport;
-                }
+                return mobAttackingTransport;
             }
         }
 
-        // Priority 2: Fight back if player attacked directly by a thief
+        // Priority 2: Fight back if the player was attacked directly.
         if (counterAttack)
         {
-            var playerAttackers = Game.Player.GetAttackers();
-            if (playerAttackers != null && playerAttackers.Count > 0)
+            var attacker = player.GetAttackers()
+                .FirstOrDefault(a => a != null && IsSelectable(a));
+
+            if (attacker != null)
+                return attacker;
+
+            if (AttackThiefNpcs && SpawnManager.TryGetEntity<SpawnedMonster>(
+                    m => m != null && IsSelectable(m) && m.TargetId == player.UniqueId && IsInRange(m),
+                    out var mobAttackingPlayer))
             {
-                var attacker = playerAttackers.FirstOrDefault(a => a != null && !a.IsBehindObstacle && IsThief(a));
-                if (attacker != null)
-                {
-                    if (attacker is SpawnedPlayer && !attackThiefPlayers) { }
-                    else if (attacker is SpawnedMonster && !attackThiefNpcs) { }
-                    else return attacker;
-                }
+                return mobAttackingPlayer;
             }
 
-            // Fallback for player: check if any thief is targeting player
-            if (attackThiefNpcs)
+            if (AttackThiefPlayers && SpawnManager.TryGetEntity<SpawnedPlayer>(
+                    p => p != null && IsSelectable(p) && p.TargetId == player.UniqueId && IsInRange(p),
+                    out var playerAttackingPlayer))
             {
-                var playerUid = Game.Player.UniqueId;
-                if (SpawnManager.TryGetEntity<SpawnedMonster>(
-                        m => m != null && IsThief(m) && m.TargetId == playerUid &&
-                             !m.IsBehindObstacle && m.DistanceToPlayer < TradeConfig.MaxAttackDistance,
-                        out var mobAttackingPlayer))
-                {
-                    return mobAttackingPlayer;
-                }
+                return playerAttackingPlayer;
             }
         }
 
-        // Priority 3: Thief NPCs nearby
-        if (attackThiefNpcs)
+        // Priority 3: Closest thief NPC nearby.
+        if (AttackThiefNpcs && SpawnManager.TryGetEntities<SpawnedMonster>(
+                m => m != null && IsSelectable(m) && IsInRange(m), out var thiefMobs))
         {
-            if (SpawnManager.TryGetEntity<SpawnedMonster>(
-                    m => m != null && IsThief(m) && !m.IsBehindObstacle &&
-                         (m.DistanceToPlayer < TradeConfig.MaxAttackDistance ||
-                          (Game.Player.JobTransport != null &&
-                           m.Position.DistanceTo(Game.Player.JobTransport.Position) < TradeConfig.MaxAttackDistance)),
-                    out var thiefMob))
-            {
+            var thiefMob = thiefMobs.OrderBy(m => m.DistanceToPlayer).FirstOrDefault();
+            if (thiefMob != null)
                 return thiefMob;
-            }
         }
 
-        // Priority 4: Thief players nearby
-        if (attackThiefPlayers)
+        // Priority 4: Closest thief player nearby.
+        if (AttackThiefPlayers && SpawnManager.TryGetEntities<SpawnedPlayer>(
+                p => p != null && IsSelectable(p) && IsInRange(p), out var thiefPlayers))
         {
-            if (SpawnManager.TryGetEntity<SpawnedPlayer>(
-                    p => p != null && IsThief(p) && !p.IsBehindObstacle && p.DistanceToPlayer < TradeConfig.MaxAttackDistance,
-                    out var nearbyThiefPlayer))
-            {
-                return nearbyThiefPlayer;
-            }
+            var thiefPlayer = thiefPlayers.OrderBy(p => p.DistanceToPlayer).FirstOrDefault();
+            if (thiefPlayer != null)
+                return thiefPlayer;
         }
 
         return null;
+    }
+
+    /// <summary>
+    ///     Checks if the entity is within the configured attack distance, either
+    ///     from the player or from the transport.
+    /// </summary>
+    private static bool IsInRange(SpawnedBionic bionic)
+    {
+        var maxDistance = TradeConfig.MaxAttackDistance;
+
+        if (bionic.DistanceToPlayer <= maxDistance)
+            return true;
+
+        var transport = Game.Player?.JobTransport;
+        return transport != null && bionic.Position.DistanceTo(transport.Position) <= maxDistance;
+    }
+
+    /// <summary>
+    ///     Pauses the running route script while fighting.
+    /// </summary>
+    private void EnsureScriptPaused()
+    {
+        if (_pausedScript)
+            return;
+
+        if (ScriptManager.Running && !ScriptManager.Paused)
+        {
+            ScriptManager.Pause();
+            _pausedScript = true;
+        }
+    }
+
+    /// <summary>
+    ///     Resumes the route script that was paused by this bundle.
+    /// </summary>
+    private void ResumeScript()
+    {
+        if (!_pausedScript)
+            return;
+
+        _pausedScript = false;
+
+        if (ScriptManager.Paused)
+            ScriptManager.ResumeScript();
+    }
+
+    /// <summary>
+    ///     Called when no thief is left: resets the combat state, mounts the
+    ///     transport again and resumes the trade route.
+    /// </summary>
+    private void FinishCombat()
+    {
+        IsAttacking = false;
+
+        _combatTargetUid = 0;
+        _combatStartedAt = DateTime.MinValue;
+
+        Log.Notify("[Trade] All nearby thieves defeated!");
+
+        var player = Game.Player;
+        if (TradeConfig.MountTransport && player != null && !player.HasActiveVehicle &&
+            player.JobTransport != null && !player.InAction &&
+            player.JobTransport.Position.DistanceToPlayer() <= TradeConfig.MaxTransportDistance + 5)
+        {
+            player.JobTransport.Mount();
+        }
+
+        ResumeScript();
+
+        Log.Notify("[Trade] Combat finished. Resuming trade route!");
+    }
+
+    /// <summary>
+    ///     Resets the combat state without attacking anything.
+    /// </summary>
+    private void Reset(bool deselect)
+    {
+        var wasAttacking = IsAttacking;
+        IsAttacking = false;
+
+        _combatTargetUid = 0;
+        _combatStartedAt = DateTime.MinValue;
+
+        if (deselect && wasAttacking && Game.SelectedEntity != null && IsThief(Game.SelectedEntity))
+        {
+            Game.SelectedEntity.TryDeselect();
+            Game.SelectedEntity = null;
+        }
+
+        ResumeScript();
     }
 
     /// <summary>
@@ -365,5 +623,15 @@ internal class AttackBundle
     public void Stop()
     {
         IsAttacking = false;
+        _pausedScript = false;
+        _dismountStartedAt = DateTime.MinValue;
+        _combatTargetUid = 0;
+        _combatStartedAt = DateTime.MinValue;
+
+        if (Game.SelectedEntity != null && IsThief(Game.SelectedEntity))
+        {
+            Game.SelectedEntity.TryDeselect();
+            Game.SelectedEntity = null;
+        }
     }
 }

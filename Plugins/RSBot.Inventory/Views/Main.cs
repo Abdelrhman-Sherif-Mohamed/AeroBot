@@ -33,6 +33,26 @@ public partial class Main : DoubleBufferedControl
     private int _selectedIndex;
 
     /// <summary>
+    ///     The index of the page that shows the happy event controls.
+    /// </summary>
+    private const int HappyPageIndex = 10;
+
+    /// <summary>
+    ///     The entity id of the last NPC that was used to open a storage.
+    /// </summary>
+    private uint _lastStorageOpenEntityId;
+
+    /// <summary>
+    ///     The entity id of the NPC that opened the personal storage.
+    /// </summary>
+    private uint _storageNpcId;
+
+    /// <summary>
+    ///     The entity id of the NPC that opened the guild storage.
+    /// </summary>
+    private uint _guildStorageNpcId;
+
+    /// <summary>
     ///     Initializes a new instance of the <see cref="Main" /> class.
     /// </summary>
     public Main()
@@ -59,6 +79,50 @@ public partial class Main : DoubleBufferedControl
         EventManager.SubscribeEvent("OnUpdateInventoryItem", new Action<byte>(OnUpdateInventoryItem));
         EventManager.SubscribeEvent("OnUseItem", new Action<byte>(OnUpdateInventoryItem));
         EventManager.SubscribeEvent("OnInventoryUpdate", UpdateInventoryList);
+        EventManager.SubscribeEvent("OnStorageOpenRequest", new Action<uint>(OnStorageOpenRequest));
+        EventManager.SubscribeEvent("OnStorageData", OnStorageData);
+        EventManager.SubscribeEvent("OnGuildStorageData", OnGuildStorageData);
+    }
+
+    /// <summary>
+    ///     Stores the entity id of the NPC that is used to open a storage.
+    /// </summary>
+    /// <param name="entityId">The unique id of the NPC.</param>
+    private void OnStorageOpenRequest(uint entityId)
+    {
+        _lastStorageOpenEntityId = entityId;
+    }
+
+    /// <summary>
+    ///     Remembers the NPC that opened the personal storage.
+    /// </summary>
+    private void OnStorageData()
+    {
+        _storageNpcId = _lastStorageOpenEntityId;
+    }
+
+    /// <summary>
+    ///     Remembers the NPC that opened the guild storage.
+    /// </summary>
+    private void OnGuildStorageData()
+    {
+        _guildStorageNpcId = _lastStorageOpenEntityId;
+    }
+
+    /// <summary>
+    ///     Resolves the NPC unique id that is required to move items inside a storage.
+    /// </summary>
+    /// <param name="knownNpcId">The captured NPC unique id.</param>
+    /// <returns>The unique id of the NPC.</returns>
+    private uint ResolveStorageNpcId(uint knownNpcId)
+    {
+        if (knownNpcId != 0)
+            return knownNpcId;
+
+        if (Game.SelectedEntity != null)
+            return Game.SelectedEntity.UniqueId;
+
+        return _lastStorageOpenEntityId;
     }
 
     private void OnLoadCharacter()
@@ -107,6 +171,9 @@ public partial class Main : DoubleBufferedControl
             return;
 
         if (Game.Player == null)
+            return;
+
+        if (_selectedIndex == HappyPageIndex)
             return;
 
         lock (_lock)
@@ -373,13 +440,20 @@ public partial class Main : DoubleBufferedControl
 
         _selectedIndex = button.TabIndex;
 
-        //Only character inventory sorting is supported for now!
-        btnSort.Visible = _selectedIndex == 0;
+        var isHappyPage = _selectedIndex == HappyPageIndex;
+
+        //The happy event has its own page, so it is not displayed inside the inventory page anymore.
+        panelHappy.Visible = isHappyPage;
+        listViewMain.Visible = !isHappyPage;
+        panel1.Visible = !isHappyPage;
+
+        //Storage and guild storage support sorting too.
+        btnSort.Visible = _selectedIndex == 0 || _selectedIndex == 4 || _selectedIndex == 5;
         checkAutoSort.Visible = _selectedIndex == 0;
 
         foreach (var control in topPanel.Controls.OfType<Button>())
         {
-            if (control.TabIndex > 9)
+            if (control.TabIndex > HappyPageIndex)
                 continue;
 
             control.Color = Color.Transparent;
@@ -565,7 +639,52 @@ public partial class Main : DoubleBufferedControl
 
     private void btnSort_Click(object sender, EventArgs e)
     {
-        Task.Run(() => Game.Player?.Inventory?.Sort());
+        switch (_selectedIndex)
+        {
+            case 0:
+                Task.Run(() => Game.Player?.Inventory?.Sort());
+                break;
+
+            case 4:
+                {
+                    var storage = Game.Player?.Storage;
+                    if (storage == null)
+                    {
+                        Log.Warn("[Inventory] Cannot sort the storage: the storage is not open.");
+                        return;
+                    }
+
+                    var npcId = ResolveStorageNpcId(_storageNpcId);
+                    if (npcId == 0)
+                    {
+                        Log.Warn("[Inventory] Cannot sort the storage: the storage NPC was not detected.");
+                        return;
+                    }
+
+                    Task.Run(() => storage.Sort(npcId, false));
+                    break;
+                }
+
+            case 5:
+                {
+                    var guildStorage = Game.Player?.GuildStorage;
+                    if (guildStorage == null)
+                    {
+                        Log.Warn("[Inventory] Cannot sort the guild storage: the guild storage is not open.");
+                        return;
+                    }
+
+                    var npcId = ResolveStorageNpcId(_guildStorageNpcId);
+                    if (npcId == 0)
+                    {
+                        Log.Warn("[Inventory] Cannot sort the guild storage: the guild storage NPC was not detected.");
+                        return;
+                    }
+
+                    Task.Run(() => guildStorage.Sort(npcId, true));
+                    break;
+                }
+        }
     }
 
     private void checkAutoSort_CheckedChanged(object sender, EventArgs e)

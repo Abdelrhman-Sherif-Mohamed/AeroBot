@@ -66,6 +66,7 @@ namespace RSBot.Inventory.Views
             buttonJobTransport = new SDUI.Controls.Button();
             buttonStorage = new SDUI.Controls.Button();
             buttonJobEquipment = new SDUI.Controls.Button();
+            buttonHappy = new SDUI.Controls.Button();
             contextMenuStrip.SuspendLayout();
             panel1.SuspendLayout();
             topPanel.SuspendLayout();
@@ -210,57 +211,57 @@ namespace RSBot.Inventory.Views
             panelHappy.Controls.Add(checkAutoHappy);
             panelHappy.Controls.Add(btnStartHappy);
             panelHappy.Controls.Add(btnStopHappy);
-            panelHappy.Dock = System.Windows.Forms.DockStyle.Bottom;
-            panelHappy.Location = new System.Drawing.Point(0, 369);
+            panelHappy.Dock = System.Windows.Forms.DockStyle.Fill;
+            panelHappy.Location = new System.Drawing.Point(0, 0);
             panelHappy.Name = "panelHappy";
             panelHappy.Padding = new System.Windows.Forms.Padding(4);
             panelHappy.Radius = 0;
             panelHappy.ShadowDepth = 2F;
-            panelHappy.Size = new System.Drawing.Size(792, 44);
+            panelHappy.Size = new System.Drawing.Size(792, 458);
             panelHappy.TabIndex = 7;
+            panelHappy.Visible = false;
             // 
             // lblHappyTitle
             // 
             lblHappyTitle.AutoSize = true;
-            lblHappyTitle.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            lblHappyTitle.Location = new System.Drawing.Point(9, 13);
+            lblHappyTitle.Font = new System.Drawing.Font("Segoe UI", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblHappyTitle.Location = new System.Drawing.Point(28, 28);
             lblHappyTitle.Name = "lblHappyTitle";
-            lblHappyTitle.Size = new System.Drawing.Size(76, 15);
+            lblHappyTitle.Size = new System.Drawing.Size(160, 25);
             lblHappyTitle.TabIndex = 0;
-            lblHappyTitle.Text = "Event So-Ok:";
+            lblHappyTitle.Text = "Happy Event (So-Ok)";
             // 
             // lblHappyCounts
             // 
             lblHappyCounts.AutoSize = true;
-            lblHappyCounts.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            lblHappyCounts.Location = new System.Drawing.Point(88, 14);
+            lblHappyCounts.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblHappyCounts.Location = new System.Drawing.Point(30, 70);
             lblHappyCounts.Name = "lblHappyCounts";
-            lblHappyCounts.Size = new System.Drawing.Size(165, 13);
+            lblHappyCounts.Size = new System.Drawing.Size(220, 20);
             lblHappyCounts.TabIndex = 1;
             lblHappyCounts.Text = "H:0  A:0  P1:0  P2:0  Y:0 | Jewel:0";
             // 
             // lblHappyStatus
             // 
             lblHappyStatus.AutoSize = true;
-            lblHappyStatus.Font = new System.Drawing.Font("Segoe UI Semibold", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblHappyStatus.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             lblHappyStatus.ForeColor = System.Drawing.Color.Gray;
-            lblHappyStatus.Location = new System.Drawing.Point(256, 14);
+            lblHappyStatus.Location = new System.Drawing.Point(31, 98);
             lblHappyStatus.Name = "lblHappyStatus";
-            lblHappyStatus.Size = new System.Drawing.Size(35, 13);
+            lblHappyStatus.Size = new System.Drawing.Size(35, 19);
             lblHappyStatus.TabIndex = 2;
             lblHappyStatus.Text = "Idle";
             // 
             // checkAutoHappy
             // 
-            checkAutoHappy.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             checkAutoHappy.BackColor = System.Drawing.Color.Transparent;
             checkAutoHappy.Depth = 0;
-            checkAutoHappy.Location = new System.Drawing.Point(465, 11);
+            checkAutoHappy.Location = new System.Drawing.Point(30, 134);
             checkAutoHappy.Margin = new System.Windows.Forms.Padding(0);
             checkAutoHappy.MouseLocation = new System.Drawing.Point(-1, -1);
             checkAutoHappy.Name = "checkAutoHappy";
             checkAutoHappy.Ripple = true;
-            checkAutoHappy.Size = new System.Drawing.Size(95, 20);
+            checkAutoHappy.Size = new System.Drawing.Size(120, 24);
             checkAutoHappy.TabIndex = 3;
             checkAutoHappy.Text = "Auto Loop";
             checkAutoHappy.UseVisualStyleBackColor = false;
@@ -268,15 +269,14 @@ namespace RSBot.Inventory.Views
             // 
             // btnStartHappy
             // 
-            btnStartHappy.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             btnStartHappy.Color = System.Drawing.Color.FromArgb(200, 130, 25);
-            btnStartHappy.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnStartHappy.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             btnStartHappy.ForeColor = System.Drawing.Color.White;
-            btnStartHappy.Location = new System.Drawing.Point(568, 8);
+            btnStartHappy.Location = new System.Drawing.Point(30, 172);
             btnStartHappy.Name = "btnStartHappy";
             btnStartHappy.Radius = 6;
             btnStartHappy.ShadowDepth = 4F;
-            btnStartHappy.Size = new System.Drawing.Size(125, 26);
+            btnStartHappy.Size = new System.Drawing.Size(150, 34);
             btnStartHappy.TabIndex = 4;
             btnStartHappy.Text = "Start Exchange";
             btnStartHappy.UseVisualStyleBackColor = false;
@@ -284,15 +284,14 @@ namespace RSBot.Inventory.Views
             // 
             // btnStopHappy
             // 
-            btnStopHappy.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             btnStopHappy.Color = System.Drawing.Color.FromArgb(215, 55, 50);
-            btnStopHappy.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnStopHappy.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             btnStopHappy.ForeColor = System.Drawing.Color.White;
-            btnStopHappy.Location = new System.Drawing.Point(702, 8);
+            btnStopHappy.Location = new System.Drawing.Point(188, 172);
             btnStopHappy.Name = "btnStopHappy";
             btnStopHappy.Radius = 6;
             btnStopHappy.ShadowDepth = 4F;
-            btnStopHappy.Size = new System.Drawing.Size(80, 26);
+            btnStopHappy.Size = new System.Drawing.Size(110, 34);
             btnStopHappy.TabIndex = 5;
             btnStopHappy.Text = "Stop";
             btnStopHappy.UseVisualStyleBackColor = false;
@@ -365,12 +364,12 @@ namespace RSBot.Inventory.Views
             // buttonInventory
             // 
             buttonInventory.Color = System.Drawing.Color.Transparent;
-            buttonInventory.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonInventory.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             buttonInventory.Location = new System.Drawing.Point(8, 6);
             buttonInventory.Name = "buttonInventory";
             buttonInventory.Radius = 6;
             buttonInventory.ShadowDepth = 4F;
-            buttonInventory.Size = new System.Drawing.Size(68, 25);
+            buttonInventory.Size = new System.Drawing.Size(64, 25);
             buttonInventory.TabIndex = 0;
             buttonInventory.Text = "Inventory";
             buttonInventory.UseVisualStyleBackColor = true;
@@ -379,12 +378,12 @@ namespace RSBot.Inventory.Views
             // buttonEquipment
             // 
             buttonEquipment.Color = System.Drawing.Color.Transparent;
-            buttonEquipment.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buttonEquipment.Location = new System.Drawing.Point(80, 6);
+            buttonEquipment.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonEquipment.Location = new System.Drawing.Point(76, 6);
             buttonEquipment.Name = "buttonEquipment";
             buttonEquipment.Radius = 6;
             buttonEquipment.ShadowDepth = 4F;
-            buttonEquipment.Size = new System.Drawing.Size(74, 25);
+            buttonEquipment.Size = new System.Drawing.Size(70, 25);
             buttonEquipment.TabIndex = 1;
             buttonEquipment.Text = "Equipment";
             buttonEquipment.UseVisualStyleBackColor = true;
@@ -393,12 +392,12 @@ namespace RSBot.Inventory.Views
             // buttonAvatars
             // 
             buttonAvatars.Color = System.Drawing.Color.Transparent;
-            buttonAvatars.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buttonAvatars.Location = new System.Drawing.Point(258, 6);
+            buttonAvatars.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonAvatars.Location = new System.Drawing.Point(246, 6);
             buttonAvatars.Name = "buttonAvatars";
             buttonAvatars.Radius = 6;
             buttonAvatars.ShadowDepth = 4F;
-            buttonAvatars.Size = new System.Drawing.Size(58, 25);
+            buttonAvatars.Size = new System.Drawing.Size(52, 25);
             buttonAvatars.TabIndex = 2;
             buttonAvatars.Text = "Avatars";
             buttonAvatars.UseVisualStyleBackColor = true;
@@ -407,12 +406,12 @@ namespace RSBot.Inventory.Views
             // buttonGrabpet
             // 
             buttonGrabpet.Color = System.Drawing.Color.Transparent;
-            buttonGrabpet.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buttonGrabpet.Location = new System.Drawing.Point(320, 6);
+            buttonGrabpet.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonGrabpet.Location = new System.Drawing.Point(302, 6);
             buttonGrabpet.Name = "buttonGrabpet";
             buttonGrabpet.Radius = 6;
             buttonGrabpet.ShadowDepth = 4F;
-            buttonGrabpet.Size = new System.Drawing.Size(66, 25);
+            buttonGrabpet.Size = new System.Drawing.Size(58, 25);
             buttonGrabpet.TabIndex = 3;
             buttonGrabpet.Text = "Grab Pet";
             buttonGrabpet.UseVisualStyleBackColor = true;
@@ -433,6 +432,7 @@ namespace RSBot.Inventory.Views
             topPanel.Controls.Add(buttonJobEquipment);
             topPanel.Controls.Add(buttonEquipment);
             topPanel.Controls.Add(buttonAvatars);
+            topPanel.Controls.Add(buttonHappy);
             topPanel.Dock = System.Windows.Forms.DockStyle.Top;
             topPanel.Location = new System.Drawing.Point(0, 0);
             topPanel.Name = "topPanel";
@@ -445,12 +445,12 @@ namespace RSBot.Inventory.Views
             // buttonSpecialty
             // 
             buttonSpecialty.Color = System.Drawing.Color.Transparent;
-            buttonSpecialty.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buttonSpecialty.Location = new System.Drawing.Point(564, 6);
+            buttonSpecialty.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonSpecialty.Location = new System.Drawing.Point(522, 6);
             buttonSpecialty.Name = "buttonSpecialty";
             buttonSpecialty.Radius = 6;
             buttonSpecialty.ShadowDepth = 4F;
-            buttonSpecialty.Size = new System.Drawing.Size(66, 25);
+            buttonSpecialty.Size = new System.Drawing.Size(60, 25);
             buttonSpecialty.TabIndex = 7;
             buttonSpecialty.Text = "Specialty";
             buttonSpecialty.UseVisualStyleBackColor = true;
@@ -459,26 +459,40 @@ namespace RSBot.Inventory.Views
             // buttonGuildStorage
             // 
             buttonGuildStorage.Color = System.Drawing.Color.Transparent;
-            buttonGuildStorage.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buttonGuildStorage.Location = new System.Drawing.Point(696, 6);
+            buttonGuildStorage.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonGuildStorage.Location = new System.Drawing.Point(644, 6);
             buttonGuildStorage.Name = "buttonGuildStorage";
             buttonGuildStorage.Radius = 6;
             buttonGuildStorage.ShadowDepth = 4F;
-            buttonGuildStorage.Size = new System.Drawing.Size(92, 25);
+            buttonGuildStorage.Size = new System.Drawing.Size(84, 25);
             buttonGuildStorage.TabIndex = 5;
             buttonGuildStorage.Text = "Guild Storage";
             buttonGuildStorage.UseVisualStyleBackColor = true;
             buttonGuildStorage.Click += ButtonSwitcher;
             // 
+            // buttonHappy
+            // 
+            buttonHappy.Color = System.Drawing.Color.Transparent;
+            buttonHappy.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonHappy.Location = new System.Drawing.Point(732, 6);
+            buttonHappy.Name = "buttonHappy";
+            buttonHappy.Radius = 6;
+            buttonHappy.ShadowDepth = 4F;
+            buttonHappy.Size = new System.Drawing.Size(50, 25);
+            buttonHappy.TabIndex = 10;
+            buttonHappy.Text = "Happy";
+            buttonHappy.UseVisualStyleBackColor = true;
+            buttonHappy.Click += ButtonSwitcher;
+            // 
             // buttonFellowPet
             // 
             buttonFellowPet.Color = System.Drawing.Color.Transparent;
-            buttonFellowPet.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buttonFellowPet.Location = new System.Drawing.Point(390, 6);
+            buttonFellowPet.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonFellowPet.Location = new System.Drawing.Point(364, 6);
             buttonFellowPet.Name = "buttonFellowPet";
             buttonFellowPet.Radius = 6;
             buttonFellowPet.ShadowDepth = 4F;
-            buttonFellowPet.Size = new System.Drawing.Size(74, 25);
+            buttonFellowPet.Size = new System.Drawing.Size(66, 25);
             buttonFellowPet.TabIndex = 9;
             buttonFellowPet.Text = "Fellow Pet";
             buttonFellowPet.UseVisualStyleBackColor = true;
@@ -487,12 +501,12 @@ namespace RSBot.Inventory.Views
             // buttonJobTransport
             // 
             buttonJobTransport.Color = System.Drawing.Color.Transparent;
-            buttonJobTransport.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buttonJobTransport.Location = new System.Drawing.Point(468, 6);
+            buttonJobTransport.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonJobTransport.Location = new System.Drawing.Point(434, 6);
             buttonJobTransport.Name = "buttonJobTransport";
             buttonJobTransport.Radius = 6;
             buttonJobTransport.ShadowDepth = 4F;
-            buttonJobTransport.Size = new System.Drawing.Size(92, 25);
+            buttonJobTransport.Size = new System.Drawing.Size(84, 25);
             buttonJobTransport.TabIndex = 6;
             buttonJobTransport.Text = "Job Transport";
             buttonJobTransport.UseVisualStyleBackColor = true;
@@ -501,12 +515,12 @@ namespace RSBot.Inventory.Views
             // buttonStorage
             // 
             buttonStorage.Color = System.Drawing.Color.Transparent;
-            buttonStorage.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buttonStorage.Location = new System.Drawing.Point(634, 6);
+            buttonStorage.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonStorage.Location = new System.Drawing.Point(586, 6);
             buttonStorage.Name = "buttonStorage";
             buttonStorage.Radius = 6;
             buttonStorage.ShadowDepth = 4F;
-            buttonStorage.Size = new System.Drawing.Size(58, 25);
+            buttonStorage.Size = new System.Drawing.Size(54, 25);
             buttonStorage.TabIndex = 4;
             buttonStorage.Text = "Storage";
             buttonStorage.UseVisualStyleBackColor = true;
@@ -515,12 +529,12 @@ namespace RSBot.Inventory.Views
             // buttonJobEquipment
             // 
             buttonJobEquipment.Color = System.Drawing.Color.Transparent;
-            buttonJobEquipment.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buttonJobEquipment.Location = new System.Drawing.Point(158, 6);
+            buttonJobEquipment.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonJobEquipment.Location = new System.Drawing.Point(150, 6);
             buttonJobEquipment.Name = "buttonJobEquipment";
             buttonJobEquipment.Radius = 6;
             buttonJobEquipment.ShadowDepth = 4F;
-            buttonJobEquipment.Size = new System.Drawing.Size(96, 25);
+            buttonJobEquipment.Size = new System.Drawing.Size(92, 25);
             buttonJobEquipment.TabIndex = 8;
             buttonJobEquipment.Text = "Job Equipment";
             buttonJobEquipment.UseVisualStyleBackColor = true;
@@ -574,6 +588,7 @@ namespace RSBot.Inventory.Views
         private SDUI.Controls.Button buttonJobTransport;
         private SDUI.Controls.Button buttonStorage;
         private SDUI.Controls.Button buttonJobEquipment;
+        private SDUI.Controls.Button buttonHappy;
         private SDUI.Controls.ContextMenuStrip contextMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem useToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem dropToolStripMenuItem;
