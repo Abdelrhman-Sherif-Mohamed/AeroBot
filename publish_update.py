@@ -2,45 +2,27 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• إعادة تفعيل شاشة تسجيل الدخول بالحساب (Username) وكلمة المرور (Password) وبصمة الجهاز (HWID) عند تشغيل البوت، مع استمرار خيار الدخول المجاني (Free Mode).
+changelog_ar = """• إضافة نظام الترتيب التلقائي الشامل (Auto Order) للمخزن الشخصي (Storage) ومخزن الجيلد (Guild Storage) والشنطة (Inventory):
+  - دمج الأكوام الناقصة أولاً ثم فرز وترتيب الأدوات بالتتابع من الخانة 0 دون ترك أي خانات فارغة في المنتصف.
+  - فرز وتصنيف متقدم حسب فئات اللعبة: الأسلحة، الدروع والتروس، الإكسسوارات، الأزياء والديفل، عتاد الجوب والمرافقين، الجرعات، الذخيرة، الإكسيرات، أحجار الألكيمي، الدواب، والسكرولات.
+  - ترتيب العناصر داخل كل فئة حسب الدجري (Degree)، المستوى، الندرة (Sun/Moon/Star)، بلس التطوير (+)، والكمية.
+  - إضافة زر 'Order' ومفتاح 'Auto order' مستقل لكل من المخزن الشخصي ومخزن الجيلد والشنطة في واجهة المستخدم.
+  - حماية ذكية بفواصل زمنية بين عمليات النقل لمنع الطرد أو حظر السيرفر بسبب سرعة النقل.
 
-• إضافة الكشف التلقائي عن إصدار الكلاينت ونوعه (Client Auto-Detection) مع مفتاح تشغيل/إيقاف في إعدادات General، وربط اختيار نوع الكلاينت يدوياً بإيقاف الكشف التلقائي.
+• استمرار ميزة دمج الأكوام السريعة (Auto Sort) كخيار منفصل لدمج الأكوام المتشابهة فقط لمن يفضل عدم إعادة ترتيب الخانات."""
 
-• إضافة حل الكابتشا تلقائياً باستخدام Windows OCR لسيرفرات فيتنام، مع مفتاح تفعيل جديد في الإعدادات وإخفاء إعدادات الكابتشا لغير سيرفرات فيتنام.
+changelog_en = """• Added comprehensive Auto Order system for Personal Storage, Guild Storage, and Character Inventory:
+  - Consolidates broken stacks first, then arranges all items sequentially starting from slot 0 with zero empty gaps.
+  - Advanced categorization & sorting: Weapons, Shields, Armor, Accessories, Avatars, Job/Pet gear, Potions, Ammo, Elixirs, Alchemy Stones/Tablets, Transports, and Scrolls.
+  - Secondary sorting within each category by Degree, Required Level, Rarity (SOS/SOM/SOSUN), Plus (+), and Amount.
+  - Added dedicated 'Order' button and separate 'Auto order' checkboxes per tab (Storage, Guild Storage, Inventory).
+  - Built-in safe action delays to prevent server flood kicks during rapid slot reorganizations.
 
-• إصلاحات شاملة لقتال اللصوص في التريدة: اختيار أقرب هدف صالح، مطاردة اللص حتى الدخول في مدى الهجوم، الترجل من وسيلة النقل لمهاجمته (مفعّل افتراضياً)، تجاهل الأهداف غير القابلة للوصول بعد مهلة، وعدم إيقاف مسار التجارة للأبد.
-
-• تحسين إدارة مسارات التجارة: اختيار مدينة البداية والنهاية (مع كشف مدينة البداية تلقائياً) وإضافة المسار وعكسه معاً، وأسماء المدن بالعربية، وحفظ المسارات التي تُعدّل قبل تسجيل الدخول وربطها بالشخصية بعد الدخول.
-
-• إضافة فرز ودمج أكوام العناصر المتكررة داخل المخزن الشخصي والمخزن الجماعي (Storage & Guild Storage)، وليس الحقيبة فقط.
-
-• فصل صفحة حدث Happy Event عن صفحة الحقيبة لإصلاح مشاكل العرض والتبويبات.
-
-• تحديث الواجهة: حجم نافذة تلقائي يناسب الشاشة، ترتيب ثابت للتابات، ثيم فاتح جديد (vBot-like) مع إمكانية الرجوع للداكن، وتحسين شكل الأزرار والسجلات وأعمدة السجل.
-
-• تحديثات وترجمات عربية وإنجليزية للمكونات الجديدة، وتحسينات عامة في الأداء والاستقرار."""
-
-changelog_en = """• Re-enabled the username/password + HWID login screen at startup, while keeping the Free Mode option available.
-
-• Added automatic Silkroad client version/type detection with an enable/disable toggle in General settings; selecting a client type manually now disables auto-detection.
-
-• Added automatic captcha solving using Windows OCR for Vietnam servers, with a new toggle in settings and captcha settings hidden for other clients.
-
-• Major trade thief-combat overhaul: pick the closest valid target, chase the thief into attack range, dismount the transport to fight (enabled by default), blacklist unreachable targets after a timeout, and never leave the trade route paused forever.
-
-• Improved trade route management: choose the start and destination cities (with current-city auto-detect) and add both forward and reverse routes, Arabic city names, and persist routes configured before login once the character loads.
-
-• Added stack sorting/merging for the personal storage and guild storage, not just the character inventory.
-
-• Separated the Happy Event page from the inventory page to fix layout/tab issues.
-
-• UI refresh: automatic window sizing that fits the screen, deterministic sidebar order, a new vBot-like light theme with an option to switch back to dark, and improved action buttons and log columns.
-
-• Updated Arabic/English translations for the new components plus general performance and stability improvements."""
+• Maintained standalone Auto Sort option for players who only want to merge duplicate stacks without rearranging slots."""
 
 data = {
-    "version": "2.9.23",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.23.zip",
+    "version": "2.9.24",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.24.zip",
     "mandatory": False,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -57,4 +39,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.23 update to Firebase! Status:', res.status)
+    print('Published 2.9.24 update to Firebase! Status:', res.status)

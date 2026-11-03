@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RSBot.Core.Network;
@@ -141,9 +141,14 @@ public class CharacterInventory : InventoryItemCollection
         return asyncResult.IsCompleted;
     }
 
+    /// <summary>
+    ///     Gets a value indicating whether the inventory is currently being ordered.
+    /// </summary>
+    public bool IsOrdering { get; private set; }
+
     public void Sort()
     {
-        if (IsSorting || Game.Player.InAction)
+        if (IsSorting || IsOrdering || Game.Player == null || Game.Player.InAction)
             return;
 
         IsSorting = true;
@@ -153,5 +158,23 @@ public class CharacterInventory : InventoryItemCollection
 
         IsSorting = false;
         Log.Debug($"Sorting finished after {iterations}/10");
+    }
+
+    /// <summary>
+    ///     Orders the character inventory by grouping items by category
+    ///     and placing them sequentially starting from slot 13 (NORMAL_PART_MIN_SLOT).
+    /// </summary>
+    public void Order()
+    {
+        if (IsOrdering || IsSorting || Game.Player == null || Game.Player.InAction)
+            return;
+
+        IsOrdering = true;
+        Log.Debug("Ordering the character inventory...");
+
+        var moves = OrderItems(MoveItem, NORMAL_PART_MIN_SLOT);
+
+        IsOrdering = false;
+        Log.Debug($"Inventory ordering finished after {moves} move operations.");
     }
 }

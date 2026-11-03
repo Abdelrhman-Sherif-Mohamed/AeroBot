@@ -1,4 +1,5 @@
-﻿using RSBot.Core.Network;
+using System.Threading;
+using RSBot.Core.Network;
 
 namespace RSBot.Core.Objects.Inventory;
 
@@ -13,6 +14,11 @@ public class Storage : InventoryItemCollection
     ///     Gets a value indicating whether this storage is currently being sorted.
     /// </summary>
     public bool IsSorting { get; private set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether this storage is currently being ordered.
+    /// </summary>
+    public bool IsOrdering { get; private set; }
 
     /// <summary>
     ///     Create instance of the <seealso cref="Storage" />
@@ -30,7 +36,7 @@ public class Storage : InventoryItemCollection
     /// <param name="isGuildStorage">Whether this is the guild storage.</param>
     public void Sort(uint npcUniqueId, bool isGuildStorage)
     {
-        if (IsSorting || Game.Player == null || Game.Player.InAction)
+        if (IsSorting || IsOrdering || Game.Player == null || Game.Player.InAction)
             return;
 
         IsSorting = true;
@@ -45,6 +51,29 @@ public class Storage : InventoryItemCollection
     }
 
     /// <summary>
+    ///     Orders the storage by arranging items sequentially into slots starting from 0,
+    ///     grouped logically by category (Weapons, Shields, Armor, Accessories, Potions, Alchemy, etc.).
+    /// </summary>
+    /// <param name="npcUniqueId">The unique id of the storage NPC.</param>
+    /// <param name="isGuildStorage">Whether this is the guild storage.</param>
+    public void Order(uint npcUniqueId, bool isGuildStorage)
+    {
+        if (IsOrdering || IsSorting || Game.Player == null || Game.Player.InAction)
+            return;
+
+        IsOrdering = true;
+        Log.Debug(isGuildStorage ? "Ordering the guild storage..." : "Ordering the storage...");
+
+        var moves = OrderItems(
+            (sourceSlot, destinationSlot, amount) =>
+                MoveItem(sourceSlot, destinationSlot, amount, npcUniqueId, isGuildStorage),
+            0);
+
+        IsOrdering = false;
+        Log.Debug($"Ordering finished after {moves} move operations.");
+    }
+
+    /// <summary>
     ///     Moves an amount of an item from one slot to another inside this storage.
     /// </summary>
     /// <param name="sourceSlot">The source slot.</param>
@@ -56,6 +85,13 @@ public class Storage : InventoryItemCollection
     private bool MoveItem(byte sourceSlot, byte destinationSlot, ushort amount, uint npcUniqueId,
         bool isGuildStorage)
     {
+        var itemAtSource = GetItemAt(sourceSlot);
+        if (itemAtSource == null)
+            return false;
+
+        if (amount == 0)
+            amount = itemAtSource.Amount;
+
         var operation = isGuildStorage
             ? InventoryOperation.SP_GUILD_CHEST_UPDATE_SLOT
             : InventoryOperation.SP_UPDATE_SLOTS_CHEST;
@@ -84,8 +120,14 @@ public class Storage : InventoryItemCollection
         }, 0xB034);
 
         PacketManager.SendPacket(packet, PacketDestination.Server, asyncResult);
-        asyncResult.AwaitResponse(500);
+        asyncResult.AwaitResponse(600);
 
-        return asyncResult.IsCompleted;
+        if (asyncResult.IsCompleted)
+        {
+            Thread.Sleep(80);
+            return true;
+        }
+
+        return false;
     }
 }

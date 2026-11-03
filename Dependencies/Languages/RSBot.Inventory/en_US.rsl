@@ -10,3 +10,12 @@ RSBot.Inventory.UseItemDialog.label1="If you want to use the item directly,
  just click the button"
 RSBot.Inventory.UseItemDialog.buttonCancel="Use with conditions"
 RSBot.Inventory.UseItemDialog.buttonOk="Use Directly"
+
+RSBot.Inventory.Main.Panel.btnSort="Sort"
+RSBot.Inventory.Main.Panel.btnOrder="Order"
+RSBot.Inventory.Main.Panel.checkAutoSort="Auto sort"
+RSBot.Inventory.Main.Panel.checkAutoOrder="Auto order"
+btnSort="Sort"
+btnOrder="Order"
+checkAutoSort="Auto sort"
+checkAutoOrder="Auto order"

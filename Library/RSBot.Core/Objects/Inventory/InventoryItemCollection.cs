@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Network;
 
 namespace RSBot.Core.Objects;
@@ -261,6 +262,228 @@ public class InventoryItemCollection : ICollection<InventoryItem>
         }
 
         return iterations;
+    }
+
+    /// <summary>
+    ///     Gets the category priority score for sorting items logically.
+    ///     Lower values appear first.
+    /// </summary>
+    protected static int GetItemCategory(RefObjItem record)
+    {
+        if (record == null)
+            return 999;
+
+        var code = record.CodeName ?? string.Empty;
+
+        // 1. Equipment - Weapons
+        if (record.IsWeapon) return 10;
+        // 2. Equipment - Shields
+        if (record.IsShield) return 20;
+        // 3. Equipment - Armor
+        if (record.IsArmor) return 30;
+        // 4. Equipment - Accessories
+        if (record.IsAccessory) return 40;
+        // 5. Avatars & Devil Spirit
+        if (record.IsAvatar) return 50;
+        // 6. Job Equipment & Outfits
+        if (record.IsJobEquip || record.IsJobOutfit) return 60;
+        // 7. Fellow Equipment
+        if (record.IsFellowEquip) return 70;
+        // 8. Other Wearable
+        if (record.IsEquip) return 80;
+
+        // 9. Recovery Potions & Pills
+        if (record.IsHpPotion) return 90;
+        if (record.IsMpPotion) return 91;
+        if (record.IsAllPotion) return 92; // Vigor
+        if (record.IsUniversalPill) return 93;
+        if (record.IsPurificationPill) return 94;
+        if (record.IsPotion) return 95;
+        if (code.Contains("POTION_SPEED") || code.Contains("SCROLL_SPEED")) return 96;
+
+        // 10. Ammunition (Arrows, Bolts)
+        if (record.IsAmmunition) return 100;
+
+        // 11. Alchemy Elixirs
+        if (code.Contains("ARCHEMY_REINFORCE_REC"))
+        {
+            if (code.Contains("WEAPON")) return 110;
+            if (code.Contains("SHIELD")) return 111;
+            if (code.Contains("ARMOR")) return 112;
+            if (code.Contains("ACCESSARY")) return 113;
+            return 114;
+        }
+
+        // 12. Alchemy Magic & Attribute Stones, Tablets, Elements
+        if (code.Contains("ARCHEMY_MAGICSTONE")) return 120;
+        if (code.Contains("ARCHEMY_ATTRSTONE")) return 121;
+        if (code.Contains("ARCHEMY_TABLET")) return 122;
+        if (code.Contains("ARCHEMY_MATERIAL") || code.Contains("ELEMENT")) return 123;
+        if (code.Contains("ARCHEMY")) return 124;
+
+        // 13. Pet Items & Transports
+        if (record.IsPet || record.IsGrabPet || record.IsGrowthPet || record.IsFellowPet) return 130;
+        if (record.IsCosHpPotion || record.IsFellowHpPotion || record.IsCosBadStatusPotion || record.IsCosRevivalPotion || record.IsHgpPotion || record.IsPet2SatietyPotion) return 131;
+
+        // 14. Scrolls & Teleport & Silk Items
+        if (code.Contains("SCROLL_RETURN")) return 140;
+        if (code.Contains("SCROLL_REVERSE")) return 141;
+        if (code.Contains("GLOBAL_CHATTING")) return 142;
+        if (code.StartsWith("ITEM_MALL_") || record.CashItem == 1) return 145;
+        if (code.Contains("SCROLL")) return 146;
+
+        // 15. Trade Goods & Quests
+        if (record.IsSpecialtyGoodBox || record.IsTrading) return 150;
+        if (record.IsQuest) return 160;
+
+        // 16. Fallback based on TypeID
+        return 200 + (record.TypeID2 * 10) + record.TypeID3;
+    }
+
+    /// <summary>
+    ///     Orders the items starting from <paramref name="minimumSlot"/> by consolidating
+    ///     partial stacks first, then grouping items by category and placing them into
+    ///     sequential slots without gaps.
+    /// </summary>
+    /// <param name="moveItem">Callback used to move an amount from source to destination slot.</param>
+    /// <param name="minimumSlot">The minimum slot to include.</param>
+    /// <param name="maxIterations">Safety limit on movement operations.</param>
+    /// <returns>The number of movement operations performed.</returns>
+    protected int OrderItems(Func<byte, byte, ushort, bool> moveItem, byte minimumSlot = 0, int maxIterations = 200)
+    {
+        // Step 1: Merge partial stacks first
+        SortStackableItems(moveItem, minimumSlot, 10);
+
+        // Step 2: Collect all eligible items
+        var eligibleItems = this.Where(i => i.Slot >= minimumSlot).ToList();
+        if (eligibleItems.Count == 0)
+            return 0;
+
+        // Step 3: Establish the desired sequential order
+        var desiredOrder = eligibleItems
+            .OrderBy(i => GetItemCategory(i.Record))
+            .ThenByDescending(i => i.Record?.Degree ?? 0)
+            .ThenByDescending(i => i.Record?.ReqLevel1 ?? 0)
+            .ThenByDescending(i => i.Record?.Rarity ?? 0)
+            .ThenByDescending(i => i.OptLevel)
+            .ThenBy(i => i.Record?.GetRealName() ?? i.Record?.CodeName ?? string.Empty)
+            .ThenByDescending(i => i.Amount)
+            .ToList();
+
+        var moves = 0;
+        var blacklistedSlots = new HashSet<byte>();
+
+        // Step 4: Move items to their target slots
+        for (var index = 0; index < desiredOrder.Count && moves < maxIterations; index++)
+        {
+            var targetSlot = (byte)(minimumSlot + index);
+            var desiredItem = desiredOrder[index];
+
+            if (desiredItem.Slot == targetSlot)
+                continue;
+
+            var currentSlot = desiredItem.Slot;
+            var itemAtTarget = GetItemAt(targetSlot);
+
+            // Case A: The item currently at targetSlot is identical to desiredItem
+            if (itemAtTarget != null &&
+                itemAtTarget.ItemId == desiredItem.ItemId &&
+                itemAtTarget.Amount == desiredItem.Amount &&
+                itemAtTarget.OptLevel == desiredItem.OptLevel)
+            {
+                var existingIndex = desiredOrder.IndexOf(itemAtTarget);
+                if (existingIndex >= 0)
+                {
+                    desiredOrder[index] = itemAtTarget;
+                    desiredOrder[existingIndex] = desiredItem;
+                }
+                continue;
+            }
+
+            // Case B: Target slot is empty
+            if (itemAtTarget == null)
+            {
+                if (moveItem(currentSlot, targetSlot, desiredItem.Amount))
+                {
+                    moves++;
+                    desiredItem.Slot = targetSlot;
+                }
+                else
+                {
+                    blacklistedSlots.Add(currentSlot);
+                }
+                continue;
+            }
+
+            // Case C: Target slot is occupied. Try direct swap first
+            var swapSucceeded = false;
+            if (desiredItem.ItemId != itemAtTarget.ItemId || !desiredItem.Record.IsStackable)
+            {
+                if (moveItem(currentSlot, targetSlot, desiredItem.Amount))
+                {
+                    moves++;
+                    desiredItem.Slot = targetSlot;
+                    itemAtTarget.Slot = currentSlot;
+                    swapSucceeded = true;
+                }
+            }
+
+            // If direct swap failed or not possible, move target item to an empty buffer slot first
+            if (!swapSucceeded)
+            {
+                byte freeSlot = 0xFF;
+                // Prefer free slots outside the ordered items range
+                for (var s = (byte)(minimumSlot + desiredOrder.Count); s < Capacity; s++)
+                {
+                    if (GetItemAt(s) == null && !blacklistedSlots.Contains(s))
+                    {
+                        freeSlot = s;
+                        break;
+                    }
+                }
+
+                if (freeSlot == 0xFF)
+                {
+                    for (var s = minimumSlot; s < Capacity; s++)
+                    {
+                        if (s != targetSlot && s != currentSlot && GetItemAt(s) == null && !blacklistedSlots.Contains(s))
+                        {
+                            freeSlot = s;
+                            break;
+                        }
+                    }
+                }
+
+                if (freeSlot != 0xFF)
+                {
+                    if (moveItem(targetSlot, freeSlot, itemAtTarget.Amount))
+                    {
+                        moves++;
+                        itemAtTarget.Slot = freeSlot;
+
+                        if (moveItem(currentSlot, targetSlot, desiredItem.Amount))
+                        {
+                            moves++;
+                            desiredItem.Slot = targetSlot;
+                        }
+                        else
+                        {
+                            blacklistedSlots.Add(currentSlot);
+                        }
+                    }
+                    else
+                    {
+                        blacklistedSlots.Add(targetSlot);
+                    }
+                }
+                else
+                {
+                    blacklistedSlots.Add(currentSlot);
+                }
+            }
+        }
+
+        return moves;
     }
 
     /// <summary>
