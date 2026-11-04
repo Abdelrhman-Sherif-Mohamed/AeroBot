@@ -2,21 +2,21 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """✨ تحديث شامل وإصلاحات AeroBot 2.9.29:
-  - إصلاح مشكلة تجارة المدن (City-to-City Trade): الذهاب والعودة والتبديل التلقائي اللانهائي بين المدن (دون توقف).
-  - اكتشاف المدينة الحالية تلقائياً واختيار مسار العودة الذكي وشراء البضائع فور الوصول.
-  - إزالة التعليق البرمجي الناتج عن فحص الحركة بعد انتهاء السكربت وبيع البضائع.
-  - استمرار الحذف التلقائي للملفات القديمة وحفظ كافة الإعدادات."""
+changelog_ar = """• إصلاح مشكلة عدم الاشتباك والضرب في منطقة التدريب (Area Attack & Targeting):
+  - إصلاح مشكلة البحث عن الوحوش واختيار أقرب وحش بدقة وسرعة داخل منطقة التدريب.
+  - تعيين وحفظ إحداثيات ومحيط منطقة التدريب تلقائياً وبشكل دائم عند بدء البوت أو حفظ الإعدادات.
+  - منع إلغاء الهدف بسبب الانحدارات البسيطة في الخريطة والاعتماد على إشعارات السيرفر الرسمية.
+  - تحديث وتفعيل المنطقة فور الضغط على زر جلب الإحداثيات الحالية."""
 
-changelog_en = """✨ AeroBot 2.9.29 Trade Round-Trip Fix & Updates:
-  - Fixed City-to-City Trade round trip: seamless endless looping between cities (go and return).
-  - Smart current city auto-detection to immediately pick return route and restock goods upon arrival.
-  - Resolved movement check lock that prevented starting the return route after selling goods.
-  - Continuous automatic legacy cleanup and persistent settings."""
+changelog_en = """• Fixed Area Attack & Target Acquisition:
+  - Resolved nearest enemy selection within the training radius.
+  - Automatically sets and permanently saves training coordinates upon starting the bot.
+  - Prevented premature target deselection caused by minor terrain slopes.
+  - Instantly refreshes training area upon clicking 'Get Current Position'."""
 
 data = {
-    "version": "2.9.29",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.29.zip",
+    "version": "2.9.30",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.30.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -33,4 +33,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.29 update to Firebase! Status:', res.status)
+    print('Published 2.9.30 update to Firebase! Status:', res.status)
