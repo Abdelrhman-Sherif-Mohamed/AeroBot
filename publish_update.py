@@ -2,25 +2,19 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• إصلاح شامل لنظام ترتيب مستودع الجيلد (Guild Storage Order Fix):
-  - إصلاح عدم التعرف على حارس المستودع عند فتح مستودع الجيلد (حيث يفتح عبر حوار المحادثة وليس كود المستودع العادي).
-  - إضافة نظام ذكي متعدد المستويات للتعرف التلقائي على NPC المستودع الأقرب للشخصية وحفظه فورياً.
-  - دعم استجابة السيرفر الخاصة بحركات مستودع الجيلد (قبول أكواد العملية المتطابقة 0x1D و 0x01 بدون تعليق).
-  - زيادة مهلة انتظار حزمة تحريك العناصر (Move Timeout) لمنع الفشل عند وجود بطء أو لاغ في السيرفر.
-  - تنظيف بيانات المستودع القديمة عند كل عملية فتح لمنع تكرار أو تداخل العناصر الشبحية.
-  - دعم المستودعات ذات السعة الصغيرة (30 خانة) بترتيب تسلسلي منظم ومدمج دون ثغرات."""
+changelog_ar = """• إصلاح ظهور زر Order في الشريط العلوي للمخزن:
+  - حل مشكلة المربع الشفاف الفارغ فوق زر Inventory وتحديد إحداثيات ومكان وحجم زر Order (ترتيب المستودع) بدقة ليكون بعد زر Happy.
+  - إضافة واجهة مخصصة بالكامل لترتيب المستودع (Storage Order) بتقسيم الأغراض تلقائياً على 5 صفحات (أسلحة وعتاد / إكسيرات وتطوير / أحجار سحرية وتثبيت / جرعات واسترجاع / بطاقات ومخطوطات وأخرى).
+  - خيارات تفعيل الترتيب التلقائي وأزرار للترتيب الفوري لكل من المستودع الشخصي ومستودع الجيلد."""
 
-changelog_en = """• Comprehensive Guild Storage Order & Move Fix:
-  - Fixed NPC ID resolution for Guild Storage when opened via NPC dialogue option.
-  - Added smart multi-tiered auto-detection for the nearest storage NPC to player.
-  - Support server response operations (0x1D & 0x01) for guild chest movements.
-  - Increased packet response timeout to prevent move timeouts during server lag.
-  - Reset and clean stale storage items on reload to prevent duplicate ghost items.
-  - Compact category sequential ordering for 30-slot guild storage."""
+changelog_en = """• Storage Order Button & Layout UI Fix:
+  - Fixed ghost empty box appearing over Inventory button by assigning proper bounds and text to the Order button after Happy tab.
+  - Dedicated Storage Order view categorizing items across 5 distinct pages (Equipment / Elixirs / Stones / Potions / Scrolls & Others).
+  - Toggle options for auto-ordering and instant manual order buttons for Storage and Guild Storage."""
 
 data = {
-    "version": "2.9.34",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.34.zip",
+    "version": "2.9.35",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.35.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -37,4 +31,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.34 update to Firebase! Status:', res.status)
+    print('Published 2.9.35 update to Firebase! Status:', res.status)

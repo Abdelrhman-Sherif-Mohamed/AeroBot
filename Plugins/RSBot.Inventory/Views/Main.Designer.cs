@@ -986,7 +986,8 @@ namespace RSBot.Inventory.Views
 
             topPanel.Controls.Add(buttonAvatars);
 
-            topPanel.Controls.Add(buttonHappy);
+            topPanel.Controls.Add(buttonHappy);
+
             topPanel.Controls.Add(buttonStorageOrder);
 
             topPanel.Dock = System.Windows.Forms.DockStyle.Top;
@@ -1088,6 +1089,21 @@ namespace RSBot.Inventory.Views
             buttonHappy.UseVisualStyleBackColor = true;
 
             buttonHappy.Click += ButtonSwitcher;
+
+            // 
+            // buttonStorageOrder
+            // 
+            buttonStorageOrder.Color = System.Drawing.Color.Transparent;
+            buttonStorageOrder.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonStorageOrder.Location = new System.Drawing.Point(720, 6);
+            buttonStorageOrder.Name = "buttonStorageOrder";
+            buttonStorageOrder.Radius = 6;
+            buttonStorageOrder.ShadowDepth = 4F;
+            buttonStorageOrder.Size = new System.Drawing.Size(65, 25);
+            buttonStorageOrder.TabIndex = 11;
+            buttonStorageOrder.Text = "Order";
+            buttonStorageOrder.UseVisualStyleBackColor = true;
+            buttonStorageOrder.Click += ButtonSwitcher;
 
             // 
 
@@ -1213,7 +1229,8 @@ namespace RSBot.Inventory.Views
 
             Controls.Add(listViewMain);
 
-            Controls.Add(panelHappy);
+            Controls.Add(panelHappy);
+
             Controls.Add(panelStorageOrder);
 
             Controls.Add(topPanel);
@@ -1232,8 +1249,10 @@ namespace RSBot.Inventory.Views
 
             contextMenuStrip.ResumeLayout(false);
 
-            panelStorageOrder.ResumeLayout(false);
-            panelStorageOrder.PerformLayout();
+            panelStorageOrder.ResumeLayout(false);
+
+            panelStorageOrder.PerformLayout();
+
             panelHappy.ResumeLayout(false);
 
             panelHappy.PerformLayout();
