@@ -119,6 +119,27 @@ namespace RSBot.Inventory.Views
             btnOrder = new SDUI.Controls.Button();
 
             buttonInventory = new SDUI.Controls.Button();
+            buttonStorageOrder = new SDUI.Controls.Button();
+            panelStorageOrder = new SDUI.Controls.Panel();
+            lblStorageOrderTitle = new SDUI.Controls.Label();
+            lblPagesHeader = new SDUI.Controls.Label();
+            lblPage1 = new SDUI.Controls.Label();
+            lblPage2 = new SDUI.Controls.Label();
+            lblPage3 = new SDUI.Controls.Label();
+            lblPage4 = new SDUI.Controls.Label();
+            lblPage5 = new SDUI.Controls.Label();
+            lblOverflowNote = new SDUI.Controls.Label();
+            lblSettingsHeader = new SDUI.Controls.Label();
+            checkStorageSplitPages = new SDUI.Controls.CheckBox();
+            checkStorageAutoOrder = new SDUI.Controls.CheckBox();
+            checkStorageAutoSort = new SDUI.Controls.CheckBox();
+            checkGuildStorageAutoOrder = new SDUI.Controls.CheckBox();
+            checkGuildStorageAutoSort = new SDUI.Controls.CheckBox();
+            lblActionsHeader = new SDUI.Controls.Label();
+            btnOrderStorageNow = new SDUI.Controls.Button();
+            btnSortStorageNow = new SDUI.Controls.Button();
+            btnOrderGuildStorageNow = new SDUI.Controls.Button();
+            lblStorageOrderStatus = new SDUI.Controls.Label();
 
             buttonEquipment = new SDUI.Controls.Button();
 
@@ -831,7 +852,7 @@ namespace RSBot.Inventory.Views
 
             buttonInventory.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonInventory.Location = new System.Drawing.Point(8, 6);
+            buttonInventory.Location = new System.Drawing.Point(6, 6);
 
             buttonInventory.Name = "buttonInventory";
 
@@ -839,7 +860,7 @@ namespace RSBot.Inventory.Views
 
             buttonInventory.ShadowDepth = 4F;
 
-            buttonInventory.Size = new System.Drawing.Size(64, 25);
+            buttonInventory.Size = new System.Drawing.Size(60, 25);
 
             buttonInventory.TabIndex = 0;
 
@@ -859,7 +880,7 @@ namespace RSBot.Inventory.Views
 
             buttonEquipment.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonEquipment.Location = new System.Drawing.Point(76, 6);
+            buttonEquipment.Location = new System.Drawing.Point(68, 6);
 
             buttonEquipment.Name = "buttonEquipment";
 
@@ -867,7 +888,7 @@ namespace RSBot.Inventory.Views
 
             buttonEquipment.ShadowDepth = 4F;
 
-            buttonEquipment.Size = new System.Drawing.Size(70, 25);
+            buttonEquipment.Size = new System.Drawing.Size(68, 25);
 
             buttonEquipment.TabIndex = 1;
 
@@ -887,7 +908,7 @@ namespace RSBot.Inventory.Views
 
             buttonAvatars.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonAvatars.Location = new System.Drawing.Point(246, 6);
+            buttonAvatars.Location = new System.Drawing.Point(228, 6);
 
             buttonAvatars.Name = "buttonAvatars";
 
@@ -895,7 +916,7 @@ namespace RSBot.Inventory.Views
 
             buttonAvatars.ShadowDepth = 4F;
 
-            buttonAvatars.Size = new System.Drawing.Size(52, 25);
+            buttonAvatars.Size = new System.Drawing.Size(50, 25);
 
             buttonAvatars.TabIndex = 2;
 
@@ -915,7 +936,7 @@ namespace RSBot.Inventory.Views
 
             buttonGrabpet.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonGrabpet.Location = new System.Drawing.Point(302, 6);
+            buttonGrabpet.Location = new System.Drawing.Point(280, 6);
 
             buttonGrabpet.Name = "buttonGrabpet";
 
@@ -923,7 +944,7 @@ namespace RSBot.Inventory.Views
 
             buttonGrabpet.ShadowDepth = 4F;
 
-            buttonGrabpet.Size = new System.Drawing.Size(58, 25);
+            buttonGrabpet.Size = new System.Drawing.Size(56, 25);
 
             buttonGrabpet.TabIndex = 3;
 
@@ -965,7 +986,8 @@ namespace RSBot.Inventory.Views
 
             topPanel.Controls.Add(buttonAvatars);
 
-            topPanel.Controls.Add(buttonHappy);
+            topPanel.Controls.Add(buttonHappy);
+            topPanel.Controls.Add(buttonStorageOrder);
 
             topPanel.Dock = System.Windows.Forms.DockStyle.Top;
 
@@ -993,7 +1015,7 @@ namespace RSBot.Inventory.Views
 
             buttonSpecialty.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonSpecialty.Location = new System.Drawing.Point(522, 6);
+            buttonSpecialty.Location = new System.Drawing.Point(484, 6);
 
             buttonSpecialty.Name = "buttonSpecialty";
 
@@ -1001,7 +1023,7 @@ namespace RSBot.Inventory.Views
 
             buttonSpecialty.ShadowDepth = 4F;
 
-            buttonSpecialty.Size = new System.Drawing.Size(60, 25);
+            buttonSpecialty.Size = new System.Drawing.Size(56, 25);
 
             buttonSpecialty.TabIndex = 7;
 
@@ -1021,7 +1043,7 @@ namespace RSBot.Inventory.Views
 
             buttonGuildStorage.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonGuildStorage.Location = new System.Drawing.Point(644, 6);
+            buttonGuildStorage.Location = new System.Drawing.Point(594, 6);
 
             buttonGuildStorage.Name = "buttonGuildStorage";
 
@@ -1029,7 +1051,7 @@ namespace RSBot.Inventory.Views
 
             buttonGuildStorage.ShadowDepth = 4F;
 
-            buttonGuildStorage.Size = new System.Drawing.Size(84, 25);
+            buttonGuildStorage.Size = new System.Drawing.Size(78, 25);
 
             buttonGuildStorage.TabIndex = 5;
 
@@ -1049,7 +1071,7 @@ namespace RSBot.Inventory.Views
 
             buttonHappy.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonHappy.Location = new System.Drawing.Point(732, 6);
+            buttonHappy.Location = new System.Drawing.Point(674, 6);
 
             buttonHappy.Name = "buttonHappy";
 
@@ -1057,7 +1079,7 @@ namespace RSBot.Inventory.Views
 
             buttonHappy.ShadowDepth = 4F;
 
-            buttonHappy.Size = new System.Drawing.Size(50, 25);
+            buttonHappy.Size = new System.Drawing.Size(44, 25);
 
             buttonHappy.TabIndex = 10;
 
@@ -1077,7 +1099,7 @@ namespace RSBot.Inventory.Views
 
             buttonFellowPet.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonFellowPet.Location = new System.Drawing.Point(364, 6);
+            buttonFellowPet.Location = new System.Drawing.Point(338, 6);
 
             buttonFellowPet.Name = "buttonFellowPet";
 
@@ -1085,7 +1107,7 @@ namespace RSBot.Inventory.Views
 
             buttonFellowPet.ShadowDepth = 4F;
 
-            buttonFellowPet.Size = new System.Drawing.Size(66, 25);
+            buttonFellowPet.Size = new System.Drawing.Size(62, 25);
 
             buttonFellowPet.TabIndex = 9;
 
@@ -1105,7 +1127,7 @@ namespace RSBot.Inventory.Views
 
             buttonJobTransport.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonJobTransport.Location = new System.Drawing.Point(434, 6);
+            buttonJobTransport.Location = new System.Drawing.Point(402, 6);
 
             buttonJobTransport.Name = "buttonJobTransport";
 
@@ -1113,7 +1135,7 @@ namespace RSBot.Inventory.Views
 
             buttonJobTransport.ShadowDepth = 4F;
 
-            buttonJobTransport.Size = new System.Drawing.Size(84, 25);
+            buttonJobTransport.Size = new System.Drawing.Size(80, 25);
 
             buttonJobTransport.TabIndex = 6;
 
@@ -1133,7 +1155,7 @@ namespace RSBot.Inventory.Views
 
             buttonStorage.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonStorage.Location = new System.Drawing.Point(586, 6);
+            buttonStorage.Location = new System.Drawing.Point(542, 6);
 
             buttonStorage.Name = "buttonStorage";
 
@@ -1141,7 +1163,7 @@ namespace RSBot.Inventory.Views
 
             buttonStorage.ShadowDepth = 4F;
 
-            buttonStorage.Size = new System.Drawing.Size(54, 25);
+            buttonStorage.Size = new System.Drawing.Size(50, 25);
 
             buttonStorage.TabIndex = 4;
 
@@ -1161,7 +1183,7 @@ namespace RSBot.Inventory.Views
 
             buttonJobEquipment.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 
-            buttonJobEquipment.Location = new System.Drawing.Point(150, 6);
+            buttonJobEquipment.Location = new System.Drawing.Point(138, 6);
 
             buttonJobEquipment.Name = "buttonJobEquipment";
 
@@ -1169,7 +1191,7 @@ namespace RSBot.Inventory.Views
 
             buttonJobEquipment.ShadowDepth = 4F;
 
-            buttonJobEquipment.Size = new System.Drawing.Size(92, 25);
+            buttonJobEquipment.Size = new System.Drawing.Size(88, 25);
 
             buttonJobEquipment.TabIndex = 8;
 
@@ -1191,7 +1213,8 @@ namespace RSBot.Inventory.Views
 
             Controls.Add(listViewMain);
 
-            Controls.Add(panelHappy);
+            Controls.Add(panelHappy);
+            Controls.Add(panelStorageOrder);
 
             Controls.Add(topPanel);
 
@@ -1209,6 +1232,8 @@ namespace RSBot.Inventory.Views
 
             contextMenuStrip.ResumeLayout(false);
 
+            panelStorageOrder.ResumeLayout(false);
+            panelStorageOrder.PerformLayout();
             panelHappy.ResumeLayout(false);
 
             panelHappy.PerformLayout();
@@ -1241,6 +1266,27 @@ namespace RSBot.Inventory.Views
 
         private SDUI.Controls.Panel panel1;
 
+                private SDUI.Controls.Button buttonStorageOrder;
+        private SDUI.Controls.Panel panelStorageOrder;
+        private SDUI.Controls.Label lblStorageOrderTitle;
+        private SDUI.Controls.Label lblPagesHeader;
+        private SDUI.Controls.Label lblPage1;
+        private SDUI.Controls.Label lblPage2;
+        private SDUI.Controls.Label lblPage3;
+        private SDUI.Controls.Label lblPage4;
+        private SDUI.Controls.Label lblPage5;
+        private SDUI.Controls.Label lblOverflowNote;
+        private SDUI.Controls.Label lblSettingsHeader;
+        private SDUI.Controls.CheckBox checkStorageSplitPages;
+        private SDUI.Controls.CheckBox checkStorageAutoOrder;
+        private SDUI.Controls.CheckBox checkStorageAutoSort;
+        private SDUI.Controls.CheckBox checkGuildStorageAutoOrder;
+        private SDUI.Controls.CheckBox checkGuildStorageAutoSort;
+        private SDUI.Controls.Label lblActionsHeader;
+        private SDUI.Controls.Button btnOrderStorageNow;
+        private SDUI.Controls.Button btnSortStorageNow;
+        private SDUI.Controls.Button btnOrderGuildStorageNow;
+        private SDUI.Controls.Label lblStorageOrderStatus;
         private SDUI.Controls.Panel panelHappy;
 
         private SDUI.Controls.Label lblHappyTitle;

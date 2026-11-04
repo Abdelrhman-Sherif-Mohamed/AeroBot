@@ -64,10 +64,12 @@ public class Storage : InventoryItemCollection
         IsOrdering = true;
         Log.Debug(isGuildStorage ? "Ordering the guild storage..." : "Ordering the storage...");
 
-        var moves = OrderItems(
+        var splitByPages = PlayerConfig.Get("RSBot.Storage.SplitByPages", true);
+
+        var moves = OrderStorageItems(
             (sourceSlot, destinationSlot, amount) =>
                 MoveItem(sourceSlot, destinationSlot, amount, npcUniqueId, isGuildStorage),
-            0);
+            splitByPages);
 
         IsOrdering = false;
         Log.Debug($"Ordering finished after {moves} move operations.");

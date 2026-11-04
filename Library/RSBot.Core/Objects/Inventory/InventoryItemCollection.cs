@@ -341,6 +341,252 @@ public class InventoryItemCollection : ICollection<InventoryItem>
     }
 
     /// <summary>
+    ///     Gets the storage page category index (0..4) for an item:
+    ///     Page 0 (0..29): Equipment, Weapons, Shields, Armor, Accessories, Avatars, Job/Fellow Equip
+    ///     Page 1 (30..59): Alchemy Elixirs (Reinforce Recipes)
+    ///     Page 2 (60..89): Magic & Attribute Stones, Tablets, Elements, Materials
+    ///     Page 3 (90..119): Recovery Potions, Pills, Scrolls, Silk & Mall Items
+    ///     Page 4 (120..149): Pet items, Trade Goods, Quests, Ammunition, Misc
+    /// </summary>
+    public static int GetStoragePageCategory(RefObjItem record)
+    {
+        if (record == null)
+            return 4;
+
+        var cat = GetItemCategory(record);
+
+        // Page 0 (0..29): Equipment, weapons, shields, armor, accessories, avatars, job & fellow equipment
+        if (cat < 90)
+            return 0;
+
+        // Page 1 (30..59): Elixirs
+        if (cat >= 110 && cat <= 114)
+            return 1;
+
+        // Page 2 (60..89): Alchemy stones, tablets, elements, materials
+        if (cat >= 120 && cat <= 129)
+            return 2;
+
+        // Page 3 (90..119): Recovery Potions, Pills, Speed Potions, Scrolls, Silk & Mall items, Globals
+        if ((cat >= 90 && cat <= 99) || (cat >= 140 && cat <= 149))
+            return 3;
+
+        // Page 4 (120..149): Ammunition (100), Pet Items (130, 131), Trade goods (150), Quests (160), Fallbacks
+        return 4;
+    }
+
+    /// <summary>
+    ///     Orders the storage items, optionally separating categories across the 5 storage pages (30 slots each).
+    /// </summary>
+    /// <param name="moveItem">Callback used to move an amount from source to destination slot.</param>
+    /// <param name="splitByPages">Whether to separate categories by page (Page 1: Equipment, Page 2: Elixirs, Page 3: Alchemy, Page 4: Potions/Scrolls, Page 5: Misc).</param>
+    /// <param name="maxIterations">Safety limit on movement operations.</param>
+    /// <returns>The number of movement operations performed.</returns>
+    public int OrderStorageItems(Func<byte, byte, ushort, bool> moveItem, bool splitByPages = true, int maxIterations = 300)
+    {
+        // Step 1: Merge partial stacks first
+        SortStackableItems(moveItem, 0, 10);
+
+        // Step 2: Collect all eligible items
+        var items = this.ToList();
+        if (items.Count == 0)
+            return 0;
+
+        if (!splitByPages)
+            return OrderItems(moveItem, 0, maxIterations);
+
+        const int pageSize = 30;
+        const int pageCount = 5;
+
+        // Group and sort items within each category
+        var categoryBuckets = new List<InventoryItem>[pageCount];
+        for (var i = 0; i < pageCount; i++)
+            categoryBuckets[i] = new List<InventoryItem>();
+
+        foreach (var item in items)
+        {
+            var cat = GetStoragePageCategory(item.Record);
+            if (cat < 0 || cat >= pageCount)
+                cat = pageCount - 1;
+            categoryBuckets[cat].Add(item);
+        }
+
+        // Sort items inside each category bucket
+        for (var i = 0; i < pageCount; i++)
+        {
+            categoryBuckets[i] = categoryBuckets[i]
+                .OrderBy(it => GetItemCategory(it.Record))
+                .ThenByDescending(it => it.Record?.Degree ?? 0)
+                .ThenByDescending(it => it.Record?.ReqLevel1 ?? 0)
+                .ThenByDescending(it => it.Record?.Rarity ?? 0)
+                .ThenByDescending(it => it.OptLevel)
+                .ThenBy(it => it.Record?.GetRealName() ?? it.Record?.CodeName ?? string.Empty)
+                .ThenByDescending(it => it.Amount)
+                .ToList();
+        }
+
+        // Plan target slots for every item
+        var desiredSlots = new Dictionary<InventoryItem, byte>();
+        var reservedSlots = new HashSet<byte>();
+        var overflowItems = new List<InventoryItem>();
+
+        // Phase A: Assign items to their native page (up to 30 slots per page or Capacity limit)
+        for (var page = 0; page < pageCount; page++)
+        {
+            var pageBaseSlot = page * pageSize;
+            var pageMaxSlot = Math.Min((page + 1) * pageSize, (int)Capacity) - 1;
+            var bucket = categoryBuckets[page];
+
+            var slot = pageBaseSlot;
+            var itemIndex = 0;
+
+            while (itemIndex < bucket.Count && slot <= pageMaxSlot)
+            {
+                var item = bucket[itemIndex];
+                desiredSlots[item] = (byte)slot;
+                reservedSlots.Add((byte)slot);
+                slot++;
+                itemIndex++;
+            }
+
+            // Any remaining items that don't fit in the 30 page slots become overflow
+            while (itemIndex < bucket.Count)
+            {
+                overflowItems.Add(bucket[itemIndex]);
+                itemIndex++;
+            }
+        }
+
+        // Phase B: Assign overflow items to remaining unreserved slots
+        var overflowSlot = 0;
+        foreach (var item in overflowItems)
+        {
+            while (overflowSlot < Capacity && reservedSlots.Contains((byte)overflowSlot))
+                overflowSlot++;
+
+            if (overflowSlot >= Capacity)
+                break; // No more capacity in storage
+
+            desiredSlots[item] = (byte)overflowSlot;
+            reservedSlots.Add((byte)overflowSlot);
+            overflowSlot++;
+        }
+
+        // Step 3: Execute moves to place items into their target slots
+        var moves = 0;
+        var blacklistedSlots = new HashSet<byte>();
+
+        for (var iter = 0; iter < maxIterations; iter++)
+        {
+            // Find an item not at its desired slot
+            InventoryItem mislocatedItem = null;
+            byte targetSlot = 0;
+
+            foreach (var kvp in desiredSlots)
+            {
+                if (kvp.Key.Slot != kvp.Value && !blacklistedSlots.Contains(kvp.Key.Slot))
+                {
+                    mislocatedItem = kvp.Key;
+                    targetSlot = kvp.Value;
+                    break;
+                }
+            }
+
+            if (mislocatedItem == null)
+                break; // All movable items are in position!
+
+            var currentSlot = mislocatedItem.Slot;
+            var itemAtTarget = GetItemAt(targetSlot);
+
+            // Case A: The item currently at targetSlot is identical to mislocatedItem (stackable/clone)
+            if (itemAtTarget != null &&
+                itemAtTarget.ItemId == mislocatedItem.ItemId &&
+                itemAtTarget.Amount == mislocatedItem.Amount &&
+                itemAtTarget.OptLevel == mislocatedItem.OptLevel)
+            {
+                // Swap assignments in desiredSlots since they are indistinguishable
+                if (desiredSlots.ContainsKey(itemAtTarget))
+                {
+                    desiredSlots[itemAtTarget] = currentSlot;
+                    desiredSlots[mislocatedItem] = targetSlot;
+                }
+                continue;
+            }
+
+            // Case B: Target slot is empty
+            if (itemAtTarget == null)
+            {
+                if (moveItem(currentSlot, targetSlot, mislocatedItem.Amount))
+                {
+                    moves++;
+                    mislocatedItem.Slot = targetSlot;
+                }
+                else
+                {
+                    blacklistedSlots.Add(currentSlot);
+                }
+                continue;
+            }
+
+            // Case C: Target slot is occupied. Try direct swap first if items are different or unstackable
+            var swapSucceeded = false;
+            if (mislocatedItem.ItemId != itemAtTarget.ItemId || !mislocatedItem.Record.IsStackable)
+            {
+                if (moveItem(currentSlot, targetSlot, mislocatedItem.Amount))
+                {
+                    moves++;
+                    mislocatedItem.Slot = targetSlot;
+                    itemAtTarget.Slot = currentSlot;
+                    swapSucceeded = true;
+                }
+            }
+
+            // Case D: If direct swap wasn't possible or failed, use a temporary free buffer slot
+            if (!swapSucceeded)
+            {
+                byte freeSlot = 0xFF;
+                for (byte s = 0; s < Capacity; s++)
+                {
+                    if (s != targetSlot && s != currentSlot && GetItemAt(s) == null && !blacklistedSlots.Contains(s))
+                    {
+                        freeSlot = s;
+                        break;
+                    }
+                }
+
+                if (freeSlot != 0xFF)
+                {
+                    if (moveItem(targetSlot, freeSlot, itemAtTarget.Amount))
+                    {
+                        moves++;
+                        itemAtTarget.Slot = freeSlot;
+
+                        if (moveItem(currentSlot, targetSlot, mislocatedItem.Amount))
+                        {
+                            moves++;
+                            mislocatedItem.Slot = targetSlot;
+                        }
+                        else
+                        {
+                            blacklistedSlots.Add(currentSlot);
+                        }
+                    }
+                    else
+                    {
+                        blacklistedSlots.Add(targetSlot);
+                    }
+                }
+                else
+                {
+                    blacklistedSlots.Add(currentSlot);
+                }
+            }
+        }
+
+        return moves;
+    }
+
+    /// <summary>
     ///     Orders the items starting from <paramref name="minimumSlot"/> by consolidating
     ///     partial stacks first, then grouping items by category and placing them into
     ///     sequential slots without gaps.

@@ -74,6 +74,11 @@ public partial class Main : DoubleBufferedControl
 
     private const int HappyPageIndex = 10;
 
+    /// <summary>
+    ///     The index of the page that shows storage ordering & page segregation.
+    /// </summary>
+    private const int StorageOrderPageIndex = 11;
+
 
 
     /// <summary>
@@ -436,7 +441,7 @@ public partial class Main : DoubleBufferedControl
 
 
 
-        if (_selectedIndex == HappyPageIndex)
+        if (_selectedIndex == HappyPageIndex || _selectedIndex == StorageOrderPageIndex)
 
             return;
 
@@ -970,17 +975,13 @@ public partial class Main : DoubleBufferedControl
 
 
 
-        var isHappyPage = _selectedIndex == HappyPageIndex;
-
-
-
-        //The happy event has its own page, so it is not displayed inside the inventory page anymore.
+                var isHappyPage = _selectedIndex == HappyPageIndex;
+        var isStorageOrderPage = _selectedIndex == StorageOrderPageIndex;
 
         panelHappy.Visible = isHappyPage;
-
-        listViewMain.Visible = !isHappyPage;
-
-        panel1.Visible = !isHappyPage;
+        panelStorageOrder.Visible = isStorageOrderPage;
+        listViewMain.Visible = !isHappyPage && !isStorageOrderPage;
+        panel1.Visible = !isHappyPage && !isStorageOrderPage;
 
 
 
@@ -1012,7 +1013,7 @@ public partial class Main : DoubleBufferedControl
 
         {
 
-            if (control.TabIndex > HappyPageIndex)
+            if (control.TabIndex > StorageOrderPageIndex)
 
                 continue;
 
@@ -1656,6 +1657,12 @@ public partial class Main : DoubleBufferedControl
 
                 checkAutoSort.Checked = PlayerConfig.Get("RSBot.Inventory.AutoSort", false);
 
+        checkStorageSplitPages.Checked = PlayerConfig.Get("RSBot.Storage.SplitByPages", true);
+        checkStorageAutoOrder.Checked = PlayerConfig.Get("RSBot.Storage.AutoOrder", false);
+        checkStorageAutoSort.Checked = PlayerConfig.Get("RSBot.Storage.AutoSort", false);
+        checkGuildStorageAutoOrder.Checked = PlayerConfig.Get("RSBot.GuildStorage.AutoOrder", false);
+        checkGuildStorageAutoSort.Checked = PlayerConfig.Get("RSBot.GuildStorage.AutoSort", false);
+
                 checkAutoOrder.Checked = PlayerConfig.Get("RSBot.Inventory.AutoOrder", false);
 
                 break;
@@ -2007,4 +2014,171 @@ public partial class Main : DoubleBufferedControl
         PlayerConfig.Save();
     }
 
+
+    private void checkStorageSplitPages_CheckedChanged(object sender, EventArgs e)
+    {
+        PlayerConfig.Set("RSBot.Storage.SplitByPages", checkStorageSplitPages.Checked);
+        PlayerConfig.Save();
+    }
+
+    private void checkStorageAutoOrder_CheckedChanged(object sender, EventArgs e)
+    {
+        PlayerConfig.Set("RSBot.Storage.AutoOrder", checkStorageAutoOrder.Checked);
+        PlayerConfig.Save();
+        if (_selectedIndex == 4)
+            checkAutoOrder.Checked = checkStorageAutoOrder.Checked;
+    }
+
+    private void checkStorageAutoSort_CheckedChanged(object sender, EventArgs e)
+    {
+        PlayerConfig.Set("RSBot.Storage.AutoSort", checkStorageAutoSort.Checked);
+        PlayerConfig.Save();
+        if (_selectedIndex == 4)
+            checkAutoSort.Checked = checkStorageAutoSort.Checked;
+    }
+
+    private void checkGuildStorageAutoOrder_CheckedChanged(object sender, EventArgs e)
+    {
+        PlayerConfig.Set("RSBot.GuildStorage.AutoOrder", checkGuildStorageAutoOrder.Checked);
+        PlayerConfig.Save();
+        if (_selectedIndex == 5)
+            checkAutoOrder.Checked = checkGuildStorageAutoOrder.Checked;
+    }
+
+    private void checkGuildStorageAutoSort_CheckedChanged(object sender, EventArgs e)
+    {
+        PlayerConfig.Set("RSBot.GuildStorage.AutoSort", checkGuildStorageAutoSort.Checked);
+        PlayerConfig.Save();
+        if (_selectedIndex == 5)
+            checkAutoSort.Checked = checkGuildStorageAutoSort.Checked;
+    }
+
+    private void btnOrderStorageNow_Click(object sender, EventArgs e)
+    {
+        var storage = Game.Player?.Storage;
+        if (storage == null)
+        {
+            lblStorageOrderStatus.Text = "Storage is not open! (المستودع غير مفتوح)";
+            lblStorageOrderStatus.ForeColor = Color.Red;
+            return;
+        }
+
+        var npcId = ResolveStorageNpcId(_storageNpcId);
+        if (npcId == 0)
+        {
+            lblStorageOrderStatus.Text = "Storage NPC not detected! (لم يتم رصد حارس المستودع)";
+            lblStorageOrderStatus.ForeColor = Color.Red;
+            return;
+        }
+
+        if (storage.IsOrdering || storage.IsSorting)
+        {
+            lblStorageOrderStatus.Text = "Storage busy... (جاري تنفيذ عملية أخرى في المستودع)";
+            lblStorageOrderStatus.ForeColor = Color.DarkOrange;
+            return;
+        }
+
+        lblStorageOrderStatus.Text = "Ordering storage by pages... (جاري ترتيب وتقسيم المستودع...)";
+        lblStorageOrderStatus.ForeColor = Color.DodgerBlue;
+
+        Task.Run(() =>
+        {
+            storage.Order(npcId, false);
+            try
+            {
+                Invoke(new System.Action(() =>
+                {
+                    lblStorageOrderStatus.Text = "Storage ordered successfully! (تم ترتيب المستودع بنجاح)";
+                    lblStorageOrderStatus.ForeColor = Color.SeaGreen;
+                }));
+            }
+            catch { }
+        });
+    }
+
+    private void btnSortStorageNow_Click(object sender, EventArgs e)
+    {
+        var storage = Game.Player?.Storage;
+        if (storage == null)
+        {
+            lblStorageOrderStatus.Text = "Storage is not open! (المستودع غير مفتوح)";
+            lblStorageOrderStatus.ForeColor = Color.Red;
+            return;
+        }
+
+        var npcId = ResolveStorageNpcId(_storageNpcId);
+        if (npcId == 0)
+        {
+            lblStorageOrderStatus.Text = "Storage NPC not detected! (لم يتم رصد حارس المستودع)";
+            lblStorageOrderStatus.ForeColor = Color.Red;
+            return;
+        }
+
+        if (storage.IsOrdering || storage.IsSorting)
+        {
+            lblStorageOrderStatus.Text = "Storage busy... (جاري تنفيذ عملية أخرى في المستودع)";
+            lblStorageOrderStatus.ForeColor = Color.DarkOrange;
+            return;
+        }
+
+        lblStorageOrderStatus.Text = "Merging duplicate stacks... (جاري دمج الأكوام المتطابقة...)";
+        lblStorageOrderStatus.ForeColor = Color.DodgerBlue;
+
+        Task.Run(() =>
+        {
+            storage.Sort(npcId, false);
+            try
+            {
+                Invoke(new System.Action(() =>
+                {
+                    lblStorageOrderStatus.Text = "Stacks merged successfully! (تم دمج الأكوام بنجاح)";
+                    lblStorageOrderStatus.ForeColor = Color.SeaGreen;
+                }));
+            }
+            catch { }
+        });
+    }
+
+    private void btnOrderGuildStorageNow_Click(object sender, EventArgs e)
+    {
+        var guildStorage = Game.Player?.GuildStorage;
+        if (guildStorage == null)
+        {
+            lblStorageOrderStatus.Text = "Guild storage is not open! (مستودع الجيلد غير مفتوح)";
+            lblStorageOrderStatus.ForeColor = Color.Red;
+            return;
+        }
+
+        var npcId = ResolveStorageNpcId(_guildStorageNpcId);
+        if (npcId == 0)
+        {
+            lblStorageOrderStatus.Text = "Guild storage NPC not detected! (لم يتم رصد حارس مستودع الجيلد)";
+            lblStorageOrderStatus.ForeColor = Color.Red;
+            return;
+        }
+
+        if (guildStorage.IsOrdering || guildStorage.IsSorting)
+        {
+            lblStorageOrderStatus.Text = "Guild storage busy... (جاري تنفيذ عملية أخرى...)";
+            lblStorageOrderStatus.ForeColor = Color.DarkOrange;
+            return;
+        }
+
+        lblStorageOrderStatus.Text = "Ordering guild storage... (جاري ترتيب مستودع الجيلد...)";
+        lblStorageOrderStatus.ForeColor = Color.DodgerBlue;
+
+        Task.Run(() =>
+        {
+            guildStorage.Order(npcId, true);
+            try
+            {
+                Invoke(new System.Action(() =>
+                {
+                    lblStorageOrderStatus.Text = "Guild storage ordered successfully! (تم ترتيب مستودع الجيلد بنجاح)";
+                    lblStorageOrderStatus.ForeColor = Color.SeaGreen;
+                }));
+            }
+            catch { }
+        });
+    }
 }
