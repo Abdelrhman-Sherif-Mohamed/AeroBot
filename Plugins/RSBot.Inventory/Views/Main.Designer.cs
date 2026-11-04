@@ -649,6 +649,292 @@ namespace RSBot.Inventory.Views
             btnStopHappy.Click += btnStopHappy_Click;
 
             // 
+            // panelStorageOrder
+            // 
+            panelStorageOrder.BackColor = System.Drawing.Color.Transparent;
+            panelStorageOrder.Border = new System.Windows.Forms.Padding(0, 1, 0, 1);
+            panelStorageOrder.BorderColor = System.Drawing.Color.FromArgb(40, 0, 0, 0);
+            panelStorageOrder.Controls.Add(lblStorageOrderTitle);
+            panelStorageOrder.Controls.Add(lblPagesHeader);
+            panelStorageOrder.Controls.Add(lblPage1);
+            panelStorageOrder.Controls.Add(lblPage2);
+            panelStorageOrder.Controls.Add(lblPage3);
+            panelStorageOrder.Controls.Add(lblPage4);
+            panelStorageOrder.Controls.Add(lblPage5);
+            panelStorageOrder.Controls.Add(lblOverflowNote);
+            panelStorageOrder.Controls.Add(lblSettingsHeader);
+            panelStorageOrder.Controls.Add(checkStorageSplitPages);
+            panelStorageOrder.Controls.Add(checkStorageAutoOrder);
+            panelStorageOrder.Controls.Add(checkStorageAutoSort);
+            panelStorageOrder.Controls.Add(checkGuildStorageAutoOrder);
+            panelStorageOrder.Controls.Add(checkGuildStorageAutoSort);
+            panelStorageOrder.Controls.Add(lblActionsHeader);
+            panelStorageOrder.Controls.Add(btnOrderStorageNow);
+            panelStorageOrder.Controls.Add(btnSortStorageNow);
+            panelStorageOrder.Controls.Add(btnOrderGuildStorageNow);
+            panelStorageOrder.Controls.Add(lblStorageOrderStatus);
+            panelStorageOrder.Dock = System.Windows.Forms.DockStyle.Fill;
+            panelStorageOrder.Location = new System.Drawing.Point(0, 0);
+            panelStorageOrder.Name = "panelStorageOrder";
+            panelStorageOrder.Padding = new System.Windows.Forms.Padding(4);
+            panelStorageOrder.Radius = 0;
+            panelStorageOrder.ShadowDepth = 2F;
+            panelStorageOrder.Size = new System.Drawing.Size(792, 458);
+            panelStorageOrder.TabIndex = 8;
+            panelStorageOrder.Visible = false;
+
+            // 
+            // lblStorageOrderTitle
+            // 
+            lblStorageOrderTitle.AutoSize = true;
+            lblStorageOrderTitle.Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblStorageOrderTitle.Location = new System.Drawing.Point(28, 20);
+            lblStorageOrderTitle.Name = "lblStorageOrderTitle";
+            lblStorageOrderTitle.Size = new System.Drawing.Size(320, 25);
+            lblStorageOrderTitle.TabIndex = 0;
+            lblStorageOrderTitle.Text = "Storage Order (ترتيب وتقسيم المستودع)";
+
+            // 
+            // lblPagesHeader
+            // 
+            lblPagesHeader.AutoSize = true;
+            lblPagesHeader.Font = new System.Drawing.Font("Segoe UI Semibold", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblPagesHeader.Location = new System.Drawing.Point(30, 55);
+            lblPagesHeader.Name = "lblPagesHeader";
+            lblPagesHeader.Size = new System.Drawing.Size(300, 17);
+            lblPagesHeader.TabIndex = 1;
+            lblPagesHeader.Text = "Pages Layout (تقسيم الصفحات - كل صفحة 30 خانة):";
+
+            // 
+            // lblPage1
+            // 
+            lblPage1.AutoSize = true;
+            lblPage1.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblPage1.Location = new System.Drawing.Point(35, 80);
+            lblPage1.Name = "lblPage1";
+            lblPage1.Size = new System.Drawing.Size(320, 15);
+            lblPage1.TabIndex = 2;
+            lblPage1.Text = "• Page 1: Weapons & Equipment (الأسلحة والعتاد والإكسسوارات)";
+
+            // 
+            // lblPage2
+            // 
+            lblPage2.AutoSize = true;
+            lblPage2.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblPage2.Location = new System.Drawing.Point(35, 105);
+            lblPage2.Name = "lblPage2";
+            lblPage2.Size = new System.Drawing.Size(320, 15);
+            lblPage2.TabIndex = 3;
+            lblPage2.Text = "• Page 2: Elixirs & Enhancement (إكسيرات الأسلحة والدروع)";
+
+            // 
+            // lblPage3
+            // 
+            lblPage3.AutoSize = true;
+            lblPage3.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblPage3.Location = new System.Drawing.Point(35, 130);
+            lblPage3.Name = "lblPage3";
+            lblPage3.Size = new System.Drawing.Size(320, 15);
+            lblPage3.TabIndex = 4;
+            lblPage3.Text = "• Page 3: Magic & Attribute Stones (أحجار الماجيك والأتربيوت)";
+
+            // 
+            // lblPage4
+            // 
+            lblPage4.AutoSize = true;
+            lblPage4.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblPage4.Location = new System.Drawing.Point(35, 155);
+            lblPage4.Name = "lblPage4";
+            lblPage4.Size = new System.Drawing.Size(320, 15);
+            lblPage4.TabIndex = 5;
+            lblPage4.Text = "• Page 4: Recovery Potions & Pills (جرعات HP / MP / Pills)";
+
+            // 
+            // lblPage5
+            // 
+            lblPage5.AutoSize = true;
+            lblPage5.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblPage5.Location = new System.Drawing.Point(35, 180);
+            lblPage5.Name = "lblPage5";
+            lblPage5.Size = new System.Drawing.Size(320, 15);
+            lblPage5.TabIndex = 6;
+            lblPage5.Text = "• Page 5: Scrolls & Other Items (مخطوطات العودة وباقي العناصر)";
+
+            // 
+            // lblOverflowNote
+            // 
+            lblOverflowNote.AutoSize = true;
+            lblOverflowNote.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point);
+            lblOverflowNote.ForeColor = System.Drawing.Color.Gray;
+            lblOverflowNote.Location = new System.Drawing.Point(35, 205);
+            lblOverflowNote.Name = "lblOverflowNote";
+            lblOverflowNote.Size = new System.Drawing.Size(340, 13);
+            lblOverflowNote.TabIndex = 7;
+            lblOverflowNote.Text = "* عند امتلاء الصفحة، تذهب العناصر الفائضة لأول خانة فارغة متاحة.";
+
+            // 
+            // lblSettingsHeader
+            // 
+            lblSettingsHeader.AutoSize = true;
+            lblSettingsHeader.Font = new System.Drawing.Font("Segoe UI Semibold", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblSettingsHeader.Location = new System.Drawing.Point(440, 20);
+            lblSettingsHeader.Name = "lblSettingsHeader";
+            lblSettingsHeader.Size = new System.Drawing.Size(120, 17);
+            lblSettingsHeader.TabIndex = 8;
+            lblSettingsHeader.Text = "Settings (الإعدادات):";
+
+            // 
+            // checkStorageSplitPages
+            // 
+            checkStorageSplitPages.BackColor = System.Drawing.Color.Transparent;
+            checkStorageSplitPages.Depth = 0;
+            checkStorageSplitPages.Location = new System.Drawing.Point(440, 45);
+            checkStorageSplitPages.Margin = new System.Windows.Forms.Padding(0);
+            checkStorageSplitPages.MouseLocation = new System.Drawing.Point(-1, -1);
+            checkStorageSplitPages.Name = "checkStorageSplitPages";
+            checkStorageSplitPages.Ripple = true;
+            checkStorageSplitPages.Size = new System.Drawing.Size(330, 24);
+            checkStorageSplitPages.TabIndex = 9;
+            checkStorageSplitPages.Text = "Split Storage by Pages (تقسيم صفحات المستودع)";
+            checkStorageSplitPages.UseVisualStyleBackColor = false;
+            checkStorageSplitPages.CheckedChanged += checkStorageSplitPages_CheckedChanged;
+
+            // 
+            // checkStorageAutoOrder
+            // 
+            checkStorageAutoOrder.BackColor = System.Drawing.Color.Transparent;
+            checkStorageAutoOrder.Depth = 0;
+            checkStorageAutoOrder.Location = new System.Drawing.Point(440, 72);
+            checkStorageAutoOrder.Margin = new System.Windows.Forms.Padding(0);
+            checkStorageAutoOrder.MouseLocation = new System.Drawing.Point(-1, -1);
+            checkStorageAutoOrder.Name = "checkStorageAutoOrder";
+            checkStorageAutoOrder.Ripple = true;
+            checkStorageAutoOrder.Size = new System.Drawing.Size(330, 24);
+            checkStorageAutoOrder.TabIndex = 10;
+            checkStorageAutoOrder.Text = "Auto Order Storage (ترتيب تلقائي للمستودع)";
+            checkStorageAutoOrder.UseVisualStyleBackColor = false;
+            checkStorageAutoOrder.CheckedChanged += checkStorageAutoOrder_CheckedChanged;
+
+            // 
+            // checkStorageAutoSort
+            // 
+            checkStorageAutoSort.BackColor = System.Drawing.Color.Transparent;
+            checkStorageAutoSort.Depth = 0;
+            checkStorageAutoSort.Location = new System.Drawing.Point(440, 99);
+            checkStorageAutoSort.Margin = new System.Windows.Forms.Padding(0);
+            checkStorageAutoSort.MouseLocation = new System.Drawing.Point(-1, -1);
+            checkStorageAutoSort.Name = "checkStorageAutoSort";
+            checkStorageAutoSort.Ripple = true;
+            checkStorageAutoSort.Size = new System.Drawing.Size(330, 24);
+            checkStorageAutoSort.TabIndex = 11;
+            checkStorageAutoSort.Text = "Auto Sort Storage (دمج وتكديس المستودع)";
+            checkStorageAutoSort.UseVisualStyleBackColor = false;
+            checkStorageAutoSort.CheckedChanged += checkStorageAutoSort_CheckedChanged;
+
+            // 
+            // checkGuildStorageAutoOrder
+            // 
+            checkGuildStorageAutoOrder.BackColor = System.Drawing.Color.Transparent;
+            checkGuildStorageAutoOrder.Depth = 0;
+            checkGuildStorageAutoOrder.Location = new System.Drawing.Point(440, 126);
+            checkGuildStorageAutoOrder.Margin = new System.Windows.Forms.Padding(0);
+            checkGuildStorageAutoOrder.MouseLocation = new System.Drawing.Point(-1, -1);
+            checkGuildStorageAutoOrder.Name = "checkGuildStorageAutoOrder";
+            checkGuildStorageAutoOrder.Ripple = true;
+            checkGuildStorageAutoOrder.Size = new System.Drawing.Size(330, 24);
+            checkGuildStorageAutoOrder.TabIndex = 12;
+            checkGuildStorageAutoOrder.Text = "Auto Order Guild Storage (ترتيب تلقائي للجيلد)";
+            checkGuildStorageAutoOrder.UseVisualStyleBackColor = false;
+            checkGuildStorageAutoOrder.CheckedChanged += checkGuildStorageAutoOrder_CheckedChanged;
+
+            // 
+            // checkGuildStorageAutoSort
+            // 
+            checkGuildStorageAutoSort.BackColor = System.Drawing.Color.Transparent;
+            checkGuildStorageAutoSort.Depth = 0;
+            checkGuildStorageAutoSort.Location = new System.Drawing.Point(440, 153);
+            checkGuildStorageAutoSort.Margin = new System.Windows.Forms.Padding(0);
+            checkGuildStorageAutoSort.MouseLocation = new System.Drawing.Point(-1, -1);
+            checkGuildStorageAutoSort.Name = "checkGuildStorageAutoSort";
+            checkGuildStorageAutoSort.Ripple = true;
+            checkGuildStorageAutoSort.Size = new System.Drawing.Size(330, 24);
+            checkGuildStorageAutoSort.TabIndex = 13;
+            checkGuildStorageAutoSort.Text = "Auto Sort Guild Storage (دمج وتكديس الجيلد)";
+            checkGuildStorageAutoSort.UseVisualStyleBackColor = false;
+            checkGuildStorageAutoSort.CheckedChanged += checkGuildStorageAutoSort_CheckedChanged;
+
+            // 
+            // lblActionsHeader
+            // 
+            lblActionsHeader.AutoSize = true;
+            lblActionsHeader.Font = new System.Drawing.Font("Segoe UI Semibold", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblActionsHeader.Location = new System.Drawing.Point(30, 235);
+            lblActionsHeader.Name = "lblActionsHeader";
+            lblActionsHeader.Size = new System.Drawing.Size(160, 17);
+            lblActionsHeader.TabIndex = 14;
+            lblActionsHeader.Text = "Manual Actions (يدوي):";
+
+            // 
+            // btnOrderStorageNow
+            // 
+            btnOrderStorageNow.Color = System.Drawing.Color.FromArgb(45, 140, 220);
+            btnOrderStorageNow.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnOrderStorageNow.ForeColor = System.Drawing.Color.White;
+            btnOrderStorageNow.Location = new System.Drawing.Point(30, 260);
+            btnOrderStorageNow.Name = "btnOrderStorageNow";
+            btnOrderStorageNow.Radius = 6;
+            btnOrderStorageNow.ShadowDepth = 4F;
+            btnOrderStorageNow.Size = new System.Drawing.Size(155, 32);
+            btnOrderStorageNow.TabIndex = 15;
+            btnOrderStorageNow.Text = "Order Storage (ترتيب)";
+            btnOrderStorageNow.UseVisualStyleBackColor = false;
+            btnOrderStorageNow.Click += btnOrderStorageNow_Click;
+
+            // 
+            // btnSortStorageNow
+            // 
+            btnSortStorageNow.Color = System.Drawing.Color.FromArgb(70, 160, 90);
+            btnSortStorageNow.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnSortStorageNow.ForeColor = System.Drawing.Color.White;
+            btnSortStorageNow.Location = new System.Drawing.Point(195, 260);
+            btnSortStorageNow.Name = "btnSortStorageNow";
+            btnSortStorageNow.Radius = 6;
+            btnSortStorageNow.ShadowDepth = 4F;
+            btnSortStorageNow.Size = new System.Drawing.Size(155, 32);
+            btnSortStorageNow.TabIndex = 16;
+            btnSortStorageNow.Text = "Sort Storage (دمج)";
+            btnSortStorageNow.UseVisualStyleBackColor = false;
+            btnSortStorageNow.Click += btnSortStorageNow_Click;
+
+            // 
+            // btnOrderGuildStorageNow
+            // 
+            btnOrderGuildStorageNow.Color = System.Drawing.Color.FromArgb(170, 90, 210);
+            btnOrderGuildStorageNow.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnOrderGuildStorageNow.ForeColor = System.Drawing.Color.White;
+            btnOrderGuildStorageNow.Location = new System.Drawing.Point(360, 260);
+            btnOrderGuildStorageNow.Name = "btnOrderGuildStorageNow";
+            btnOrderGuildStorageNow.Radius = 6;
+            btnOrderGuildStorageNow.ShadowDepth = 4F;
+            btnOrderGuildStorageNow.Size = new System.Drawing.Size(175, 32);
+            btnOrderGuildStorageNow.TabIndex = 17;
+            btnOrderGuildStorageNow.Text = "Order Guild (ترتيب الجيلد)";
+            btnOrderGuildStorageNow.UseVisualStyleBackColor = false;
+            btnOrderGuildStorageNow.Click += btnOrderGuildStorageNow_Click;
+
+            // 
+            // lblStorageOrderStatus
+            // 
+            lblStorageOrderStatus.AutoSize = true;
+            lblStorageOrderStatus.Font = new System.Drawing.Font("Segoe UI Semibold", 9.5F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblStorageOrderStatus.ForeColor = System.Drawing.Color.Gray;
+            lblStorageOrderStatus.Location = new System.Drawing.Point(32, 305);
+            lblStorageOrderStatus.Name = "lblStorageOrderStatus";
+            lblStorageOrderStatus.Size = new System.Drawing.Size(44, 17);
+            lblStorageOrderStatus.TabIndex = 18;
+            lblStorageOrderStatus.Text = "Ready";
+
+            // 
 
             // panel1
 

@@ -24,8 +24,10 @@ using RSBot.Core.Network;
 
 using RSBot.Core.Objects;
 
-using RSBot.Core.Objects.Inventory;
-using RSBot.Core.Objects.Spawn;
+using RSBot.Core.Objects.Inventory;
+
+using RSBot.Core.Objects.Spawn;
+
 
 
 using SDUI;
@@ -89,7 +91,8 @@ public partial class Main : DoubleBufferedControl
 
     /// </summary>
 
-    private uint _lastInteractedNpcId;
+    private uint _lastInteractedNpcId;
+
     private uint _lastStorageOpenEntityId;
 
 
@@ -264,8 +267,10 @@ public partial class Main : DoubleBufferedControl
                 Task.Run(() => Game.Player.GuildStorage.Sort(npcId, true));
             }
         }
-    }
-
+    }
+
+
+
         private uint ResolveStorageNpcId(uint knownNpcId)
     {
         if (knownNpcId != 0)
@@ -1768,6 +1773,18 @@ public partial class Main : DoubleBufferedControl
         timerHappy.Tick += (s, ev) => OnTimerHappyTick();
 
         timerHappy.Start();
+
+        checkStorageSplitPages.Checked = PlayerConfig.Get("RSBot.Storage.SplitByPages", true);
+        checkStorageAutoOrder.Checked = PlayerConfig.Get("RSBot.Storage.AutoOrder", false);
+        checkStorageAutoSort.Checked = PlayerConfig.Get("RSBot.Storage.AutoSort", false);
+        checkGuildStorageAutoOrder.Checked = PlayerConfig.Get("RSBot.GuildStorage.AutoOrder", false);
+        checkGuildStorageAutoSort.Checked = PlayerConfig.Get("RSBot.GuildStorage.AutoSort", false);
+
+        panelStorageOrder.Visible = false;
+        panelHappy.Visible = false;
+        listViewMain.Visible = true;
+        panel1.Visible = true;
+        topPanel.BringToFront();
 
     }
 

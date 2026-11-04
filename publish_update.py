@@ -2,19 +2,19 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• إصلاح ظهور زر Order في الشريط العلوي للمخزن:
-  - حل مشكلة المربع الشفاف الفارغ فوق زر Inventory وتحديد إحداثيات ومكان وحجم زر Order (ترتيب المستودع) بدقة ليكون بعد زر Happy.
-  - إضافة واجهة مخصصة بالكامل لترتيب المستودع (Storage Order) بتقسيم الأغراض تلقائياً على 5 صفحات (أسلحة وعتاد / إكسيرات وتطوير / أحجار سحرية وتثبيت / جرعات واسترجاع / بطاقات ومخطوطات وأخرى).
-  - خيارات تفعيل الترتيب التلقائي وأزرار للترتيب الفوري لكل من المستودع الشخصي ومستودع الجيلد."""
+changelog_ar = """• إصلاح نهائي لمشكلة المربع الأسود الشفاف في شريط المخزن:
+  - حل مشكلة تغطية نافذة ترتيب المستودع للشريط العلوي بزر Inventory و Equipment وضبط إخفائها افتراضياً (Visible = false).
+  - ضبط حجم وتصميم صفحة ترتيب المستودع (Storage Order) بكامل خياراتها والتحكم التلقائي واليدوي.
+  - إظهار شريط الأزرار العلوي دائماً في المقدمة لمنع أي تداخل بين الصفحات."""
 
-changelog_en = """• Storage Order Button & Layout UI Fix:
-  - Fixed ghost empty box appearing over Inventory button by assigning proper bounds and text to the Order button after Happy tab.
-  - Dedicated Storage Order view categorizing items across 5 distinct pages (Equipment / Elixirs / Stones / Potions / Scrolls & Others).
-  - Toggle options for auto-ordering and instant manual order buttons for Storage and Guild Storage."""
+changelog_en = """• Final Storage Order Overlay Fix:
+  - Fixed dark overlay box covering Inventory and Equipment buttons by properly hiding panelStorageOrder by default and setting Dock to Fill.
+  - Initialized complete layout and controls for Storage Order configuration and auto-sorting options.
+  - Ensured top bar is always brought to front preventing any panel overlapping."""
 
 data = {
-    "version": "2.9.35",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.35.zip",
+    "version": "2.9.36",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.36.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -31,4 +31,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.35 update to Firebase! Status:', res.status)
+    print('Published 2.9.36 update to Firebase! Status:', res.status)
