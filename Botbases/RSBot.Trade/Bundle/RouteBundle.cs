@@ -228,7 +228,11 @@ internal class RouteBundle
 
         CurrentRouteFile = null;
 
-
+        if (Game.Player?.Movement != null)
+        {
+            Game.Player.Movement.HasDestination = false;
+            Game.Player.Movement.Moving = false;
+        }
 
         //Townscript finished?
 
@@ -585,12 +589,6 @@ internal class RouteBundle
 
 
         if (!TradeConfig.UseRouteScripts && !TradeConfig.UseCityToCity)
-
-            return;
-
-
-
-        if (Game.Player.Movement.HasDestination)
 
             return;
 
@@ -1082,18 +1080,36 @@ internal class RouteBundle
             InitializeCityPair();
 
         var runIndex = TradeConfig.CurrentTradeLoop;
+        var curCity = DetectCurrentCity();
+
         string fromCity;
         string toCity;
 
-        if (runIndex % 2 == 0)
+        var cityA = FirstCity?.Trim().ToLowerInvariant() ?? "";
+        var cityB = SecondCity?.Trim().ToLowerInvariant() ?? "";
+
+        if (!string.IsNullOrEmpty(cityA) && (curCity.Contains(cityA) || cityA.Contains(curCity)))
         {
             fromCity = FirstCity;
             toCity = SecondCity;
         }
-        else
+        else if (!string.IsNullOrEmpty(cityB) && (curCity.Contains(cityB) || cityB.Contains(curCity)))
         {
             fromCity = SecondCity;
             toCity = FirstCity;
+        }
+        else
+        {
+            if (runIndex % 2 == 0)
+            {
+                fromCity = FirstCity;
+                toCity = SecondCity;
+            }
+            else
+            {
+                fromCity = SecondCity;
+                toCity = FirstCity;
+            }
         }
 
         if (log)
@@ -1254,7 +1270,7 @@ internal class RouteBundle
 
 
 
-            if (fromMatch && toMatch && TradeConfig.IsRouteActive(file))
+            if (fromMatch && toMatch)
 
                 return file;
 
