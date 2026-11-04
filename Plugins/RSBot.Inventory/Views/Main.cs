@@ -24,7 +24,9 @@ using RSBot.Core.Network;
 
 using RSBot.Core.Objects;
 
-using RSBot.Core.Objects.Inventory;
+using RSBot.Core.Objects.Inventory;
+using RSBot.Core.Objects.Spawn;
+
 
 using SDUI;
 
@@ -87,6 +89,7 @@ public partial class Main : DoubleBufferedControl
 
     /// </summary>
 
+    private uint _lastInteractedNpcId;
     private uint _lastStorageOpenEntityId;
 
 
@@ -166,6 +169,8 @@ public partial class Main : DoubleBufferedControl
         EventManager.SubscribeEvent("OnInventoryUpdate", UpdateInventoryList);
 
         EventManager.SubscribeEvent("OnStorageOpenRequest", new Action<uint>(OnStorageOpenRequest));
+        EventManager.SubscribeEvent("OnTalkRequest", new Action<uint, TalkOption>(OnTalkRequest));
+        EventManager.SubscribeEvent("OnTalkToNpc", new Action<uint>(OnTalkToNpc));
 
         EventManager.SubscribeEvent("OnStorageData", OnStorageData);
 
@@ -183,12 +188,22 @@ public partial class Main : DoubleBufferedControl
 
     /// <param name="entityId">The unique id of the NPC.</param>
 
-    private void OnStorageOpenRequest(uint entityId)
-
+        private void OnTalkRequest(uint entityId, TalkOption option)
     {
-
+        _lastInteractedNpcId = entityId;
         _lastStorageOpenEntityId = entityId;
+    }
 
+    private void OnTalkToNpc(uint entityId)
+    {
+        _lastInteractedNpcId = entityId;
+        _lastStorageOpenEntityId = entityId;
+    }
+
+    private void OnStorageOpenRequest(uint entityId)
+    {
+        _lastStorageOpenEntityId = entityId;
+        _lastInteractedNpcId = entityId;
     }
 
 
@@ -199,140 +214,97 @@ public partial class Main : DoubleBufferedControl
 
     /// </summary>
 
-    private void OnStorageData()
-
+        private void OnStorageData()
     {
-
-        _storageNpcId = _lastStorageOpenEntityId;
-
-
+        _storageNpcId = ResolveStorageNpcId(_storageNpcId != 0 ? _storageNpcId : _lastStorageOpenEntityId);
+        Log.Debug($"[Inventory] Personal storage data received. Resolved NPC ID: {_storageNpcId}");
 
         var autoOrder = PlayerConfig.Get("RSBot.Storage.AutoOrder", false);
-
         var autoSort = PlayerConfig.Get("RSBot.Storage.AutoSort", false);
 
-
-
         if (autoOrder)
-
         {
-
             var npcId = ResolveStorageNpcId(_storageNpcId);
-
-            if (npcId != 0 && Game.Player?.Storage != null)
-
+            if (Game.Player?.Storage != null)
             {
-
                 Task.Run(() => Game.Player.Storage.Order(npcId, false));
-
             }
-
         }
-
         else if (autoSort)
-
         {
-
             var npcId = ResolveStorageNpcId(_storageNpcId);
-
-            if (npcId != 0 && Game.Player?.Storage != null)
-
+            if (Game.Player?.Storage != null)
             {
-
                 Task.Run(() => Game.Player.Storage.Sort(npcId, false));
-
             }
-
         }
-
     }
-
-
-
-    /// <summary>
-
-    ///     Remembers the NPC that opened the guild storage and executes auto-order/sort if enabled.
-
-    /// </summary>
 
     private void OnGuildStorageData()
-
     {
-
-        _guildStorageNpcId = _lastStorageOpenEntityId;
-
-
+        _guildStorageNpcId = ResolveStorageNpcId(_guildStorageNpcId != 0 ? _guildStorageNpcId : _lastInteractedNpcId);
+        Log.Debug($"[Inventory] Guild storage data received. Resolved NPC ID: {_guildStorageNpcId}");
 
         var autoOrder = PlayerConfig.Get("RSBot.GuildStorage.AutoOrder", false);
-
         var autoSort = PlayerConfig.Get("RSBot.GuildStorage.AutoSort", false);
 
-
-
         if (autoOrder)
-
         {
-
             var npcId = ResolveStorageNpcId(_guildStorageNpcId);
-
-            if (npcId != 0 && Game.Player?.GuildStorage != null)
-
+            if (Game.Player?.GuildStorage != null)
             {
-
                 Task.Run(() => Game.Player.GuildStorage.Order(npcId, true));
-
             }
-
         }
-
         else if (autoSort)
-
         {
-
             var npcId = ResolveStorageNpcId(_guildStorageNpcId);
-
-            if (npcId != 0 && Game.Player?.GuildStorage != null)
-
+            if (Game.Player?.GuildStorage != null)
             {
-
                 Task.Run(() => Game.Player.GuildStorage.Sort(npcId, true));
-
             }
-
         }
-
-    }
-
-
-
-    /// <summary>
-
-    ///     Resolves the NPC unique id that is required to move items inside a storage.
-
-    /// </summary>
-
-    /// <param name="knownNpcId">The captured NPC unique id.</param>
-
-    /// <returns>The unique id of the NPC.</returns>
-
-    private uint ResolveStorageNpcId(uint knownNpcId)
-
+    }
+
+        private uint ResolveStorageNpcId(uint knownNpcId)
     {
-
         if (knownNpcId != 0)
-
             return knownNpcId;
 
+        if (_lastInteractedNpcId != 0)
+            return _lastInteractedNpcId;
 
+        if (Game.Player?.State?.DialogState?.RequestedNpcId > 0)
+            return Game.Player.State.DialogState.RequestedNpcId;
+
+        if (Game.Player?.State?.DialogState?.Npc != null)
+            return Game.Player.State.DialogState.Npc.UniqueId;
 
         if (Game.SelectedEntity != null)
-
             return Game.SelectedEntity.UniqueId;
 
+        if (_lastStorageOpenEntityId != 0)
+            return _lastStorageOpenEntityId;
 
+        if (_storageNpcId != 0)
+            return _storageNpcId;
 
-        return _lastStorageOpenEntityId;
+        if (_guildStorageNpcId != 0)
+            return _guildStorageNpcId;
 
+        // Auto-detect nearest NPC around player (within 35m)
+        if (SpawnManager.TryGetEntities<SpawnedNpc>(out var npcs))
+        {
+            var nearestNpc = npcs
+                .Where(n => n.DistanceToPlayer <= 35f)
+                .OrderBy(n => n.DistanceToPlayer)
+                .FirstOrDefault();
+
+            if (nearestNpc != null)
+                return nearestNpc.UniqueId;
+        }
+
+        return 0;
     }
 
 
@@ -1438,41 +1410,20 @@ public partial class Main : DoubleBufferedControl
 
 
             case 5:
-
                 {
-
                     var guildStorage = Game.Player?.GuildStorage;
-
                     if (guildStorage == null)
-
                     {
-
                         Log.Warn("[Inventory] Cannot sort the guild storage: the guild storage is not open.");
-
                         return;
-
                     }
-
-
 
                     var npcId = ResolveStorageNpcId(_guildStorageNpcId);
-
-                    if (npcId == 0)
-
-                    {
-
-                        Log.Warn("[Inventory] Cannot sort the guild storage: the guild storage NPC was not detected.");
-
-                        return;
-
-                    }
-
-
+                    if (_guildStorageNpcId == 0 && npcId != 0)
+                        _guildStorageNpcId = npcId;
 
                     Task.Run(() => guildStorage.Sort(npcId, true));
-
                     break;
-
                 }
 
         }
@@ -1538,41 +1489,20 @@ public partial class Main : DoubleBufferedControl
 
 
             case 5:
-
                 {
-
                     var guildStorage = Game.Player?.GuildStorage;
-
                     if (guildStorage == null)
-
                     {
-
                         Log.Warn("[Inventory] Cannot order the guild storage: the guild storage is not open.");
-
                         return;
-
                     }
-
-
 
                     var npcId = ResolveStorageNpcId(_guildStorageNpcId);
-
-                    if (npcId == 0)
-
-                    {
-
-                        Log.Warn("[Inventory] Cannot order the guild storage: the guild storage NPC was not detected.");
-
-                        return;
-
-                    }
-
-
+                    if (_guildStorageNpcId == 0 && npcId != 0)
+                        _guildStorageNpcId = npcId;
 
                     Task.Run(() => guildStorage.Order(npcId, true));
-
                     break;
-
                 }
 
         }
@@ -2139,23 +2069,19 @@ public partial class Main : DoubleBufferedControl
         });
     }
 
-    private void btnOrderGuildStorageNow_Click(object sender, EventArgs e)
+        private void btnOrderGuildStorageNow_Click(object sender, EventArgs e)
     {
         var guildStorage = Game.Player?.GuildStorage;
-        if (guildStorage == null)
+        if (guildStorage == null || guildStorage.Count == 0)
         {
-            lblStorageOrderStatus.Text = "Guild storage is not open! (مستودع الجيلد غير مفتوح)";
+            lblStorageOrderStatus.Text = "Please open guild storage in-game first! (يرجى فتح مستودع الجيلد أولاً)";
             lblStorageOrderStatus.ForeColor = Color.Red;
             return;
         }
 
         var npcId = ResolveStorageNpcId(_guildStorageNpcId);
-        if (npcId == 0)
-        {
-            lblStorageOrderStatus.Text = "Guild storage NPC not detected! (لم يتم رصد حارس مستودع الجيلد)";
-            lblStorageOrderStatus.ForeColor = Color.Red;
-            return;
-        }
+        if (_guildStorageNpcId == 0 && npcId != 0)
+            _guildStorageNpcId = npcId;
 
         if (guildStorage.IsOrdering || guildStorage.IsSorting)
         {

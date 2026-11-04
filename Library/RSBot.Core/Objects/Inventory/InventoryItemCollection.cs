@@ -392,11 +392,11 @@ public class InventoryItemCollection : ICollection<InventoryItem>
         if (items.Count == 0)
             return 0;
 
-        if (!splitByPages)
-            return OrderItems(moveItem, 0, maxIterations);
-
         const int pageSize = 30;
         const int pageCount = 5;
+
+        if (!splitByPages || Capacity <= pageSize)
+            return OrderItems(moveItem, 0, maxIterations);
 
         // Group and sort items within each category
         var categoryBuckets = new List<InventoryItem>[pageCount];

@@ -64,7 +64,7 @@ public class Storage : InventoryItemCollection
         IsOrdering = true;
         Log.Debug(isGuildStorage ? "Ordering the guild storage..." : "Ordering the storage...");
 
-        var splitByPages = PlayerConfig.Get("RSBot.Storage.SplitByPages", true);
+        var splitByPages = isGuildStorage ? PlayerConfig.Get("RSBot.GuildStorage.SplitByPages", true) : PlayerConfig.Get("RSBot.Storage.SplitByPages", true);
 
         var moves = OrderStorageItems(
             (sourceSlot, destinationSlot, amount) =>
@@ -107,22 +107,28 @@ public class Storage : InventoryItemCollection
 
         var asyncResult = new AwaitCallback(response =>
         {
-            if (response.ReadByte() != 0x01)
+            var res = response.ReadByte();
+            if (res != 0x01)
+            {
+                var errCode = response.Remaining > 0 ? response.ReadByte() : (byte)0;
+                Log.Debug($"[Storage::MoveItem] Server error 0xB034: result=0x{res:X2}, errCode=0x{errCode:X2}, op={operation}");
                 return AwaitCallbackResult.Fail;
+            }
 
-            if (response.ReadByte() != (byte)operation)
+            var op = response.ReadByte();
+            if (op != (byte)operation && !(isGuildStorage && op == (byte)InventoryOperation.SP_UPDATE_SLOTS_CHEST))
                 return AwaitCallbackResult.ConditionFailed;
 
             var source = response.ReadByte();
             var destination = response.ReadByte();
 
-            return source == sourceSlot && destination == destinationSlot
+            return (source == sourceSlot && destination == destinationSlot) || (source == destinationSlot && destination == sourceSlot)
                 ? AwaitCallbackResult.Success
                 : AwaitCallbackResult.ConditionFailed;
         }, 0xB034);
 
         PacketManager.SendPacket(packet, PacketDestination.Server, asyncResult);
-        asyncResult.AwaitResponse(600);
+        asyncResult.AwaitResponse(1500);
 
         if (asyncResult.IsCompleted)
         {
@@ -130,6 +136,7 @@ public class Storage : InventoryItemCollection
             return true;
         }
 
+        Log.Debug($"[Storage::MoveItem] Move timed out or failed (slot {sourceSlot} -> {destinationSlot}, amount={amount}, npc={npcUniqueId}, guild={isGuildStorage})");
         return false;
     }
 }
