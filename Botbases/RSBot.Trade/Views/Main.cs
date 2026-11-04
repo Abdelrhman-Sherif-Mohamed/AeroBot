@@ -983,6 +983,8 @@ public partial class Main : DoubleBufferedControl
         if (IsDisposed)
             return;
 
+        CleanupDuplicateTradeScripts();
+
         _loadingConfig = true;
 
         try
@@ -2372,6 +2374,63 @@ public partial class Main : DoubleBufferedControl
         menuToggleRoute.Text = ar ? "تفعيل / تعطيل المسار" : "Toggle Active";
         menuEditLoops.Text = ar ? "تعديل عدد الحلقات" : "Edit Loop Count";
         menuRemoveRoute.Text = ar ? "حذف المسار" : "Remove Route";
+    }
+
+
+    private static void CleanupDuplicateTradeScripts()
+    {
+        try
+        {
+            var tradeDirectory = Path.Combine(ScriptManager.InitialDirectory, "Trade");
+            if (!Directory.Exists(tradeDirectory))
+                return;
+
+            string[] obsoleteTradeFiles =
+            {
+                "Constantinople to Downhang.rbs",
+                "Costantinople to Donwhang.rbs",
+                "Costantinople to Downhang.rbs",
+                "Costantinople to Hotan.rbs",
+                "Costantinople to Jangan.rbs",
+                "Costantinople to Samarkand.rbs",
+                "Downhang To Samarkand.rbs",
+                "Downhang to Costantinople.rbs",
+                "Downhang to jangan.rbs",
+                "Hotan to Costantinople.rbs",
+                "Jangan to Costantinople.rbs",
+                "Samarkand to Costantinople.rbs",
+                "Samarkand to Downhang.rbs",
+                "Trade.rar",
+                "downhang to hotan.rbs",
+                "hotan to downhang.rbs",
+                "jangan to downhang.rbs"
+            };
+
+            foreach (var obFile in obsoleteTradeFiles)
+            {
+                var obPath = Path.Combine(tradeDirectory, obFile);
+                if (File.Exists(obPath))
+                {
+                    try
+                    {
+                        File.SetAttributes(obPath, FileAttributes.Normal);
+                        File.Delete(obPath);
+                    }
+                    catch { }
+                }
+            }
+
+            foreach (var vbFile in Directory.GetFiles(tradeDirectory, "*.vb"))
+            {
+                try
+                {
+                    File.SetAttributes(vbFile, FileAttributes.Normal);
+                    File.Delete(vbFile);
+                }
+                catch { }
+            }
+        }
+        catch { }
     }
 
 }

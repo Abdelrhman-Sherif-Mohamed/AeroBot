@@ -159,6 +159,57 @@ internal static class Program
                             }
                         }
                     }
+
+                    // Clean up obsolete/duplicate trade scripts
+                    var tradeDir = Path.Combine(targetDir, "Data", "Scripts", "Trade");
+                    if (Directory.Exists(tradeDir))
+                    {
+                        string[] obsoleteTradeFiles =
+                        {
+                            "Constantinople to Downhang.rbs",
+                            "Costantinople to Donwhang.rbs",
+                            "Costantinople to Downhang.rbs",
+                            "Costantinople to Hotan.rbs",
+                            "Costantinople to Jangan.rbs",
+                            "Costantinople to Samarkand.rbs",
+                            "Downhang To Samarkand.rbs",
+                            "Downhang to Costantinople.rbs",
+                            "Downhang to jangan.rbs",
+                            "Hotan to Costantinople.rbs",
+                            "Jangan to Costantinople.rbs",
+                            "Samarkand to Costantinople.rbs",
+                            "Samarkand to Downhang.rbs",
+                            "Trade.rar",
+                            "downhang to hotan.rbs",
+                            "hotan to downhang.rbs",
+                            "jangan to downhang.rbs"
+                        };
+
+                        foreach (var obFile in obsoleteTradeFiles)
+                        {
+                            var obPath = Path.Combine(tradeDir, obFile);
+                            if (File.Exists(obPath))
+                            {
+                                try
+                                {
+                                    File.SetAttributes(obPath, FileAttributes.Normal);
+                                    File.Delete(obPath);
+                                }
+                                catch { }
+                            }
+                        }
+
+                        foreach (var vbFile in Directory.GetFiles(tradeDir, "*.vb"))
+                        {
+                            try
+                            {
+                                File.SetAttributes(vbFile, FileAttributes.Normal);
+                                File.Delete(vbFile);
+                            }
+                            catch { }
+                        }
+                    }
+
                 }
                 catch { }
 

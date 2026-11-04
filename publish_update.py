@@ -2,19 +2,19 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• إصلاح نهائي لمشكلة المربع الأسود الشفاف في شريط المخزن:
-  - حل مشكلة تغطية نافذة ترتيب المستودع للشريط العلوي بزر Inventory و Equipment وضبط إخفائها افتراضياً (Visible = false).
-  - ضبط حجم وتصميم صفحة ترتيب المستودع (Storage Order) بكامل خياراتها والتحكم التلقائي واليدوي.
-  - إظهار شريط الأزرار العلوي دائماً في المقدمة لمنع أي تداخل بين الصفحات."""
+changelog_ar = """• تنظيف شامل لمسارات وسكربتات التجارة (Trade Scripts Deduplication):
+  - حذف جميع الملفات المكررة والأسماء الخاطئة (مثل Costantinople و Downhang والملفات المتطابقة) مع الإبقاء على 20 مساراً قياسياً معتمداً يغطي كافة المدن (Jangan, Donwhang, Hotan, Samarkand, Constantinople).
+  - توحيد أسماء وتنسيق ملفات المسارات بدقة لمنع تكرار أو لخبطة المسارات في القوائم.
+  - إضافة تنظيف تلقائي للملفات المكررة القديمة لدى المستخدمين عبر برنامج التحديث وعبر واجهة التجارة."""
 
-changelog_en = """• Final Storage Order Overlay Fix:
-  - Fixed dark overlay box covering Inventory and Equipment buttons by properly hiding panelStorageOrder by default and setting Dock to Fill.
-  - Initialized complete layout and controls for Storage Order configuration and auto-sorting options.
-  - Ensured top bar is always brought to front preventing any panel overlapping."""
+changelog_en = """• Complete Trade Route Scripts Deduplication & Cleanup:
+  - Removed all duplicate/misspelled trade scripts (Downhang, Costantinople, legacy .vb files) keeping exactly 20 canonical clean routes between all cities.
+  - Standardized all script filenames ensuring clean route selection in UI.
+  - Added automatic cleanup of duplicate trade scripts via Updater and Trade module."""
 
 data = {
-    "version": "2.9.36",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.36.zip",
+    "version": "2.9.37",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.37.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -31,4 +31,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.36 update to Firebase! Status:', res.status)
+    print('Published 2.9.37 update to Firebase! Status:', res.status)
