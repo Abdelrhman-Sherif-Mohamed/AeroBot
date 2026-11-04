@@ -1652,7 +1652,7 @@ public partial class Main : DoubleBufferedControl
 
             case 0:
 
-                UpdateCheckboxesForCurrentTab();
+                checkAutoSort.Checked = PlayerConfig.Get("RSBot.Inventory.AutoSort", false);
 
                 checkAutoOrder.Checked = PlayerConfig.Get("RSBot.Inventory.AutoOrder", false);
 
