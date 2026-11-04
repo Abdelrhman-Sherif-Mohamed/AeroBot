@@ -57,7 +57,8 @@ public class EventManager
                         }
                         catch (Exception ex)
                         {
-                            Log.Error($"[EventManager] Error executing event '{name}': {ex.Message}");
+                            var realEx = (ex is System.Reflection.TargetInvocationException tie && tie.InnerException != null) ? tie.InnerException : ex;
+                            Log.Debug($"[EventManager] Error executing event '{name}': {realEx.Message}");
                         }
                     });
                 else

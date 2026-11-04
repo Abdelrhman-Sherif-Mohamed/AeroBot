@@ -161,12 +161,52 @@ public class LanguageManager
             File.AppendAllLines(file, contents);
     }
 
+    private static readonly Dictionary<string, string> _uiFallbacks = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "ar:StartClient", "بدء الكلينت" },
+        { "ar:KillClient", "إغلاق الكلينت" },
+        { "ar:StartClientless", "بدء بدون كلينت" },
+        { "ar:GoClientless", "بدون كلينت" },
+        { "ar:HideClient", "إخفاء الكلاينت" },
+        { "ar:ShowClient", "ظهور الكلاينت" },
+        { "ar:Disconnect", "قطع الاتصال" },
+        { "ar:StartBot", "شغل البوت" },
+        { "ar:StopBot", "وقف البوت" },
+        { "ar:Ready", "جاهز" },
+        { "ar:Running", "يعمل" },
+        { "ar:Warning", "تحذير" },
+        { "ar:btnStartClient", "بدء الكلينت" },
+        { "ar:btnStartClientless", "بدء بدون كلينت" },
+        { "ar:btnClientHideShow", "ظهور الكلينت" },
+        { "ar:btnGoClientless", "بدون كلينت" },
+
+        { "en:StartClient", "Start Client" },
+        { "en:KillClient", "Kill Client" },
+        { "en:StartClientless", "Start Clientless" },
+        { "en:GoClientless", "Go Clientless" },
+        { "en:HideClient", "Hide Client" },
+        { "en:ShowClient", "Show Client" },
+        { "en:Disconnect", "Disconnect" },
+        { "en:StartBot", "Start Bot" },
+        { "en:StopBot", "Stop Bot" },
+        { "en:Ready", "Ready" },
+        { "en:Running", "Running" },
+        { "en:Warning", "Warning" },
+        { "en:btnStartClient", "Start Client" },
+        { "en:btnStartClientless", "Start Clientless" },
+        { "en:btnClientHideShow", "Client Visibility" },
+        { "en:btnGoClientless", "Go Clientless" }
+    };
+
     /// <summary>
     ///     Get language value
     /// </summary>
     /// <param name="key">The key</param>
     public static string GetLang(string key)
     {
+        if (string.IsNullOrWhiteSpace(key))
+            return string.Empty;
+
         var trace = new StackTrace();
 
         var parent = string.Empty;
@@ -177,8 +217,46 @@ public class LanguageManager
                 break;
         }
 
-        if (_values.ContainsKey(parent) && _values[parent].ContainsKey(key))
-            return _values[parent][key];
+        // 1. Direct key match in parent
+        if (!string.IsNullOrEmpty(parent) && _values.TryGetValue(parent, out var parentDict))
+        {
+            if (parentDict.TryGetValue(key, out var val) && !string.IsNullOrWhiteSpace(val))
+                return val;
+
+            // 2. Suffix / partial match in parent (e.g. key "StartClient" matches "*.btnStartClient" or "*.StartClient")
+            var match = parentDict.FirstOrDefault(kvp =>
+                (kvp.Key.EndsWith("." + key, StringComparison.OrdinalIgnoreCase) ||
+                 kvp.Key.EndsWith(".btn" + key, StringComparison.OrdinalIgnoreCase) ||
+                 kvp.Key.Equals(key, StringComparison.OrdinalIgnoreCase)) &&
+                !string.IsNullOrWhiteSpace(kvp.Value));
+
+            if (!string.IsNullOrEmpty(match.Value))
+                return match.Value;
+        }
+
+        // 3. Search any loaded dictionary
+        foreach (var dict in _values.Values)
+        {
+            if (dict.TryGetValue(key, out var val) && !string.IsNullOrWhiteSpace(val))
+                return val;
+
+            var match = dict.FirstOrDefault(kvp =>
+                (kvp.Key.EndsWith("." + key, StringComparison.OrdinalIgnoreCase) ||
+                 kvp.Key.EndsWith(".btn" + key, StringComparison.OrdinalIgnoreCase)) &&
+                !string.IsNullOrWhiteSpace(kvp.Value));
+
+            if (!string.IsNullOrEmpty(match.Value))
+                return match.Value;
+        }
+
+        // 4. Built-in UI fallback dictionary
+        bool isAr = (Kernel.Language == "ar_AR");
+        var langPrefix = isAr ? "ar:" : "en:";
+        if (_uiFallbacks.TryGetValue(langPrefix + key, out var fallback))
+            return fallback;
+
+        if (_uiFallbacks.TryGetValue("en:" + key, out var enFallback))
+            return enFallback;
 
         return string.Empty;
     }
@@ -208,6 +286,51 @@ public class LanguageManager
     /// <param name="parent">Parent module or assembly name</param>
     /// <param name="key">The key</param>
     /// <param name="default">The default value that will be returned if the translation could not be found</param>
+    private static string ResolveLanguageFilePath(string moduleName, string lang)
+    {
+        if (string.IsNullOrWhiteSpace(moduleName))
+            return null;
+
+        var candidates = new List<string> { moduleName };
+        if (moduleName.StartsWith("AeroBot.", StringComparison.OrdinalIgnoreCase))
+        {
+            var suffix = moduleName.Substring(8);
+            candidates.Add("RSBot." + suffix);
+            candidates.Add("Wolves." + suffix);
+        }
+        else if (moduleName.StartsWith("RSBot.", StringComparison.OrdinalIgnoreCase))
+        {
+            var suffix = moduleName.Substring(6);
+            candidates.Add("AeroBot." + suffix);
+            candidates.Add("Wolves." + suffix);
+        }
+        else if (moduleName.StartsWith("Wolves.", StringComparison.OrdinalIgnoreCase))
+        {
+            var suffix = moduleName.Substring(7);
+            candidates.Add("AeroBot." + suffix);
+            candidates.Add("RSBot." + suffix);
+        }
+
+        foreach (var mod in candidates)
+        {
+            var p = Path.Combine(_path, mod, lang + ".rsl");
+            if (File.Exists(p))
+                return p;
+        }
+
+        if (lang != "en_US")
+        {
+            foreach (var mod in candidates)
+            {
+                var enP = Path.Combine(_path, mod, "en_US.rsl");
+                if (File.Exists(enP))
+                    return enP;
+            }
+        }
+
+        return null;
+    }
+
     public static string GetLangBySpecificKey(string parent, string key, string @default = "")
     {
         var lang = Kernel.Language ?? "en_US";
@@ -217,11 +340,8 @@ public class LanguageManager
         {
             try
             {
-                var path = Path.Combine(_path, parent, lang + ".rsl");
-                if (!File.Exists(path) && lang != "en_US")
-                    path = Path.Combine(_path, parent, "en_US.rsl");
-
-                if (File.Exists(path))
+                var path = ResolveLanguageFilePath(parent, lang);
+                if (path != null && File.Exists(path))
                     _values[cacheKey] = ParseLanguageFile(path);
             }
             catch { }
@@ -238,8 +358,8 @@ public class LanguageManager
             {
                 try
                 {
-                    var enPath = Path.Combine(_path, parent, "en_US.rsl");
-                    if (File.Exists(enPath))
+                    var enPath = ResolveLanguageFilePath(parent, "en_US");
+                    if (enPath != null && File.Exists(enPath))
                         _values[enCacheKey] = ParseLanguageFile(enPath);
                 }
                 catch { }
@@ -267,25 +387,13 @@ public class LanguageManager
         var controlName = type.FullName;
         var assembly = type.Assembly.GetName().Name;
 
-        var path = Path.Combine(_path, assembly, language + ".rsl");
-        var dir = Path.GetDirectoryName(path);
-
-        if (!Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-
-        if (!File.Exists(path))
+        var path = ResolveLanguageFilePath(assembly, language);
+        if (path == null || !File.Exists(path))
         {
-            // If requested language is not found, fallback to en_US
-            if (language != "en_US")
-            {
-                var fallbackPath = Path.Combine(_path, assembly, "en_US.rsl");
-                if (File.Exists(fallbackPath))
-                    path = fallbackPath;
-                else
-                    return;
-            }
-            else
-                return;
+            var dir = Path.Combine(_path, assembly);
+            if (!Directory.Exists(dir))
+                try { Directory.CreateDirectory(dir); } catch { }
+            return;
         }
 
         var values = ParseLanguageFile(path);

@@ -2,21 +2,21 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• تحديث أمني إلزامي ومهم جداً:
-  - تفعيل نظام التحقق الأمني وإلزام تسجيل الدخول بالاسم وكلمة المرور لجميع المستخدمين.
-  - إلغاء وإيقاف الوضع المجاني (Free Mode) بالكامل ومنع تخطي شاشة الدخول نهائياً.
-  - إيقاف الدخول التلقائي وحذف أي بيانات محفوظة سابقاً لضمان عدم فتح البوت إلا بحساب مفعل ومشترك.
-  - تفعيل الفحص الفوري والمباشر لصلاحية وانتهاء الاشتراكات على السيرفر."""
+changelog_ar = """✨ تحديث شامل AeroBot 2.9.27:
+  - توحيد وتسمية كافة ملفات وموديولات البوت والإضافات إلى AeroBot.
+  - إزالة وتنظيف كافة الملفات والمكتبات القديمة ومخلفات التحديثات تلقائياً.
+  - دعم برنامج التحديث الجديد AeroBot.Updater مع التنظيف الذكي.
+  - استقرار كامل لكافة إعدادات اللغات والملفات الشخصية بدون فقدان بيانات."""
 
-changelog_en = """• Mandatory Security & Authentication Update:
-  - Enforced strict login with valid username & password credentials for all users.
-  - Completely disabled and blocked Free Mode bypass.
-  - Disabled automatic login and cleared cached credentials to guarantee bot locks on startup.
-  - Instant server-side subscription expiration checks."""
+changelog_en = """✨ Comprehensive AeroBot 2.9.27 Update:
+  - Unified and renamed all bot modules, plugins, and libraries to AeroBot.
+  - Automatic cleanup and removal of all obsolete files and legacy leftovers.
+  - Built-in new AeroBot.Updater with smart cleanup routines.
+  - Full stability and backward compatibility for configurations and languages."""
 
 data = {
-    "version": "2.9.25",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.25.zip",
+    "version": "2.9.27",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.27.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -33,4 +33,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.25 update to Firebase! Status:', res.status)
+    print('Published 2.9.27 update to Firebase! Status:', res.status)

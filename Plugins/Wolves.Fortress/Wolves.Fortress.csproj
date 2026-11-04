@@ -8,7 +8,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <OutputPath>.\..\..\Build\Data\Plugins</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AssemblyName>Wolves.Fortress</AssemblyName>
+    <AssemblyName>AeroBot.Fortress</AssemblyName>
     <RootNamespace>Wolves.Fortress</RootNamespace>
     <Description>Fortress party buff manager with b1-b7 cooldown tracking for WolvesBot</Description>
     <Copyright>Copyright © 2026, WolvesBot Team</Copyright>

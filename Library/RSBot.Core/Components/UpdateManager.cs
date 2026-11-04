@@ -55,7 +55,7 @@ public static class UpdateManager
     {
         try
         {
-            _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) WolvesBot/2.9");
+            _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AeroBot/2.9");
         }
         catch { }
     }
@@ -297,15 +297,17 @@ public static class UpdateManager
             var json = JsonSerializer.Serialize(info, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(markerPath, json, Encoding.UTF8);
 
-            // 2. Locate Wolves.Updater.exe
+            // 2. Locate AeroBot.Updater.exe
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var updaterExe = Path.Combine(baseDir, "Wolves.Updater.exe");
+            var updaterExe = Path.Combine(baseDir, "AeroBot.Updater.exe");
+            if (!File.Exists(updaterExe))
+                updaterExe = Path.Combine(baseDir, "Wolves.Updater.exe");
             var currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? Path.Combine(baseDir, "AeroBot.exe");
             var currentPid = Process.GetCurrentProcess().Id;
 
             if (!File.Exists(updaterExe))
             {
-                Log.Error("[UpdateManager] Wolves.Updater.exe not found!");
+                Log.Error("[UpdateManager] AeroBot.Updater.exe not found!");
                 return;
             }
 

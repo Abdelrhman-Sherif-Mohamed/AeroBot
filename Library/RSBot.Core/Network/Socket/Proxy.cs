@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -240,9 +240,12 @@ public class Proxy
     /// <param name="packet">The packet</param>
     private void HandleReceivedPacket(Packet packet, PacketDestination destination)
     {
-        //if(packet.Opcode != 0x2002)
-         //   Log.Notify(packet.ToString());
-        
+        try
+        {
+            PacketLogger.LogPacket(packet, destination);
+        }
+        catch { }
+
         try
         {
             packet = PacketManager.CallHook(packet, destination);

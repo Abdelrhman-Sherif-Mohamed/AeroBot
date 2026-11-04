@@ -77,6 +77,16 @@ public static class HappyManager
     /// <summary>
     /// Counts event letters in player's inventory safely.
     /// </summary>
+    /// <summary>
+    /// Gets the count of free slots in NormalPart of player's inventory.
+    /// </summary>
+    public static int GetNormalInventoryFreeSlots()
+    {
+        if (Game.Player?.Inventory == null) return 0;
+        var inv = Game.Player.Inventory;
+        return Math.Max(0, (int)inv.NormalPartSize - inv.GetNormalPartItems().Count);
+    }
+
     public static LetterInfo GetLetterCounts()
     {
         var info = new LetterInfo();
@@ -209,7 +219,7 @@ public static class HappyManager
             if (code.Contains("JEWELBOX", StringComparison.OrdinalIgnoreCase) ||
                 code.Contains("JEWEL_BOX", StringComparison.OrdinalIgnoreCase) ||
                 name.Contains("Jewel Box", StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("صندوق المجوهرات", StringComparison.OrdinalIgnoreCase))
+                name.Contains("صندوق الجواهر", StringComparison.OrdinalIgnoreCase))
             {
                 count += item.Amount;
             }
@@ -230,14 +240,15 @@ public static class HappyManager
 
         if (codeName.IndexOf("SOOK", StringComparison.OrdinalIgnoreCase) >= 0 ||
             codeName.IndexOf("SO_OK", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            codeName.IndexOf("SO-OK", StringComparison.OrdinalIgnoreCase) >= 0)
+            codeName.IndexOf("SO-OK", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            codeName.IndexOf("KISAENG", StringComparison.OrdinalIgnoreCase) >= 0)
             return true;
 
         if (realName.IndexOf("So-Ok", StringComparison.OrdinalIgnoreCase) >= 0 ||
             realName.IndexOf("So - Ok", StringComparison.OrdinalIgnoreCase) >= 0 ||
             realName.IndexOf("SO OK", StringComparison.OrdinalIgnoreCase) >= 0 ||
             realName.IndexOf("SoOk", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            realName.Contains("سو-أوك") || realName.Contains("سو أوك") || realName.Contains("سوك"))
+            realName.Contains("سو أوك") || realName.Contains("سوك") || realName.Contains("إيفنت"))
             return true;
 
         if (codeName.EndsWith("_EVENT", StringComparison.OrdinalIgnoreCase) ||
@@ -271,7 +282,8 @@ public static class HappyManager
     {
         if (Running)
         {
-            Log.Notify("[Happy] تم طلب إيقاف التبديل. جاري الإنهاء بشكل سليم...");
+            var isAr = RSBot.Core.Kernel.Language == "ar_AR";
+            Log.Notify(isAr ? "[Happy] تم طلب إيقاف التبديل. جارٍ الإنهاء..." : "[Happy] Stop requested. Finishing...");
             _cancelRequested = true;
         }
     }
@@ -289,8 +301,11 @@ public static class HappyManager
 
     /// <summary>
     /// Executes fast, continuous, and seamless auto-exchange with Event So-Ok.
-    /// Handles both servers where dialog stays open and servers where dialog auto-closes per exchange.
-    /// Monitors inventory in real-time after each reward, waits for Auto Sort to finish, and immediately follows up.
+    /// Matches the exact official 4-click sequence:
+    /// Click 1: 0x7046 (Option 2) -> Open Talk
+    /// Click 2: 0x30D4 (Action 0x05) -> Select Happy Event
+    /// Click 3: 0x30D4 (Action 0x05) -> Redeem Letters (Reward received here)
+    /// Click 4: 0x30D4 (Action 0x05) -> Close Dialog (Server replies with 0xB04B 01)
     /// </summary>
     public static bool Execute()
     {
@@ -306,9 +321,11 @@ public static class HappyManager
             _cancelRequested = false;
         }
 
+        var isAr = RSBot.Core.Kernel.Language == "ar_AR";
+
         try
         {
-            Log.Notify("[Happy] بدء التبديل السريع والمستمر مع Event So-Ok...");
+            Log.Notify(isAr ? "[Happy] جارٍ البحث عن NPC Event So-Ok..." : "[Happy] Searching for Event So-Ok NPC...");
 
             var npc = GetEventSoOkNpc();
             if (npc == null)
@@ -321,14 +338,14 @@ public static class HappyManager
 
                 if (npc == null)
                 {
-                    Log.Warn("[Happy] لم يتم العثور على NPC Event So-Ok في المحيط القريب. تأكد من وقوف الشخصية بجانبها.");
+                    Log.Warn(isAr ? "[Happy] لم يتم العثور على NPC Event So-Ok في المحيط. تأكد من الوقوف بجانبه." : "[Happy] Event So-Ok NPC not found nearby. Stand close to So-Ok.");
                     return false;
                 }
             }
 
             if (npc.DistanceToPlayer > 15.0f)
             {
-                Log.Warn($"[Happy] المسافة إلى So-Ok بعيدة ({Math.Round(npc.DistanceToPlayer, 1)}م). يرجى الاقتراب منها.");
+                Log.Warn(isAr ? $"[Happy] الشخصية بعيدة عن So-Ok ({Math.Round(npc.DistanceToPlayer, 1)}م). يرجى الاقتراب." : $"[Happy] Too far from So-Ok ({Math.Round(npc.DistanceToPlayer, 1)}m). Move closer.");
                 return false;
             }
 
@@ -339,13 +356,13 @@ public static class HappyManager
 
             if (!isLetterEvent && !isJewelEvent)
             {
-                Log.Warn("[Happy] لا توجد حروف H-A-P-P-Y أو صناديق مجوهرات في الحقيبة للتبديل.");
+                Log.Warn(isAr ? "[Happy] لا توجد حروف H-A-P-P-Y أو صناديق جواهر في الشنطة للتبديل." : "[Happy] No H-A-P-P-Y letters or jewel boxes in inventory.");
                 return false;
             }
 
             if (isLetterEvent && !initialLetters.CanExchange)
             {
-                Log.Warn($"[Happy] الحروف غير مكتملة للتبديل ({initialLetters.GetMissingDescription()}). H:{initialLetters.H}, A:{initialLetters.A}, P:{initialLetters.TotalP}, Y:{initialLetters.Y}.");
+                Log.Warn(isAr ? $"[Happy] الحروف غير مكتملة ({initialLetters.GetMissingDescription()}). H:{initialLetters.H}, A:{initialLetters.A}, P:{initialLetters.TotalP}, Y:{initialLetters.Y}." : $"[Happy] Incomplete letter set ({initialLetters.GetMissingDescription()}). H:{initialLetters.H}, A:{initialLetters.A}, P:{initialLetters.TotalP}, Y:{initialLetters.Y}.");
                 return false;
             }
 
@@ -353,34 +370,34 @@ public static class HappyManager
             var cyclesDone = 0;
             var consecutiveErrors = 0;
 
-            // Clear any lingering callbacks & close any stale dialog
+            // Clear any lingering callbacks & ensure fresh state
             ClearCallbacks();
-            CloseAndDeselect(npc.UniqueId, 300);
-            Thread.Sleep(120);
+            CloseAndDeselect(npc.UniqueId, 250);
+            Thread.Sleep(80);
 
             for (var cycle = 0; cycle < maxCycles; cycle++)
             {
                 if (_cancelRequested)
                 {
-                    Log.Notify("[Happy] تم الإيقاف يدوياً من المستخدم.");
+                    Log.Notify(isAr ? "[Happy] تم إيقاف التبديل بناءً على طلبك." : "[Happy] Exchange stopped by user.");
                     break;
                 }
 
                 if (Game.Player == null || Game.Player.Inventory == null)
                     break;
 
-                // If inventory is completely full, try stacking once to see if slots free up
-                if (Game.Player.Inventory.Full)
+                // Check if normal inventory has free slots for rewards
+                if (GetNormalInventoryFreeSlots() == 0)
                 {
-                    Log.Notify("[Happy] الحقيبة ممتلئة، جاري محاولة دمج العناصر لتوفير مساحة...");
+                    Log.Notify(isAr ? "[Happy] الشنطة ممتلئة! جارٍ دمج الأكوام المتشابهة لتوفير مساحة..." : "[Happy] Inventory full! Merging duplicate stacks to free space...");
                     Game.Player.Inventory.Sort();
                     var fullWait = 0;
-                    while (Game.Player.Inventory.IsSorting && fullWait++ < 25)
+                    while (Game.Player.Inventory.IsSorting && fullWait++ < 25 && !_cancelRequested)
                         Thread.Sleep(100);
 
-                    if (Game.Player.Inventory.Full)
+                    if (GetNormalInventoryFreeSlots() == 0)
                     {
-                        Log.Warn("[Happy] الحقيبة ممتلئة تماماً ولا يوجد مساحات كافية للجوائز. تم التوقف.");
+                        Log.Warn(isAr ? "[Happy] الشنطة ممتلئة بالكامل (0 خانة فارغة). يجب تفريغ خانة واحدة على الأقل لاستلام الجوائز من So-Ok. تم التوقف." : "[Happy] Inventory is completely full (0 free slots). Please free at least 1 slot to receive rewards. Stopping.");
                         break;
                     }
                 }
@@ -404,7 +421,7 @@ public static class HappyManager
                         }
                         else
                         {
-                            Log.Notify($"[Happy] انتهت الحروف المتاحة للتبديل ({currentLetters.GetMissingDescription()}). إجمالي التبديلات: {cyclesDone}. (H:{currentLetters.H}, A:{currentLetters.A}, P:{currentLetters.TotalP}, Y:{currentLetters.Y})");
+                            Log.Notify(isAr ? $"[Happy] انتهت الحروف المكتملة ({currentLetters.GetMissingDescription()}). إجمالي التبديلات: {cyclesDone}. (H:{currentLetters.H}, A:{currentLetters.A}, P:{currentLetters.TotalP}, Y:{currentLetters.Y})" : $"[Happy] Complete letter sets finished ({currentLetters.GetMissingDescription()}). Total exchanges: {cyclesDone}. (H:{currentLetters.H}, A:{currentLetters.A}, P:{currentLetters.TotalP}, Y:{currentLetters.Y})");
                             break;
                         }
                     }
@@ -427,7 +444,7 @@ public static class HappyManager
                         }
                         else
                         {
-                            Log.Notify($"[Happy] انتهت صناديق المجوهرات (المتبقي: {currentJewels}). إجمالي التبديلات: {cyclesDone}.");
+                            Log.Notify(isAr ? $"[Happy] انتهت صناديق الجواهر (المتبقي: {currentJewels}). إجمالي التبديلات: {cyclesDone}." : $"[Happy] Jewel boxes finished (Remaining: {currentJewels}). Total exchanges: {cyclesDone}.");
                             break;
                         }
                     }
@@ -435,131 +452,139 @@ public static class HappyManager
 
                 npc = GetEventSoOkNpc() ?? npc;
 
-                // Step 0: Ensure So-Ok is selected (only send if not already selected)
+                // Step 0: Ensure So-Ok is selected (0x7045)
                 if (Game.SelectedEntity?.UniqueId != npc.UniqueId)
                 {
-                    SendSelectEntity(npc.UniqueId, 1000);
+                    SendSelectEntity(npc.UniqueId, 600);
                     Game.SelectedEntity = npc;
-                    Thread.Sleep(50);
+                    Thread.Sleep(25);
                 }
 
                 if (_cancelRequested) break;
 
-                // Step 1: Open NPC talk option (0x7046 Option 2)
-                var talkSuccess = SendTalkOption(npc.UniqueId, 2, 1200);
+                // Step 1 (Click 1): Open NPC talk option (0x7046 Option 2)
+                var talkSuccess = SendTalkOption(npc.UniqueId, 2, 800);
                 if (!talkSuccess)
                 {
-                    // Fast retry once
-                    Thread.Sleep(100);
-                    CloseAndDeselect(npc.UniqueId, 300);
-                    Thread.Sleep(80);
-                    SendSelectEntity(npc.UniqueId, 800);
-                    Game.SelectedEntity = npc;
                     Thread.Sleep(50);
-                    talkSuccess = SendTalkOption(npc.UniqueId, 2, 1200);
+                    SendSelectEntity(npc.UniqueId, 500);
+                    Game.SelectedEntity = npc;
+                    Thread.Sleep(25);
+                    talkSuccess = SendTalkOption(npc.UniqueId, 2, 800);
 
                     if (!talkSuccess)
                     {
                         consecutiveErrors++;
                         if (consecutiveErrors >= 3)
                         {
-                            Log.Warn("[Happy] تعذر فتح محادثة So-Ok بعد 3 محاولات. جاري الإنهاء.");
+                            Log.Warn(isAr ? "[Happy] فشل فتح محادثة So-Ok ثلاث مرات متتالية. تم التوقف." : "[Happy] Failed to open So-Ok talk 3 times. Stopping.");
                             break;
                         }
-                        Thread.Sleep(250);
+                        Thread.Sleep(150);
                         continue;
                     }
                 }
 
-                Thread.Sleep(50);
-                if (_cancelRequested) { CloseAndDeselect(npc.UniqueId, 300); break; }
+                Thread.Sleep(30);
+                if (_cancelRequested) { SendCloseDialog(npc.UniqueId); break; }
 
-                // Step 2: Select Event in Dialog (0x30D4 Action 0x05)
-                SendDialogAction(0x05, 1000);
-                Thread.Sleep(50);
+                // Step 2 (Click 2): Select Happy Event in Dialog (0x30D4 Action 0x05)
+                var (step2Success, step2InvFull) = SendDialogAction(0x05, 800);
+                if (!step2Success)
+                {
+                    consecutiveErrors++;
+                    SendCloseDialog(npc.UniqueId);
+                    if (consecutiveErrors >= 3)
+                    {
+                        Log.Warn(isAr ? "[Happy] تعذر متابعة حوار So-Ok. تم التوقف." : "[Happy] Could not continue So-Ok dialog. Stopped.");
+                        break;
+                    }
+                    Thread.Sleep(150);
+                    continue;
+                }
+                Thread.Sleep(30);
 
-                if (_cancelRequested) { CloseAndDeselect(npc.UniqueId, 300); break; }
+                if (_cancelRequested) { SendCloseDialog(npc.UniqueId); break; }
 
-                // Step 3: Receive Gift (0x30D4 Action 0x05)
-                SendDialogAction(0x05, 1000);
-                Thread.Sleep(60);
+                // Step 3 (Click 3): Redeem Letters / Get Reward (0x30D4 Action 0x05)
+                // Server deducts letters and gives the reward item right here!
+                var (step3Success, step3InvFull) = SendDialogAction(0x05, 800);
+                if (step3InvFull)
+                {
+                    Log.Warn(isAr ? "[Happy] الشنطة ممتلئة ولا تتسع للمزيد من الجوائز! جارٍ دمج الأكوام المتشابهة..." : "[Happy] Inventory full! Merging duplicate stacks...");
+                    SendCloseDialog(npc.UniqueId);
+                    Game.Player.Inventory.Sort();
+                    var fullWait = 0;
+                    while (Game.Player.Inventory.IsSorting && fullWait++ < 25 && !_cancelRequested)
+                        Thread.Sleep(100);
 
-                // Step 4: Cleanly close dialog
-                CloseAndDeselect(npc.UniqueId, 400);
+                    if (GetNormalInventoryFreeSlots() == 0)
+                    {
+                        Log.Warn(isAr ? "[Happy] الشنطة ممتلئة بالكامل ولا توجد خانة فارغة لاستلام الجوائز. تم التوقف بنجاح." : "[Happy] Inventory is completely full with no free slot for rewards. Stopped.");
+                        break;
+                    }
+                    Thread.Sleep(100);
+                    continue;
+                }
+
+                if (!step3Success)
+                {
+                    consecutiveErrors++;
+                    SendCloseDialog(npc.UniqueId);
+                    if (consecutiveErrors >= 3)
+                    {
+                        Log.Warn(isAr ? "[Happy] فشل استبدال الهابي من السيرفر. تم التوقف." : "[Happy] Failed to exchange letters from server. Stopped.");
+                        break;
+                    }
+                    Thread.Sleep(150);
+                    continue;
+                }
+                Thread.Sleep(30);
+
+                if (_cancelRequested) { SendCloseDialog(npc.UniqueId); break; }
+
+                // Step 4 (Click 4): Click Exit in Dialog (0x30D4 Action 0x05)
+                // Server automatically closes dialog and replies with 0xB04B 01
+                SendDialogCloseAction(0x05, 800);
+
+                // Dialog is now closed by server (0xB04B). Reset local dialog state:
+                if (Game.Player?.State?.DialogState != null)
+                    Game.Player.State.DialogState = null;
 
                 cyclesDone++;
                 consecutiveErrors = 0;
 
                 var remLetters = isLetterEvent ? GetLetterCounts() : default;
                 if (isLetterEvent)
-                    Log.Notify($"[Happy] تبديل ناجح (#{cyclesDone}). الحروف المتبقية: H:{remLetters.H}, A:{remLetters.A}, P:{remLetters.TotalP}, Y:{remLetters.Y}");
-                else
-                    Log.Notify($"[Happy] تبديل ناجح (#{cyclesDone}) لصناديق المجوهرات (المتبقي: {GetJewelBoxCount()}).");
-
-                // Step 5: Real-time inventory tracking & Auto Sort synchronization
-                // Wait briefly for the server's reward item packet to update the inventory collection
-                Thread.Sleep(80);
-
-                if (Game.Player?.Inventory != null && !_cancelRequested)
                 {
-                    // 1. Wait if an external sort is already in progress
-                    var sortWait = 0;
-                    while (Game.Player.Inventory.IsSorting && sortWait++ < 40 && !_cancelRequested)
-                    {
-                        Thread.Sleep(50);
-                    }
-
-                    // 2. Check if there are duplicate stackable items to merge (Elixirs, Potions, Stones, Coins, etc.)
-                    var hasMergeableItems = Game.Player.Inventory
-                        .Where(i => i.Slot > 12 && i.Record != null && i.Record.IsStackable && i.Record.MaxStack > i.Amount)
-                        .GroupBy(i => i.ItemId)
-                        .Any(g => g.Count() >= 2);
-
-                    if (hasMergeableItems || Game.Player.Inventory.Full)
-                    {
-                        Log.Notify("[Happy] تم استلام الجائزة، جاري فحص الحقيبة ودمج العناصر تلقائياً...");
-                        Game.Player.Inventory.Sort();
-
-                        // Wait for Auto Sort to finish completely before proceeding to the next exchange
-                        sortWait = 0;
-                        while (Game.Player.Inventory.IsSorting && sortWait++ < 40 && !_cancelRequested)
-                        {
-                            Thread.Sleep(50);
-                        }
-                    }
-
-                    // 3. If bag is full and cannot free any more slots, terminate gracefully
-                    if (Game.Player.Inventory.Full)
-                    {
-                        Log.Warn("[Happy] الحقيبة ممتلئة تماماً ولا يوجد مساحات كافية للجوائز. تم التوقف.");
-                        break;
-                    }
+                    if (cyclesDone % 5 == 0 || !remLetters.CanExchange)
+                        Log.Notify(isAr ? $"[Happy] تم الاستبدال (#{cyclesDone}). الحروف المتبقية: H:{remLetters.H}, A:{remLetters.A}, P:{remLetters.TotalP}, Y:{remLetters.Y}" : $"[Happy] Exchanged (#{cyclesDone}). Remaining: H:{remLetters.H}, A:{remLetters.A}, P:{remLetters.TotalP}, Y:{remLetters.Y}");
+                }
+                else
+                {
+                    var remJewels = GetJewelBoxCount();
+                    if (cyclesDone % 5 == 0 || remJewels < 10)
+                        Log.Notify(isAr ? $"[Happy] تم الاستبدال (#{cyclesDone}) بصناديق الجواهر (المتبقي: {remJewels})." : $"[Happy] Exchanged (#{cyclesDone}) with jewel boxes (Remaining: {remJewels}).");
                 }
 
-                // Immediately follow up with the next exchange without unnecessary delay ("يلحم وراه علي طول")
+                // Fast and safe delay between consecutive turns
                 Thread.Sleep(40);
             }
 
-            // Cleanup: cleanly close dialog
-            CloseAndDeselect(npc.UniqueId, 300);
-            Thread.Sleep(150);
+            // Cleanup when loop finishes
+            CloseAndDeselect(npc.UniqueId, 250);
+            Thread.Sleep(100);
 
-            Log.Notify($"[Happy] اكتملت عملية التبديل! تم إجراء {cyclesDone} تبديل بنجاح.");
+            Log.Notify(isAr ? $"[Happy] تم الانتهاء بنجاح! تم استبدال {cyclesDone} مجموعة بنجاح." : $"[Happy] Finished successfully! Exchanged {cyclesDone} sets.");
 
-            // Final Step: Execute Auto Sort ONCE at the very end to stack and organize all rewards cleanly
+            // Final Step: Execute Auto Sort ONCE at the very end to organize all rewards cleanly
             if (cyclesDone > 0 && Game.Player?.Inventory != null)
             {
-                Log.Notify("[Happy] جاري ترتيب ودمج الجوائز في الحقيبة (Auto Sort)...");
+                Log.Notify(isAr ? "[Happy] جارٍ تنظيم وترتيب الجوائز في الشنطة..." : "[Happy] Organizing rewards in inventory...");
                 try
                 {
-                    Thread.Sleep(250);
+                    Thread.Sleep(150);
                     Game.Player.Inventory.Sort();
-                    var sortWait = 0;
-                    while (Game.Player.Inventory.IsSorting && sortWait++ < 40)
-                    {
-                        Thread.Sleep(100);
-                    }
-                    Log.Notify("[Happy] تم ترتيب ودمج العناصر بنجاح! جاهز تماماً.");
                 }
                 catch (Exception ex)
                 {
@@ -571,7 +596,7 @@ public static class HappyManager
         }
         catch (Exception ex)
         {
-            Log.Error($"[Happy] خطأ أثناء التبديل: {ex.Message}");
+            Log.Error($"[Happy] Error: {ex.Message}");
             return false;
         }
         finally
@@ -602,10 +627,9 @@ public static class HappyManager
     /// <summary>
     /// Explicitly closes NPC dialog and resets dialog state with 0x704B.
     /// </summary>
-    public static bool CloseAndDeselect(uint npcUniqueId, int timeoutMs = 600)
+    public static bool CloseAndDeselect(uint npcUniqueId, int timeoutMs = 400)
     {
-        PacketManager.ClearCallbacks(0xB04B);
-        PacketManager.ClearCallbacks(0x30D4);
+        ClearCallbacks();
 
         var packet = new Packet(0x704B);
         packet.WriteUInt(npcUniqueId);
@@ -631,13 +655,13 @@ public static class HappyManager
     /// </summary>
     public static void SendCloseDialog(uint npcUniqueId)
     {
-        CloseAndDeselect(npcUniqueId, 300);
+        CloseAndDeselect(npcUniqueId, 250);
     }
 
     /// <summary>
     /// Selects NPC (0x7045) safely and sets entity selection.
     /// </summary>
-    private static bool SendSelectEntity(uint uniqueId, int timeoutMs = 1200)
+    private static bool SendSelectEntity(uint uniqueId, int timeoutMs = 800)
     {
         PacketManager.ClearCallbacks(0xB045);
 
@@ -666,9 +690,9 @@ public static class HappyManager
     }
 
     /// <summary>
-    /// Sends talk option to NPC (0x7046 Option).
+    /// Sends talk option to NPC (0x7046 Option 2).
     /// </summary>
-    private static bool SendTalkOption(uint uniqueId, byte option = 2, int timeoutMs = 1200)
+    private static bool SendTalkOption(uint uniqueId, byte option = 2, int timeoutMs = 1000)
     {
         PacketManager.ClearCallbacks(0xB046);
         PacketManager.ClearCallbacks(0x30D4);
@@ -697,25 +721,82 @@ public static class HappyManager
     }
 
     /// <summary>
-    /// Sends dialog action for So-Ok (0x30D4 Action).
+    /// Sends dialog action (0x30D4 Action 0x05) and awaits 0x30D4 dialog response or 0xB04B error/close.
+    /// Used for Step 2 (Select Happy Event) and Step 3 (Redeem Letters).
     /// </summary>
-    private static bool SendDialogAction(byte action = 0x05, int timeoutMs = 1000)
+    private static (bool success, bool inventoryFull) SendDialogAction(byte action = 0x05, int timeoutMs = 800)
     {
         PacketManager.ClearCallbacks(0x30D4);
+        PacketManager.ClearCallbacks(0xB04B);
 
         var packet = new Packet(0x30D4);
         packet.WriteByte(action);
 
         var success = false;
-        var awaitResult = new AwaitCallback(response =>
+        var invFull = false;
+        using var doneEvent = new ManualResetEventSlim(false);
+
+        var await30D4 = new AwaitCallback(response =>
         {
             success = true;
+            doneEvent.Set();
             return AwaitCallbackResult.Success;
         }, 0x30D4);
 
-        PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
-        awaitResult.AwaitResponse(timeoutMs);
+        var awaitB04B = new AwaitCallback(response =>
+        {
+            var res = response.ReadByte();
+            if (res == 2)
+            {
+                invFull = true;
+                doneEvent.Set();
+                return AwaitCallbackResult.Fail;
+            }
+            if (res == 1)
+            {
+                doneEvent.Set();
+                return AwaitCallbackResult.Success;
+            }
+            doneEvent.Set();
+            return AwaitCallbackResult.Fail;
+        }, 0xB04B);
 
-        return success || awaitResult.IsCompleted;
+        PacketManager.SendPacket(packet, PacketDestination.Server, await30D4, awaitB04B);
+        doneEvent.Wait(timeoutMs);
+
+        return (success, invFull);
+    }
+
+    /// <summary>
+    /// Sends the final dialog exit action (0x30D4 Action 0x05) and awaits 0xB04B dialog close response.
+    /// Used for Step 4 (Close Dialog).
+    /// </summary>
+    private static bool SendDialogCloseAction(byte action = 0x05, int timeoutMs = 800)
+    {
+        PacketManager.ClearCallbacks(0xB04B);
+
+        var packet = new Packet(0x30D4);
+        packet.WriteByte(action);
+
+        var success = false;
+        using var doneEvent = new ManualResetEventSlim(false);
+
+        var awaitResult = new AwaitCallback(response =>
+        {
+            var res = response.ReadByte();
+            if (res == 1)
+            {
+                success = true;
+                doneEvent.Set();
+                return AwaitCallbackResult.Success;
+            }
+            doneEvent.Set();
+            return AwaitCallbackResult.Fail;
+        }, 0xB04B);
+
+        PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
+        doneEvent.Wait(timeoutMs);
+
+        return success;
     }
 }

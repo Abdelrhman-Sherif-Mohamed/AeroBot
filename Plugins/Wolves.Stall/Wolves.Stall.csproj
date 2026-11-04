@@ -8,7 +8,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <OutputPath>.\..\..\Build\Data\Plugins</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AssemblyName>Wolves.Stall</AssemblyName>
+    <AssemblyName>AeroBot.Stall</AssemblyName>
     <RootNamespace>Wolves.Stall</RootNamespace>
     <Description>Personal Stall and Auto Shop plugin for WolvesBot</Description>
     <Copyright>Copyright © 2026, WolvesBot Team</Copyright>

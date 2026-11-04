@@ -1,4 +1,5 @@
-﻿using System.Windows.Forms;
+using System;
+using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
@@ -31,7 +32,7 @@ public class LureBotbase : IBotbase
         if (PickupManager.RunningPlayerPickup)
             return;
 
-        if (Area.Position.DistanceToPlayer() > 80)
+        if (Area.Position.DistanceToPlayer() > Math.Max(120, Area.Radius + 40))
         {
             if (!ScriptManager.Running)
                 EventManager.FireEvent("Bundle.Loop.Start");
@@ -87,6 +88,7 @@ public class LureBotbase : IBotbase
     public void Start()
     {
         Log.Notify("[Lure] bot started!");
+        MovementBundle.Reset();
     }
 
     /// <summary>

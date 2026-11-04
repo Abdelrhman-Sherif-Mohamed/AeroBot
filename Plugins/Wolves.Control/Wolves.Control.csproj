@@ -8,7 +8,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <OutputPath>.\..\..\Build\Data\Plugins</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AssemblyName>Wolves.Control</AssemblyName>
+    <AssemblyName>AeroBot.Control</AssemblyName>
     <RootNamespace>Wolves.Control</RootNamespace>
     <Description>Commands, Choreography and Target Support Controller for WolvesBot</Description>
     <Copyright>Copyright © 2026, WolvesBot Team</Copyright>

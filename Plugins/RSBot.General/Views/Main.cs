@@ -296,7 +296,10 @@ internal partial class Main : DoubleBufferedControl
 
             btnStartClient.Enabled = true;
             btnStartClientless.Enabled = true;
-            btnStartClientless.Text = LanguageManager.GetLang("StartClientless");
+            bool isAr = Kernel.Language == "ar_AR";
+            btnStartClient.Text = isAr ? "بدء الكلينت" : "Start Client";
+            btnStartClientless.Text = isAr ? "بدء بدون كلينت" : "Start Clientless";
+            btnClientHideShow.Text = isAr ? "ظهور الكلينت" : "Client Visibility";
             Log.StatusLang("Ready");
             Kernel.Proxy.Shutdown();
         }
@@ -312,6 +315,12 @@ internal partial class Main : DoubleBufferedControl
 
         Accounts.Load();
         LoadAccounts();
+
+        bool isAr = Kernel.Language == "ar_AR";
+        btnStartClient.Text = isAr ? "بدء الكلينت" : "Start Client";
+        btnStartClientless.Text = isAr ? "بدء بدون كلينت" : "Start Clientless";
+        btnClientHideShow.Text = isAr ? "ظهور الكلينت" : "Client Visibility";
+        btnGoClientless.Text = isAr ? "بدون كلينت" : "Go Clientless";
 
         //Load and display config
 
@@ -455,7 +464,15 @@ internal partial class Main : DoubleBufferedControl
         btnClientHideShow.Enabled = true;
 
         if (GlobalConfig.Get<bool>("RSBot.General.HideOnStartClient"))
+        {
+            _clientVisible = false;
             ClientManager.SetVisible(false);
+        }
+
+        bool isAr = Kernel.Language == "ar_AR";
+        btnClientHideShow.Text = _clientVisible
+            ? (isAr ? "إخفاء الكلاينت" : "Hide Client")
+            : (isAr ? "ظهور الكلينت" : "Show Client");
     }
 
     /// <summary>
@@ -465,7 +482,11 @@ internal partial class Main : DoubleBufferedControl
     {
         Log.StatusLang("Ready");
         _clientVisible = false;
-        btnStartClient.Text = LanguageManager.GetLang("StartClient");
+        bool isAr = Kernel.Language == "ar_AR";
+        btnStartClient.Text = isAr ? "بدء الكلينت" : "Start Client";
+        btnStartClientless.Text = isAr ? "بدء بدون كلينت" : "Start Clientless";
+        btnClientHideShow.Text = isAr ? "ظهور الكلينت" : "Client Visibility";
+        btnClientHideShow.Enabled = false;
 
         if (Game.Clientless)
             return;
@@ -502,9 +523,10 @@ internal partial class Main : DoubleBufferedControl
         if (!Game.Clientless)
         {
             btnClientHideShow.Enabled = true;
-            btnClientHideShow.Text = LanguageManager.GetLang("HideClient");
+            bool isAr = Kernel.Language == "ar_AR";
+            btnClientHideShow.Text = isAr ? "إخفاء الكلاينت" : "Hide Client";
             btnStartClient.Enabled = true;
-            btnStartClient.Text = LanguageManager.GetLang("KillClient");
+            btnStartClient.Text = isAr ? "إغلاق الكلينت" : "Kill Client";
             btnGoClientless.Enabled = true;
         }
 
@@ -785,7 +807,7 @@ internal partial class Main : DoubleBufferedControl
 
                 Game.Clientless = true;
                 Log.StatusLang("StartingClientless");
-                btnStartClientless.Text = LanguageManager.GetLang("Disconnect");
+                btnStartClientless.Text = Kernel.Language == "ar_AR" ? "قطع الاتصال" : "Disconnect";
                 Game.Start();
             }
             else
@@ -802,7 +824,7 @@ internal partial class Main : DoubleBufferedControl
 
                 btnStartClient.Enabled = true;
                 btnStartClientless.Enabled = true;
-                btnStartClientless.Text = LanguageManager.GetLang("StartClientless");
+                btnStartClientless.Text = Kernel.Language == "ar_AR" ? "بدء بدون كلينت" : "Start Clientless";
 
                 Kernel.Proxy.Shutdown();
             }
@@ -857,18 +879,12 @@ internal partial class Main : DoubleBufferedControl
         if (!ClientManager.IsRunning)
             return;
 
-        if (!_clientVisible)
-        {
-            _clientVisible = true;
-            ClientManager.SetVisible(true);
-            btnClientHideShow.Text = LanguageManager.GetLang("HideClient");
-        }
-        else
-        {
-            _clientVisible = false;
-            ClientManager.SetVisible(false);
-            btnClientHideShow.Text = LanguageManager.GetLang("ShowClient");
-        }
+        bool nowVisible = ClientManager.ToggleVisible();
+        _clientVisible = nowVisible;
+        bool isAr = Kernel.Language == "ar_AR";
+        btnClientHideShow.Text = nowVisible
+            ? (isAr ? "إخفاء الكلاينت" : "Hide Client")
+            : (isAr ? "ظهور الكلينت" : "Show Client");
     }
 
     /// <summary>

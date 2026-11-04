@@ -1,14 +1,79 @@
-﻿using RSBot.Core;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using RSBot.Core;
 using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Objects;
 
 namespace RSBot.Lure.Components;
 
+public class LureSpot
+{
+    public ushort Region { get; set; }
+    public float XOffset { get; set; }
+    public float YOffset { get; set; }
+    public float ZOffset { get; set; }
+    public int Radius { get; set; } = 30;
+
+    public Position Position => new Position(Region, XOffset, YOffset, ZOffset);
+    public float X => Position.X;
+    public float Y => Position.Y;
+
+    public string Serialize()
+    {
+        return $"{Region},{XOffset.ToString(CultureInfo.InvariantCulture)},{YOffset.ToString(CultureInfo.InvariantCulture)},{ZOffset.ToString(CultureInfo.InvariantCulture)},{Radius}";
+    }
+
+    public static LureSpot Deserialize(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var parts = s.Split(',');
+        if (parts.Length < 4) return null;
+        if (!ushort.TryParse(parts[0], out var reg)) return null;
+        if (!float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)) return null;
+        if (!float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)) return null;
+        if (!float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var z)) return null;
+        int rad = 30;
+        if (parts.Length >= 5) int.TryParse(parts[4], out rad);
+        return new LureSpot { Region = reg, XOffset = x, YOffset = y, ZOffset = z, Radius = rad };
+    }
+}
+
 internal static class LureConfig
 {
+    public static List<LureSpot> Spots
+    {
+        get
+        {
+            var raw = PlayerConfig.Get("RSBot.Lure.SpotsList", "");
+            if (string.IsNullOrWhiteSpace(raw))
+                return new List<LureSpot>();
+
+            var items = new List<LureSpot>();
+            foreach (var part in raw.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var spot = LureSpot.Deserialize(part);
+                if (spot != null) items.Add(spot);
+            }
+            return items;
+        }
+        set
+        {
+            if (value == null || value.Count == 0)
+            {
+                PlayerConfig.Set("RSBot.Lure.SpotsList", "");
+                return;
+            }
+
+            var raw = string.Join("|", value.Select(s => s.Serialize()));
+            PlayerConfig.Set("RSBot.Lure.SpotsList", raw);
+        }
+    }
+
     public static bool UseHowlingShout
     {
-        get => PlayerConfig.Get("RSBot.Lure.UseHowlingShout", false) && Game.Player.Race == ObjectCountry.Europe;
+        get => PlayerConfig.Get("RSBot.Lure.UseHowlingShout", true) && Game.Player != null && Game.Player.Race == ObjectCountry.Europe;
         set => PlayerConfig.Set("RSBot.Lure.UseHowlingShout", value);
     }
 
@@ -86,13 +151,13 @@ internal static class LureConfig
 
     public static bool StayAtCenterFor
     {
-        get => PlayerConfig.Get("RSBot.Lure.StayAtCenterFor", false);
+        get => true; // Always return to party in lure bot
         set => PlayerConfig.Set("RSBot.Lure.StayAtCenterFor", value);
     }
 
     public static int StayAtCenterForSeconds
     {
-        get => PlayerConfig.Get("RSBot.Lure.StayAtCenterForSeconds", 5);
+        get => PlayerConfig.Get("RSBot.Lure.StayAtCenterForSeconds", 3);
         set => PlayerConfig.Set("RSBot.Lure.StayAtCenterForSeconds", value);
     }
 
@@ -126,7 +191,7 @@ internal static class LureConfig
 
             return new Area
             {
-                Name = "Lure",
+                Name = "Party",
                 Position = new Position(region, x, y, z),
                 Radius = r
             };

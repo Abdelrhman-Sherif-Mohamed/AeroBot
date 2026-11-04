@@ -330,16 +330,102 @@ public class ClientManager
         }
     }
 
+    private static IntPtr _cachedClientHwnd = IntPtr.Zero;
+
+    /// <summary>
+    ///     Returns the handle of the game client window.
+    /// </summary>
+    public static IntPtr GetClientWindowHandle()
+    {
+        if (_cachedClientHwnd != IntPtr.Zero && IsWindow(_cachedClientHwnd))
+        {
+            GetWindowThreadProcessId(_cachedClientHwnd, out var pid);
+            if (_process != null && pid == _process.Id)
+                return _cachedClientHwnd;
+            if (Game.ClientProcessId > 0 && pid == (uint)Game.ClientProcessId)
+                return _cachedClientHwnd;
+        }
+
+        uint targetPid = 0;
+        if (_process != null && !_process.HasExited)
+            targetPid = (uint)_process.Id;
+        else if (Game.ClientProcessId > 0)
+            targetPid = (uint)Game.ClientProcessId;
+
+        if (targetPid == 0)
+            return IntPtr.Zero;
+
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((hWnd, lParam) =>
+        {
+            GetWindowThreadProcessId(hWnd, out var pid);
+            if (pid == targetPid)
+            {
+                var sb = new StringBuilder(256);
+                GetClassName(hWnd, sb, sb.Capacity);
+                var cls = sb.ToString();
+                if (cls == "CLIENT" || string.IsNullOrEmpty(cls) || found == IntPtr.Zero)
+                {
+                    found = hWnd;
+                    if (cls == "CLIENT")
+                        return false;
+                }
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        if (found != IntPtr.Zero)
+            _cachedClientHwnd = found;
+
+        return found;
+    }
+
+    /// <summary>
+    ///     Gets whether the game client window is currently visible.
+    /// </summary>
+    public static bool IsVisible
+    {
+        get
+        {
+            var hwnd = GetClientWindowHandle();
+            return hwnd != IntPtr.Zero && IsWindowVisible(hwnd);
+        }
+    }
+
+    /// <summary>
+    ///     Toggles game client visibility. Returns true if client is now visible, false if hidden.
+    /// </summary>
+    public static bool ToggleVisible()
+    {
+        var hwnd = GetClientWindowHandle();
+        if (hwnd == IntPtr.Zero)
+            return false;
+
+        if (IsWindowVisible(hwnd))
+        {
+            ShowWindow(hwnd, SW_HIDE);
+            return false;
+        }
+        else
+        {
+            ShowWindow(hwnd, SW_SHOW);
+            ShowWindow(hwnd, SW_RESTORE);
+            SetForegroundWindow(hwnd);
+            return true;
+        }
+    }
+
     /// <summary>
     ///     Change client process title
     /// </summary>
     /// <param name="title">The new title</param>
     public static void SetTitle(string title)
     {
-        if (_process == null)
-            return;
-
-        SetWindowText(_process.MainWindowHandle, title);
+        var hwnd = GetClientWindowHandle();
+        if (hwnd != IntPtr.Zero)
+            SetWindowText(hwnd, title);
+        else if (_process != null)
+            SetWindowText(_process.MainWindowHandle, title);
     }
 
     /// <summary>
@@ -348,6 +434,22 @@ public class ClientManager
     /// <param name="visible">The visible</param>
     public static void SetVisible(bool visible)
     {
+        var hwnd = GetClientWindowHandle();
+        if (hwnd != IntPtr.Zero)
+        {
+            if (visible)
+            {
+                ShowWindow(hwnd, SW_SHOW);
+                ShowWindow(hwnd, SW_RESTORE);
+                SetForegroundWindow(hwnd);
+            }
+            else
+            {
+                ShowWindow(hwnd, SW_HIDE);
+            }
+            return;
+        }
+
         if (_process == null || _process.HasExited)
             return;
 
@@ -362,6 +464,15 @@ public class ClientManager
     /// </summary>
     public static void Show()
     {
+        var hwnd = GetClientWindowHandle();
+        if (hwnd != IntPtr.Zero)
+        {
+            ShowWindow(hwnd, SW_SHOW);
+            ShowWindow(hwnd, SW_RESTORE);
+            SetForegroundWindow(hwnd);
+            return;
+        }
+
         if (_process == null || _process.HasExited)
             return;
 
@@ -379,6 +490,7 @@ public class ClientManager
     /// </summary>
     private static void ClientProcess_Exited(object sender, EventArgs e)
     {
+        _cachedClientHwnd = IntPtr.Zero;
         var exitCode = "unknown";
         var processId = "?";
 

@@ -1,68 +1,183 @@
-﻿using System.IO;
+using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
+using RSBot.Core.Objects;
 using RSBot.Lure.Components;
 
 namespace RSBot.Lure.Bundle;
 
 internal static class MovementBundle
 {
+    private enum LureState
+    {
+        GoingToLureSpot,
+        ReturningToParty,
+        WaitingAtParty
+    }
+
+    private static LureState _state = LureState.GoingToLureSpot;
+    private static int _currentSpotIndex;
+    private static DateTime _waitingStartTime = DateTime.MinValue;
+    private static Position _currentTargetPosition;
+    private static DateTime _lastMoveCommandTime = DateTime.MinValue;
+
+    public static void Reset()
+    {
+        _state = LureState.GoingToLureSpot;
+        _currentSpotIndex = 0;
+        _waitingStartTime = DateTime.MinValue;
+        _currentTargetPosition = default;
+        _lastMoveCommandTime = DateTime.MinValue;
+    }
+
     public static void Tick()
     {
-        //Return to center?
-        if (LureConfig.Area.Position.DistanceToPlayer() > 5 && LureConfig.StayAtCenterFor && !ScriptManager.Running)
+        if (Game.Player == null)
+            return;
+
+        var partyArea = LureConfig.Area;
+        var spots = LureConfig.Spots;
+
+        // If no spots configured, fallback to random roam or stay at party
+        if (spots == null || spots.Count == 0)
         {
-            Log.Status("Walking back to center...");
-
-            Log.Debug("[Lure] Walking back to center");
-
-            var moved = Game.Player.MoveTo(LureConfig.Area.Position, false);
-            if (!moved)
-                return;
-
-            Log.Debug($"[Lure] Waiting at the center for {LureConfig.StayAtCenterForSeconds}s");
-
-            EventManager.FireEvent("OnChangeStatusText",
-                $"Waiting for {LureConfig.StayAtCenterForSeconds}s at center...");
-            Thread.Sleep(LureConfig.StayAtCenterForSeconds * 1000);
-
+            if (LureConfig.WalkRandomly)
+                TickRandomRoam(partyArea);
             return;
         }
 
-        if (LureConfig.UseScript)
+        if (_currentSpotIndex >= spots.Count)
+            _currentSpotIndex = 0;
+
+        var currentSpot = spots[_currentSpotIndex];
+
+        switch (_state)
         {
-            if (!File.Exists(LureConfig.SelectedScriptPath))
+            case LureState.GoingToLureSpot:
             {
-                Log.Error($"[Lure] The file for the script {LureConfig.SelectedScriptPath} does not exist!");
+                var spotPos = currentSpot.Position;
+                var distToSpot = spotPos.DistanceToPlayer();
 
-                Kernel.Bot.Stop();
+                // Reached the lure spot!
+                if (distToSpot <= 4f)
+                {
+                    Log.Debug($"[Lure] Reached lure spot #{_currentSpotIndex + 1} ({spotPos.X:0.0}, {spotPos.Y:0.0})");
+                    _state = LureState.ReturningToParty;
+                    _lastMoveCommandTime = DateTime.MinValue;
+                    return;
+                }
 
+                if (!Game.Player.Movement.Moving || (DateTime.Now - _lastMoveCommandTime).TotalSeconds > 8)
+                {
+                    Log.Status($"Walking to lure spot #{_currentSpotIndex + 1}...");
+                    _currentTargetPosition = spotPos;
+                    _lastMoveCommandTime = DateTime.Now;
+                    Game.Player.MoveTo(spotPos, false);
+                }
+                break;
+            }
+
+            case LureState.ReturningToParty:
+            {
+                var partyPos = partyArea.Position;
+                var distToParty = partyPos.DistanceToPlayer();
+
+                // Reached the party!
+                if (distToParty <= 4f)
+                {
+                    Log.Debug("[Lure] Returned to party center");
+                    _state = LureState.WaitingAtParty;
+                    _waitingStartTime = DateTime.Now;
+                    _lastMoveCommandTime = DateTime.MinValue;
+                    return;
+                }
+
+                if (!Game.Player.Movement.Moving || (DateTime.Now - _lastMoveCommandTime).TotalSeconds > 8)
+                {
+                    Log.Status("Returning to party...");
+                    _currentTargetPosition = partyPos;
+                    _lastMoveCommandTime = DateTime.Now;
+                    Game.Player.MoveTo(partyPos, false);
+                }
+                break;
+            }
+
+            case LureState.WaitingAtParty:
+            {
+                int waitSeconds = Math.Max(1, LureConfig.StayAtCenterForSeconds);
+                var elapsed = (DateTime.Now - _waitingStartTime).TotalSeconds;
+
+                if (elapsed >= waitSeconds)
+                {
+                    _currentSpotIndex = (_currentSpotIndex + 1) % spots.Count;
+                    Log.Debug($"[Lure] Finished waiting at party, heading to spot #{_currentSpotIndex + 1}");
+                    _state = LureState.GoingToLureSpot;
+                    _lastMoveCommandTime = DateTime.MinValue;
+                    return;
+                }
+
+                int remaining = Math.Max(0, waitSeconds - (int)elapsed);
+                EventManager.FireEvent("OnChangeStatusText", $"Waiting at party ({remaining}s)...");
+                break;
+            }
+        }
+    }
+
+    private static void TickRandomRoam(Area partyArea)
+    {
+        var distToParty = partyArea.Position.DistanceToPlayer();
+
+        if (_state == LureState.WaitingAtParty)
+        {
+            int waitSeconds = Math.Max(1, LureConfig.StayAtCenterForSeconds);
+            var elapsed = (DateTime.Now - _waitingStartTime).TotalSeconds;
+            if (elapsed >= waitSeconds)
+            {
+                _state = LureState.GoingToLureSpot;
+                _lastMoveCommandTime = DateTime.MinValue;
+                return;
+            }
+            int remaining = Math.Max(0, waitSeconds - (int)elapsed);
+            EventManager.FireEvent("OnChangeStatusText", $"Waiting at party ({remaining}s)...");
+            return;
+        }
+
+        if (_state == LureState.ReturningToParty)
+        {
+            if (distToParty <= 4f)
+            {
+                _state = LureState.WaitingAtParty;
+                _waitingStartTime = DateTime.Now;
                 return;
             }
 
-            if (ScriptManager.Running)
-                return;
-
-            Log.Status("Running lure script...");
-            ScriptManager.Load(LureConfig.SelectedScriptPath);
-            Task.Run(() => ScriptManager.RunScript(false));
+            if (!Game.Player.Movement.Moving || (DateTime.Now - _lastMoveCommandTime).TotalSeconds > 8)
+            {
+                Log.Status("Returning to party...");
+                _lastMoveCommandTime = DateTime.Now;
+                Game.Player.MoveTo(partyArea.Position, false);
+            }
+            return;
         }
 
-        if (LureConfig.StayAtCenter || Game.Player.Movement.Moving)
+        // Going out:
+        if (distToParty >= (partyArea.Radius * 0.7f))
+        {
+            _state = LureState.ReturningToParty;
+            _lastMoveCommandTime = DateTime.MinValue;
             return;
+        }
 
-        var minDistance = LureConfig.Area.Radius / 1.5f;
-        var destination = LureConfig.Area.GetRandomPosition();
-        while (destination.DistanceToPlayer() < minDistance ||
-               Game.Player.Position.HasCollisionBetween(destination))
-            destination = LureConfig.Area.GetRandomPosition();
-
-        Log.Status("Walking to random position...");
-        Log.Debug(
-            $"[Lure] Moving to random position {destination} (distance={destination.DistanceToPlayer()}, min. distance={minDistance})");
-        Game.Player.MoveTo(destination);
+        if (!Game.Player.Movement.Moving || (DateTime.Now - _lastMoveCommandTime).TotalSeconds > 8)
+        {
+            var destination = partyArea.GetRandomPosition();
+            Log.Status("Walking to pull position...");
+            _lastMoveCommandTime = DateTime.Now;
+            Game.Player.MoveTo(destination, false);
+        }
     }
 }

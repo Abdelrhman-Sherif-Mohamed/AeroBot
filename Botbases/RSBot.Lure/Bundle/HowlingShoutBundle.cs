@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using RSBot.Core;
 using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Components;
@@ -10,10 +10,13 @@ internal static class HowlingShoutBundle
 {
     public static void Tick()
     {
-        if (Game.Player.Race != ObjectCountry.Europe)
+        if (Game.Player == null || Game.Player.Race != ObjectCountry.Europe)
             return;
 
-        if (LureConfig.NoHowlingAtCenter && LureConfig.Area.Position.DistanceToPlayer() < 15)
+        if (!LureConfig.UseHowlingShout)
+            return;
+
+        if (LureConfig.NoHowlingAtCenter && LureConfig.Area.Position.DistanceToPlayer() < 12)
             return;
 
         var howlingShout =

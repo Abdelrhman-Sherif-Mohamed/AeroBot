@@ -218,8 +218,6 @@ public class ManufactureSettingsView : UserControl
         {
             if (IsHandleCreated)
                 BeginInvoke(action);
-            else
-                action();
         }
         catch (InvalidOperationException)
         {

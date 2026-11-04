@@ -59,10 +59,20 @@ public partial class Main : DoubleBufferedControl
 
     private void SafeInvoke(System.Action action)
     {
-        if (IsHandleCreated && InvokeRequired)
-            BeginInvoke(action);
-        else
-            action();
+        if (action == null || IsDisposed) return;
+        try
+        {
+            if (InvokeRequired)
+            {
+                if (IsHandleCreated)
+                    BeginInvoke(action);
+            }
+            else if (IsHandleCreated)
+            {
+                action();
+            }
+        }
+        catch { }
     }
 
     private void OnLoadCharacter()

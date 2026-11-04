@@ -138,7 +138,23 @@ public partial class Main : UIWindow
         if (Kernel.BotbaseManager?.Bots != null && Kernel.BotbaseManager.Bots.ContainsKey(control.Name))
             return 2;
 
-        var index = Array.IndexOf(NavigationOrder, control.Name);
+        var name = control.Name ?? string.Empty;
+        var index = Array.IndexOf(NavigationOrder, name);
+        if (index < 0)
+        {
+            // Suffix match for AeroBot <-> RSBot <-> Wolves
+            var suffix = name.Contains('.') ? name.Substring(name.IndexOf('.') + 1) : name;
+            for (var i = 0; i < NavigationOrder.Length; i++)
+            {
+                var navSuffix = NavigationOrder[i].Contains('.') ? NavigationOrder[i].Substring(NavigationOrder[i].IndexOf('.') + 1) : NavigationOrder[i];
+                if (string.Equals(suffix, navSuffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    index = i;
+                    break;
+                }
+            }
+        }
+
         if (index < 0)
             return 100;
 
@@ -172,17 +188,17 @@ public partial class Main : UIWindow
             bottomPanel.BackColor = ColorScheme.ChromeColor;
             bottomPanel.Border = new Padding(0, 1, 0, 0);
             bottomPanel.BorderColor = ColorScheme.BorderColor;
-            bottomPanel.Padding = new Padding(8, 6, 6, 6);
+            bottomPanel.Padding = new Padding(0);
         }
 
         if (pnlBottomActions != null)
         {
             pnlBottomActions.BackColor = Color.Transparent;
-            pnlBottomActions.Border = new Padding(1, 0, 0, 0);
+            pnlBottomActions.Border = new Padding(0);
             pnlBottomActions.BorderColor = ColorScheme.BorderColor;
         }
 
-        if (lstLog != null)
+        if (lstLog != null && lstLog.Parent != null)
         {
             lstLog.BackColor = ColorScheme.BackColor.IsDark()
                 ? Color.FromArgb(15, 23, 42)
@@ -212,8 +228,7 @@ public partial class Main : UIWindow
 
         btnStartBot.Text = ar ? "شغل البوت" : "Start Bot";
         btnStopBot.Text = ar ? "وقف البوت" : "Stop Bot";
-        btnShowClient.Text = ar ? "إظهار الكلاينت" : "Show Client";
-        btnClearLog.Text = ar ? "مسح السجلات" : "Clear Logs";
+        UpdateShowClientButton(ClientManager.IsVisible);
 
         var neutralBack = ColorScheme.BackColor.IsDark() ? ColorScheme.CardColor2 : Color.White;
         var neutralFore = ColorScheme.BackColor.IsDark() ? ColorScheme.ForeColor : Color.FromArgb(55, 65, 81);
@@ -221,7 +236,8 @@ public partial class Main : UIWindow
         StyleActionButton(btnStartBot, Color.FromArgb(34, 160, 107), Color.White);
         StyleActionButton(btnStopBot, neutralBack, neutralFore);
         StyleActionButton(btnShowClient, neutralBack, neutralFore);
-        StyleActionButton(btnClearLog, neutralBack, neutralFore);
+        if (btnClearLog != null && btnClearLog.Parent != null)
+            StyleActionButton(btnClearLog, neutralBack, neutralFore);
     }
 
     private static void StyleActionButton(SDUI.Controls.Button button, Color backColor, Color foreColor)
@@ -243,7 +259,7 @@ public partial class Main : UIWindow
     /// </summary>
     private void AdjustLogColumns()
     {
-        if (lstLog == null || lstLog.IsDisposed)
+        if (lstLog == null || lstLog.IsDisposed || lstLog.Parent == null)
             return;
 
         int width = Math.Max(220, lstLog.ClientSize.Width - 4);
@@ -353,6 +369,24 @@ public partial class Main : UIWindow
         EventManager.SubscribeEvent("OnAgentServerDisconnected", OnAgentServerDisconnected);
         EventManager.SubscribeEvent("OnShowScriptRecorder", new Action<int, bool>(OnShowScriptRecorder));
         EventManager.SubscribeEvent("OnAddSidebarElement", new Action<Control>(OnAddSidebarElement));
+        EventManager.SubscribeEvent("OnStartClient", OnClientStarted);
+        EventManager.SubscribeEvent("OnExitClient", OnClientExited);
+    }
+
+    private void OnClientStarted()
+    {
+        if (InvokeRequired)
+            BeginInvoke(new Action(OnClientStarted));
+        else
+            UpdateShowClientButton(true);
+    }
+
+    private void OnClientExited()
+    {
+        if (InvokeRequired)
+            BeginInvoke(new Action(OnClientExited));
+        else
+            UpdateShowClientButton(false);
     }
 
     private void OnAddSidebarElement(Control obj)
@@ -1195,7 +1229,22 @@ public partial class Main : UIWindow
 
     private void btnShowClient_Click(object sender, EventArgs e)
     {
-        ClientManager.Show();
+        if (!ClientManager.IsRunning)
+            return;
+
+        bool isVisible = ClientManager.ToggleVisible();
+        UpdateShowClientButton(isVisible);
+    }
+
+    private void UpdateShowClientButton(bool isVisible)
+    {
+        if (btnShowClient == null || btnShowClient.IsDisposed)
+            return;
+
+        bool ar = Kernel.Language == "ar_AR";
+        btnShowClient.Text = isVisible
+            ? (ar ? "إخفاء الكلاينت" : "Hide Client")
+            : (ar ? "إظهار الكلاينت" : "Show Client");
     }
 
     private void btnClearLog_Click(object sender, EventArgs e)

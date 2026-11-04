@@ -156,7 +156,34 @@ internal class LoopBundle : IBundle
 
         if (PlayerConfig.Get<bool>("RSBot.Inventory.Happy", false) || PlayerConfig.Get<bool>("RSBot.Training.checkHappy", false))
         {
-            HappyManager.Run(false);
+            try
+            {
+                var letters = HappyManager.GetLetterCounts();
+                var jewels = HappyManager.GetJewelBoxCount();
+                if (letters.CanExchange || jewels >= 10)
+                {
+                    var npc = HappyManager.GetEventSoOkNpc();
+                    if (npc != null)
+                    {
+                        if (npc.DistanceToPlayer > 12.0f && npc.DistanceToPlayer <= 100.0f)
+                        {
+                            Log.Notify(Kernel.Language == "ar_AR" ? "[Happy] التوجه إلى So-Ok لتبديل الهابي..." : "[Happy] Walking to So-Ok to exchange letters...");
+                            Game.Player.Move(npc.Position);
+                            var waitWalk = 0;
+                            while (npc.DistanceToPlayer > 10.0f && waitWalk++ < 40 && Kernel.Bot.Running)
+                                Thread.Sleep(500);
+                        }
+                        if (npc.DistanceToPlayer <= 15.0f)
+                        {
+                            HappyManager.Run(false);
+                        }
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Log.Debug($"[LoopBundle] Happy error: {ex.Message}");
+            }
         }
 
         Invoke();

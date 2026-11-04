@@ -189,8 +189,6 @@ public class DismantleSettingsView : UserControl
         {
             if (IsHandleCreated)
                 BeginInvoke(action);
-            else
-                action();
         }
         catch (InvalidOperationException)
         {

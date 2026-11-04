@@ -8,7 +8,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <OutputPath>.\..\..\Build\Data\Plugins</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AssemblyName>Wolves.AvatarTester</AssemblyName>
+    <AssemblyName>AeroBot.AvatarTester</AssemblyName>
     <RootNamespace>Wolves.AvatarTester</RootNamespace>
     <Description>In-game preview and test of Silkroad avatars and weapon/shield switches for WolvesBot</Description>
     <Copyright>Copyright © 2026, WolvesBot Team</Copyright>
