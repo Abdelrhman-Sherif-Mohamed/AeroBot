@@ -368,9 +368,11 @@ public partial class Main : DoubleBufferedControl
 
             var inventoryItem = Game.Player.Inventory.GetItemAt(slot);
 
-            if (inventoryItem == null)
-
+            if (inventoryItem == null || inventoryItem.Amount == 0)
+            {
+                listViewMain.Items.RemoveByKey(key);
                 return;
+            }
 
 
 
@@ -1732,6 +1734,8 @@ public partial class Main : DoubleBufferedControl
 
         PlayerConfig.SetArray("RSBot.Inventory.ItemsAtTrainplace", itemsToUse);
 
+        PlayerConfig.Save();
+
     }
 
 
@@ -1786,9 +1790,11 @@ public partial class Main : DoubleBufferedControl
 
 
 
-        useItemAtTrainingPlaceMenuItem.Checked = !useItemAtTrainingPlaceMenuItem.Checked;
+        autoUseAccordingToPurposeToolStripMenuItem.Checked = !autoUseAccordingToPurposeToolStripMenuItem.Checked;
 
         PlayerConfig.SetArray("RSBot.Inventory.AutoUseAccordingToPurpose", itemsToUse);
+
+        PlayerConfig.Save();
 
     }
 

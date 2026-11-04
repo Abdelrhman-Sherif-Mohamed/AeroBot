@@ -134,18 +134,29 @@ public class InventoryItem
     {
         get
         {
-            //ToDo: Refine this whole check to act 1:1 like the client. I think Action_Overlap is a bitmap and not an actual value to work with. 
             var refSkill = GetRefSkill();
 
             if (refSkill != null)
-                return Game.Player.State.ActiveBuffs.FirstOrDefault(b =>
-                    b.Record.ID == refSkill.ID || b.Record.Action_Overlap == refSkill.Action_Overlap) != null;
+            {
+                var activeBuff = Game.Player.State.ActiveBuffs.FirstOrDefault(b =>
+                    b?.Record != null && (
+                        b.Record.ID == refSkill.ID ||
+                        (!string.IsNullOrEmpty(refSkill.Basic_Group) && b.Record.Basic_Group == refSkill.Basic_Group) ||
+                        (refSkill.Action_Overlap > 0 && b.Record.Action_Overlap == refSkill.Action_Overlap && b.Record.Basic_Activity == refSkill.Basic_Activity)
+                    ));
 
-            var perk = Game.Player.State.ActiveItemPerks.Values.FirstOrDefault(p =>
-                p.ItemId == Record.ID ||
-                (Record.Param1 > 0 && p.Item.Param1 == Record.Param1));
+                if (activeBuff != null)
+                    return true;
+            }
 
-            return perk != null;
+            var activePerk = Game.Player.State.ActiveItemPerks.Values.FirstOrDefault(p =>
+                p != null && (
+                    p.ItemId == Record.ID ||
+                    (Record.Param1 > 0 && p.Item != null && p.Item.Param1 == Record.Param1) ||
+                    (!string.IsNullOrEmpty(Record.Desc1) && p.Item != null && p.Item.Desc1 == Record.Desc1)
+                ));
+
+            return activePerk != null;
         }
     }
 
@@ -171,7 +182,7 @@ public class InventoryItem
                 0xB04C);
 
         PacketManager.SendPacket(packet, PacketDestination.Server, asyncCallback);
-        asyncCallback.AwaitResponse(500);
+        asyncCallback.AwaitResponse(1200);
 
         return asyncCallback.IsCompleted;
     }
@@ -201,7 +212,7 @@ public class InventoryItem
                 0xB04C);
 
         PacketManager.SendPacket(packet, PacketDestination.Server, asyncCallback);
-        asyncCallback.AwaitResponse(500);
+        asyncCallback.AwaitResponse(1200);
 
         return asyncCallback.IsCompleted;
     }

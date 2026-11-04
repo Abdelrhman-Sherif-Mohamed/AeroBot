@@ -584,7 +584,7 @@ public class InventoryItemCollection : ICollection<InventoryItem>
     /// <returns>If found: the item from first slot; otherwise null</returns>
     public InventoryItem GetItem(string recordCodeName)
     {
-        return GetItem(item => item.Record.CodeName == recordCodeName);
+        return GetItem(item => item != null && item.Record != null && item.Record.CodeName == recordCodeName && (item.Record.MaxStack <= 1 || item.Amount > 0));
     }
 
     /// <summary>

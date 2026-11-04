@@ -46,7 +46,11 @@ internal class InventoryUpdateItemResponse : IPacketHandler
             item.Attributes = new ItemAttributesInfo(packet.ReadULong());
 
         if (itemUpdateFlag.HasFlag(ItemUpdateFlag.Quanity))
+        {
             item.Amount = packet.ReadUShort();
+            if (item.Amount == 0)
+                Game.Player.Inventory.Remove(item);
+        }
 
         if (itemUpdateFlag.HasFlag(ItemUpdateFlag.Durability))
             item.Durability = packet.ReadUInt();

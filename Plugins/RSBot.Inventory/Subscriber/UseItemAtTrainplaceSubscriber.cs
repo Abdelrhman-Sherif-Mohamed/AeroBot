@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using RSBot.Core;
 using RSBot.Core.Event;
@@ -7,8 +7,8 @@ namespace RSBot.Inventory.Subscriber;
 
 internal class UseItemAtTrainplaceSubscriber
 {
-    private static readonly List<string> _blacklistedItems = new();
-    private static long _lastTick;
+    private static readonly Dictionary<string, DateTime> _retryAfter = new();
+    private static readonly Dictionary<string, DateTime> _lastAttempt = new();
 
     public static void SubscribeEvents()
     {
@@ -17,43 +17,59 @@ internal class UseItemAtTrainplaceSubscriber
 
     private static void OnTick()
     {
-        //Retry blacklisted items after 5 minutes
-        if (TimeSpan.FromMilliseconds(Kernel.TickCount - _lastTick).Minutes >= 5)
-            _blacklistedItems.Clear();
-
-        _lastTick = Kernel.TickCount;
-
-        if (!Kernel.Bot.Running || Kernel.Bot.Botbase.Area.Position.Region == 0)
+        if (!Kernel.Bot.Running || Kernel.Bot.Botbase == null)
             return;
 
-        //Only at training place
-        if (Kernel.Bot.Botbase.Area.Position.DistanceToPlayer() > 100)
+        var area = Kernel.Bot.Botbase.Area;
+        if (area.Position.Region == 0)
+            return;
+
+        // Check if player is within/near training area
+        var maxDistance = Math.Max(100, area.Radius + 30);
+        if (area.Position.DistanceToPlayer() > maxDistance)
             return;
 
         var itemsToUse = PlayerConfig.GetArray<string>("RSBot.Inventory.ItemsAtTrainplace");
+        if (itemsToUse == null || itemsToUse.Length == 0)
+            return;
 
-        foreach (var item in itemsToUse)
+        var now = DateTime.UtcNow;
+
+        foreach (var itemCodeName in itemsToUse)
         {
-            if (_blacklistedItems.Contains(item))
+            if (string.IsNullOrWhiteSpace(itemCodeName))
                 continue;
 
-            var invItem = Game.Player.Inventory.GetItem(item);
+            // Check retry cooldown
+            if (_retryAfter.TryGetValue(itemCodeName, out var retryTime) && now < retryTime)
+                continue;
+
+            // Enforce at least 2.5 seconds between consecutive attempts for the same item
+            if (_lastAttempt.TryGetValue(itemCodeName, out var lastTime) && (now - lastTime).TotalSeconds < 2.5)
+                continue;
+
+            var invItem = Game.Player.Inventory.GetItem(itemCodeName);
             if (invItem == null)
                 continue;
 
+            // If the item's skill buff or perk is currently active, do not reuse yet
             if (invItem.ItemSkillInUse)
                 continue;
 
-            Log.Notify($"Use [{invItem.Record.GetRealName()}] at training place");
+            _lastAttempt[itemCodeName] = now;
+            Log.Notify($"[AeroBot] Use [{invItem.Record.GetRealName()}] at training place");
 
-            if (invItem.Use())
-                continue;
-
-            //e.g. overlapping with another buff
-            _blacklistedItems.Add(invItem.Record.CodeName);
-
-            Log.Warn(
-                $"Can not use item [{invItem.Record.GetRealName()}] at training place. Blacklisting it for 5 minutes before next try.");
+            if (!invItem.Use())
+            {
+                // If usage failed (e.g. cooldown or animation lock), retry in 3 seconds
+                _retryAfter[itemCodeName] = now.AddSeconds(3);
+                Log.Debug($"[AeroBot] Item [{invItem.Record.GetRealName()}] use failed or timed out, will retry in 3 seconds.");
+            }
+            else
+            {
+                // Item used successfully, wait at least 3 seconds before next check
+                _retryAfter[itemCodeName] = now.AddSeconds(3);
+            }
         }
     }
 }

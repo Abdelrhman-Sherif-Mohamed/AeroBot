@@ -2,21 +2,23 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• إصلاح مشكلة عدم الاشتباك والضرب في منطقة التدريب (Area Attack & Targeting):
-  - إصلاح مشكلة البحث عن الوحوش واختيار أقرب وحش بدقة وسرعة داخل منطقة التدريب.
-  - تعيين وحفظ إحداثيات ومحيط منطقة التدريب تلقائياً وبشكل دائم عند بدء البوت أو حفظ الإعدادات.
-  - منع إلغاء الهدف بسبب الانحدارات البسيطة في الخريطة والاعتماد على إشعارات السيرفر الرسمية.
-  - تحديث وتفعيل المنطقة فور الضغط على زر جلب الإحداثيات الحالية."""
+changelog_ar = """• إصلاح ميزة استخدام العناصر في مكان التدريب (Use item at training place):
+  - تجديد وإعادة استخدام السكرولات والبفات والأدوية فور انتهاء مفعولها مباشرة وبدون توقف.
+  - إصلاح فحص حالة مفعول السكرول (ItemSkillInUse) لمنع التضارب مع البفات العادية.
+  - الانتقال التلقائي لاستخدام الرزمة (Stack) التالية في الشنطة عند نفاد الخانة الحالية.
+  - إزالة الحظر التلقائي المؤقت وإضافة إعادة المحاولة الذكية بعد 3 ثوانٍ في حال وجود تأخير.
+  - حفظ الإعدادات تلقائياً وبشكل دائم فور تفعيل الخيار من قائمة الشنطة."""
 
-changelog_en = """• Fixed Area Attack & Target Acquisition:
-  - Resolved nearest enemy selection within the training radius.
-  - Automatically sets and permanently saves training coordinates upon starting the bot.
-  - Prevented premature target deselection caused by minor terrain slopes.
-  - Instantly refreshes training area upon clicking 'Get Current Position'."""
+changelog_en = """• Fixed 'Use Item at Training Place' Re-application & Stacking:
+  - Automatically and continuously re-casts/uses scrolls, buffs, and items as soon as they expire.
+  - Fixed active item skill detection (ItemSkillInUse) to avoid false-positive overlaps.
+  - Automatically switches to the next inventory stack when the current stack is depleted.
+  - Replaced 5-minute blacklisting with smart 3-second retry throttling.
+  - Automatically persists item settings immediately upon toggling."""
 
 data = {
-    "version": "2.9.30",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.30.zip",
+    "version": "2.9.31",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.31.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -33,4 +35,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.30 update to Firebase! Status:', res.status)
+    print('Published 2.9.31 update to Firebase! Status:', res.status)
