@@ -2,23 +2,19 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• إصلاح ميزة استخدام العناصر في مكان التدريب (Use item at training place):
-  - تجديد وإعادة استخدام السكرولات والبفات والأدوية فور انتهاء مفعولها مباشرة وبدون توقف.
-  - إصلاح فحص حالة مفعول السكرول (ItemSkillInUse) لمنع التضارب مع البفات العادية.
-  - الانتقال التلقائي لاستخدام الرزمة (Stack) التالية في الشنطة عند نفاد الخانة الحالية.
-  - إزالة الحظر التلقائي المؤقت وإضافة إعادة المحاولة الذكية بعد 3 ثوانٍ في حال وجود تأخير.
-  - حفظ الإعدادات تلقائياً وبشكل دائم فور تفعيل الخيار من قائمة الشنطة."""
+changelog_ar = """• إضافة تحكم مخصص لتأخير التحدث مع الـ NPC في نظام الهابي (Happy Event Delay):
+  - إضافة زر/عداد تحديد وقت الانتظار (بالثواني) قبل فتح محادثة So-Ok وبين كل دورة تبديل وأخرى في واجهة الـ Happy.
+  - حماية الحساب من الفلود (Flood Protection) والديسكونكت أو الحظر المؤقت في السيرفرات الخاصة.
+  - حفظ وقت التأخير تلقائياً وبشكل دائم في إعدادات الشخصية."""
 
-changelog_en = """• Fixed 'Use Item at Training Place' Re-application & Stacking:
-  - Automatically and continuously re-casts/uses scrolls, buffs, and items as soon as they expire.
-  - Fixed active item skill detection (ItemSkillInUse) to avoid false-positive overlaps.
-  - Automatically switches to the next inventory stack when the current stack is depleted.
-  - Replaced 5-minute blacklisting with smart 3-second retry throttling.
-  - Automatically persists item settings immediately upon toggling."""
+changelog_en = """• Added NPC Talk Delay Control for Happy Event (So-Ok):
+  - Added delay control (seconds) in Happy tab before talking to Event So-Ok and between exchange cycles.
+  - Prevents server-side packet flood disconnections and talk rate-limits.
+  - Automatically persists the configured delay value."""
 
 data = {
-    "version": "2.9.31",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.31.zip",
+    "version": "2.9.32",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.32.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -35,4 +31,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.31 update to Firebase! Status:', res.status)
+    print('Published 2.9.32 update to Firebase! Status:', res.status)

@@ -1818,6 +1818,10 @@ public partial class Main : DoubleBufferedControl
 
         checkAutoHappy.Checked = PlayerConfig.Get("RSBot.Inventory.Happy", false);
 
+        var happyDelay = PlayerConfig.Get<int>("RSBot.Inventory.HappyDelay", 1);
+        numHappyDelay.Value = Math.Min(numHappyDelay.Maximum, Math.Max(numHappyDelay.Minimum, (decimal)happyDelay));
+        lblHappyDelay.Text = Kernel.Language == "ar_AR" ? "تأخير التحدث (ثواني):" : "NPC Delay (sec):";
+
         UpdateHappyUI();
 
 
@@ -1994,6 +1998,13 @@ public partial class Main : DoubleBufferedControl
 
         catch { }
 
+    }
+
+
+    private void numHappyDelay_ValueChanged(object sender, EventArgs e)
+    {
+        PlayerConfig.Set("RSBot.Inventory.HappyDelay", (int)numHappyDelay.Value);
+        PlayerConfig.Save();
     }
 
 }

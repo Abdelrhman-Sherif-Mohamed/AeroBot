@@ -462,6 +462,20 @@ public static class HappyManager
 
                 if (_cancelRequested) break;
 
+                // Delay before talking to NPC
+                var delaySec = PlayerConfig.Get<int>("RSBot.Inventory.HappyDelay", 1);
+                if (delaySec > 0)
+                {
+                    var delayWait = 0;
+                    while (delayWait < delaySec * 10 && !_cancelRequested)
+                    {
+                        Thread.Sleep(100);
+                        delayWait++;
+                    }
+                }
+
+                if (_cancelRequested) break;
+
                 // Step 1 (Click 1): Open NPC talk option (0x7046 Option 2)
                 var talkSuccess = SendTalkOption(npc.UniqueId, 2, 800);
                 if (!talkSuccess)
