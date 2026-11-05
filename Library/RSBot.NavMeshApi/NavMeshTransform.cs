@@ -1,4 +1,4 @@
-﻿using RSBot.NavMeshApi.Cells;
+using RSBot.NavMeshApi.Cells;
 using RSBot.NavMeshApi.Helper;
 using RSBot.NavMeshApi.Mathematics;
 
@@ -64,25 +64,33 @@ public class NavMeshTransform
         if (Region.IsDungeon)
             return;
 
-        while (Offset.X >= RID.Width)
+        if (float.IsNaN(Offset.X) || float.IsInfinity(Offset.X) ||
+            float.IsNaN(Offset.Z) || float.IsInfinity(Offset.Z))
+            return;
+
+        var safety = 0;
+        while (Offset.X >= RID.Width && safety++ < 100)
         {
             Region.X++;
             Offset.X -= RID.Width;
         }
 
-        while (Offset.X < 0.0f)
+        safety = 0;
+        while (Offset.X < 0.0f && safety++ < 100)
         {
             Region.X--;
             Offset.X += RID.Width;
         }
 
-        while (Offset.Z >= RID.Length)
+        safety = 0;
+        while (Offset.Z >= RID.Length && safety++ < 100)
         {
             Region.Z++;
             Offset.Z -= RID.Length;
         }
 
-        while (Offset.Z < 0.0f)
+        safety = 0;
+        while (Offset.Z < 0.0f && safety++ < 100)
         {
             Region.Z--;
             Offset.Z += RID.Length;

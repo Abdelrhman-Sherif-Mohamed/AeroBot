@@ -74,6 +74,22 @@ public partial class Main : UIWindow
         }
         catch { }
 
+        ExtendBox = true;
+        MainMenuStrip = menuStrip;
+        if (menuStrip != null)
+        {
+            menuStrip.MouseLeave += (s, e) => ClearMenuSelection();
+            fileToolStripMenuItem.Click += (s, e) => fileToolStripMenuItem.ShowDropDown();
+            viewToolStripMenuItem.Click += (s, e) => viewToolStripMenuItem.ShowDropDown();
+            toolsToolStripMenuItem.Click += (s, e) => toolsToolStripMenuItem.ShowDropDown();
+            menuPlugins.Click += (s, e) => menuPlugins.ShowDropDown();
+            botsToolStripMenuItem.Click += (s, e) => botsToolStripMenuItem.ShowDropDown();
+            languageToolStripMenuItem.Click += (s, e) => languageToolStripMenuItem.ShowDropDown();
+            themeToolStripMenuItem.Click += (s, e) => themeToolStripMenuItem.ShowDropDown();
+            aboutToolStripMenuItem.Click += (s, e) => aboutToolStripMenuItem.ShowDropDown();
+        }
+
+        InitializeGearMenu();
         ApplyCurrentLanguage();
     }
 
@@ -97,21 +113,24 @@ public partial class Main : UIWindow
     /// </summary>
     private static readonly string[] NavigationOrder =
     {
+        // Core bot pages
         "RSBot.General",
         "RSBot.Items",
+        "RSBot.Inventory",
         "RSBot.Skills",
         "RSBot.Protection",
         "RSBot.Party",
-        "RSBot.Inventory",
         "RSBot.Map",
+        // Information pages
+        "RSBot.Statistics",
+        "RSBot.Chat",
+        "RSBot.Log",
+        // Extra tools, kept at the end of the rail
         "Wolves.Fortress",
         "Wolves.Control",
         "Wolves.Stall",
         "Wolves.AvatarTester",
-        "Wolves.Players",
-        "RSBot.Statistics",
-        "RSBot.Chat",
-        "RSBot.Log"
+        "Wolves.Players"
     };
 
     /// <summary>
@@ -121,6 +140,10 @@ public partial class Main : UIWindow
     {
         if (windowPageControl == null)
             return;
+
+        windowPageControl.GroupBreakBefore.Clear();
+        windowPageControl.GroupBreakBefore.Add("RSBot.Statistics");
+        windowPageControl.GroupBreakBefore.Add("Wolves.Fortress");
 
         var pages = new List<Control>(windowPageControl.Count);
         for (int i = 0; i < windowPageControl.Count; i++)
@@ -170,6 +193,16 @@ public partial class Main : UIWindow
         TitleHeight = 32;
         VerticalTabs = true;
 
+        if (menuStrip != null)
+        {
+            ApplyThemeToToolStrip(menuStrip);
+        }
+
+        if (ExtendMenu != null)
+        {
+            ApplyThemeToToolStrip(ExtendMenu);
+        }
+
         if (stripStatus != null)
         {
             stripStatus.BackColor = ColorScheme.ChromeColor;
@@ -197,6 +230,19 @@ public partial class Main : UIWindow
             pnlBottomActions.Border = new Padding(0);
             pnlBottomActions.BorderColor = ColorScheme.BorderColor;
         }
+
+        if (logPanel != null)
+        {
+            logPanel.BackColor = ColorScheme.ChromeColor;
+            logPanel.Border = new Padding(0, 1, 0, 0);
+            logPanel.BorderColor = ColorScheme.BorderColor;
+        }
+
+        if (pnlLogHeader != null)
+            pnlLogHeader.BackColor = ColorScheme.ChromeColor;
+
+        if (lblLogTitle != null)
+            lblLogTitle.ForeColor = ColorScheme.SecondaryForeColor;
 
         if (lstLog != null && lstLog.Parent != null)
         {
@@ -229,6 +275,11 @@ public partial class Main : UIWindow
         btnStartBot.Text = ar ? "شغل البوت" : "Start Bot";
         btnStopBot.Text = ar ? "وقف البوت" : "Stop Bot";
         UpdateShowClientButton(ClientManager.IsVisible);
+
+        if (lblLogTitle != null)
+            lblLogTitle.Text = ar ? "السجل" : "Log";
+        if (btnClearLog != null)
+            btnClearLog.Text = ar ? "مسح" : "Clear";
 
         var neutralBack = ColorScheme.BackColor.IsDark() ? ColorScheme.CardColor2 : Color.White;
         var neutralFore = ColorScheme.BackColor.IsDark() ? ColorScheme.ForeColor : Color.FromArgb(55, 65, 81);
@@ -274,6 +325,46 @@ public partial class Main : UIWindow
 
         bool ar = Kernel.Language == "ar_AR";
 
+        if (fileToolStripMenuItem != null)
+            fileToolStripMenuItem.Text = ar ? "ملف" : "File";
+        if (viewToolStripMenuItem != null)
+            viewToolStripMenuItem.Text = ar ? "عرض" : "View";
+        if (toolsToolStripMenuItem != null)
+            toolsToolStripMenuItem.Text = ar ? "أدوات" : "Tools";
+        if (menuPlugins != null)
+            menuPlugins.Text = ar ? "إضافات" : "Plugins";
+        if (botsToolStripMenuItem != null)
+            botsToolStripMenuItem.Text = ar ? "البوتات" : "Bots";
+        if (languageToolStripMenuItem != null)
+            languageToolStripMenuItem.Text = ar ? "اللغة" : "Language";
+        if (themeToolStripMenuItem != null)
+            themeToolStripMenuItem.Text = ar ? "المظهر" : "Theme";
+        if (aboutToolStripMenuItem != null)
+            aboutToolStripMenuItem.Text = ar ? "حول" : "About";
+
+        if (menuSelectProfile != null)
+            menuSelectProfile.Text = ar ? "اختيار الملف الشخصي..." : "Select Profile...";
+        if (networkConfigToolStripMenuItem != null)
+            networkConfigToolStripMenuItem.Text = ar ? "إعدادات البروكسي" : "Proxy Config";
+        if (menuItemExit != null)
+            menuItemExit.Text = ar ? "خروج" : "Exit";
+        if (menuSidebar != null)
+            menuSidebar.Text = ar ? "الشريط الجانبي" : "Sidebar";
+        if (menuLog != null)
+            menuLog.Text = ar ? "السجل" : "Log";
+        if (menuScriptRecorder != null)
+            menuScriptRecorder.Text = ar ? "مسجل السكربت" : "Script Recorder";
+        if (darkToolStripMenuItem != null)
+            darkToolStripMenuItem.Text = ar ? "داكن" : "Dark";
+        if (lightToolStripMenuItem != null)
+            lightToolStripMenuItem.Text = ar ? "فاتح" : "Light";
+        if (autoToolStripMenuItem != null)
+            autoToolStripMenuItem.Text = ar ? "تلقائي" : "Auto";
+        if (coloredToolStripMenuItem != null)
+            coloredToolStripMenuItem.Text = ar ? "اختيار لون" : "Choose a color";
+        if (thisToolStripMenuItem != null)
+            thisToolStripMenuItem.Text = ar ? "هذا البرنامج" : "This";
+
         menuCurrentProfile.Text = ar
             ? $"الملف: {ProfileManager.SelectedProfile}"
             : $"Profile: {ProfileManager.SelectedProfile}";
@@ -283,6 +374,137 @@ public partial class Main : UIWindow
         else if (Kernel.Bot != null && Kernel.Bot.Running)
             lblIngameStatus.Text = ar ? "يعمل" : "Running";
     }
+    private SDUI.Controls.ContextMenuStrip _gearMenu;
+
+    private void InitializeGearMenu()
+    {
+        _gearMenu = new SDUI.Controls.ContextMenuStrip();
+        _gearMenu.Renderer = new SDUI.Renderers.MenuRenderer();
+        ExtendMenu = _gearMenu;
+        RebuildGearMenu();
+    }
+
+    private void RebuildGearMenu()
+    {
+        if (_gearMenu == null) return;
+        _gearMenu.Items.Clear();
+
+        bool ar = Kernel.Language == "ar_AR";
+
+        // File
+        var mFile = new ToolStripMenuItem(ar ? "ملف" : "File");
+        var mSelProfile = new ToolStripMenuItem(ar ? "اختيار الملف الشخصي..." : "Select Profile...", null, menuSelectProfile_Click);
+        var mProxy = new ToolStripMenuItem(ar ? "إعدادات البروكسي" : "Proxy Config", null, networkConfigToolStripMenuItem_Click);
+        var mExit = new ToolStripMenuItem(ar ? "خروج" : "Exit", null, menuItemExit_Click);
+        mFile.DropDownItems.AddRange(new ToolStripItem[] { mSelProfile, mProxy, mExit });
+
+        // View
+        var mView = new ToolStripMenuItem(ar ? "عرض" : "View");
+        var mSidebar = new ToolStripMenuItem(ar ? "الشريط الجانبي" : "Sidebar") { Checked = menuSidebar?.Checked ?? false };
+        mSidebar.Click += (s, e) =>
+        {
+            menuSidebar_Click(menuSidebar, EventArgs.Empty);
+            mSidebar.Checked = menuSidebar.Checked;
+        };
+        mView.DropDownItems.Add(mSidebar);
+
+        // Tools
+        var mTools = new ToolStripMenuItem(ar ? "أدوات" : "Tools");
+        var mRecorder = new ToolStripMenuItem(ar ? "مسجل السكربت" : "Script Recorder", null, menuScriptRecorder_Click);
+        mTools.DropDownItems.Add(mRecorder);
+
+        // Plugins
+        var mPlugins = new ToolStripMenuItem(ar ? "إضافات" : "Plugins");
+        if (menuPlugins != null)
+        {
+            foreach (ToolStripItem it in menuPlugins.DropDownItems)
+            {
+                var clone = new ToolStripMenuItem(it.Text) { Enabled = it.Enabled, Tag = it.Tag };
+                clone.Click += PluginMenuItem_Click;
+                mPlugins.DropDownItems.Add(clone);
+            }
+        }
+
+        // Bots
+        var mBots = new ToolStripMenuItem(ar ? "البوتات" : "Bots");
+        if (botsToolStripMenuItem != null)
+        {
+            foreach (ToolStripMenuItem it in botsToolStripMenuItem.DropDown.Items)
+            {
+                var clone = new ToolStripMenuItem(it.Text) { Name = it.Name, Checked = it.Checked };
+                clone.Click += Item_Click;
+                mBots.DropDownItems.Add(clone);
+            }
+        }
+
+        // Language
+        var mLang = new ToolStripMenuItem(ar ? "اللغة" : "Language");
+        if (languageToolStripMenuItem != null)
+        {
+            foreach (ToolStripMenuItem it in languageToolStripMenuItem.DropDownItems)
+            {
+                var clone = new ToolStripMenuItem(it.Text) { Tag = it.Tag, Checked = it.Checked };
+                clone.Click += (s, e) => { LanguageDropdown_Click(clone, e); RebuildGearMenu(); };
+                mLang.DropDownItems.Add(clone);
+            }
+        }
+
+        // Theme
+        var mTheme = new ToolStripMenuItem(ar ? "المظهر" : "Theme");
+        var mDark = new ToolStripMenuItem(ar ? "داكن" : "Dark", null, darkToolStripMenuItem_Click);
+        var mLight = new ToolStripMenuItem(ar ? "فاتح" : "Light", null, lightToolStripMenuItem_Click);
+        var mAuto = new ToolStripMenuItem(ar ? "تلقائي" : "Auto", null, autoToolStripMenuItem_Click);
+        var mColor = new ToolStripMenuItem(ar ? "اختيار لون" : "Choose a color", null, coloredToolStripMenuItem_Click);
+        mTheme.DropDownItems.AddRange(new ToolStripItem[] { mDark, mLight, mAuto, mColor });
+
+        // About
+        var mAbout = new ToolStripMenuItem(ar ? "حول" : "About");
+        var mThis = new ToolStripMenuItem(ar ? "هذا البرنامج" : "This", null, menuItemThis_Click);
+        mAbout.DropDownItems.Add(mThis);
+
+        _gearMenu.Items.AddRange(new ToolStripItem[] { mFile, mView, mTools, mPlugins, mBots, mLang, mTheme, mAbout });
+
+        ApplyThemeToToolStrip(_gearMenu);
+    }
+
+    private void ApplyThemeToToolStrip(System.Windows.Forms.ToolStrip strip)
+    {
+        if (strip == null) return;
+        strip.BackColor = ColorScheme.BackColor.IsDark()
+            ? Color.FromArgb(20, 26, 38)
+            : Color.FromArgb(240, 242, 245);
+        strip.ForeColor = ColorScheme.ForeColor;
+        strip.Renderer = new SDUI.Renderers.MenuRenderer();
+
+        foreach (ToolStripItem item in strip.Items)
+        {
+            ApplyThemeToItem(item);
+        }
+    }
+
+    private void ApplyThemeToItem(ToolStripItem item)
+    {
+        if (item == null) return;
+        if (item.Tag?.ToString() != "private")
+        {
+            item.ForeColor = ColorScheme.ForeColor;
+        }
+
+        if (item is ToolStripDropDownItem dropDownItem)
+        {
+            dropDownItem.DropDown.BackColor = ColorScheme.BackColor.IsDark()
+                ? Color.FromArgb(24, 30, 44)
+                : Color.FromArgb(250, 250, 250);
+            dropDownItem.DropDown.ForeColor = ColorScheme.ForeColor;
+            dropDownItem.DropDown.Renderer = new SDUI.Renderers.MenuRenderer();
+
+            foreach (ToolStripItem subItem in dropDownItem.DropDownItems)
+            {
+                ApplyThemeToItem(subItem);
+            }
+        }
+    }
+
 
     #endregion Constructor
 
@@ -468,6 +690,8 @@ public partial class Main : UIWindow
 
         if (oldBotbaseControl != null && !ReferenceEquals(oldBotbaseControl, control))
             windowPageControl.Controls.Remove(oldBotbaseControl);
+
+        ApplyNavigationOrder();
     }
 
     /// <summary>
@@ -533,14 +757,39 @@ public partial class Main : UIWindow
                 Log.Error($"[LoadExtensions] Error adding menu item [{extension.Key}]: {ex.Message}");
             }
         }
+
+        ApplyNavigationOrder();
+        RebuildGearMenu();
     }
 
-        /// <summary>
+    /// <summary>
     ///     Shows or hides the character sidebar.
     /// </summary>
     private void ConfigureSidebar()
     {
         pSidebar.Visible = menuSidebar.Checked;
+    }
+
+    /// <summary>
+    ///     Shows or hides the log panel. The page area automatically reclaims
+    ///     the space because every section is docked.
+    /// </summary>
+    private void ConfigureLog()
+    {
+        if (logPanel != null)
+            logPanel.Visible = false;
+
+        if (menuLog != null)
+            menuLog.Checked = false;
+    }
+
+    private void menuLog_Click(object sender, EventArgs e)
+    {
+        ConfigureLog();
+        GlobalConfig.Set("RSBot.ShowLog", menuLog.Checked.ToString());
+
+        if (sender is ToolStripMenuItem item && !ReferenceEquals(item, menuLog))
+            item.Checked = menuLog.Checked;
     }
 
     private void PopulateServerCombobox(DivisionInfo info)
@@ -661,6 +910,8 @@ public partial class Main : UIWindow
     private void Main_Load(object sender, EventArgs e)
     {
         menuSidebar.Checked = GlobalConfig.Get("RSBot.ShowSidebar", false);
+        menuLog.Checked = false;
+        GlobalConfig.Set("RSBot.ShowLog", "false");
 
         foreach (var item in LanguageManager.GetLanguages())
         {
@@ -674,6 +925,7 @@ public partial class Main : UIWindow
         }
 
         ConfigureSidebar();
+        ConfigureLog();
         VerticalTabs = true;
         WindowPageControl = windowPageControl;
 
@@ -681,7 +933,24 @@ public partial class Main : UIWindow
         ApplyCurrentLanguage();
         ApplyVisualStyle();
 
+        ClearMenuSelection();
+
         EventManager.FireEvent("OnInitialized");
+    }
+
+    /// <summary>
+    ///     Removes the focus/hover highlight that the menu strip shows on the
+    ///     first item right after startup.
+    /// </summary>
+    private void ClearMenuSelection()
+    {
+        if (menuStrip == null)
+            return;
+
+        // MenuStrip keeps the first item highlighted while it owns the focus.
+        // Releasing the active control lets the page area own the focus again.
+        ActiveControl = null;
+        menuStrip.Invalidate();
     }
 
     /// <summary>
@@ -1109,6 +1378,7 @@ public partial class Main : UIWindow
         }
 
         SelectBotbase(GlobalConfig.Get("RSBot.BotName", "RSBot.Default"));
+        RebuildGearMenu();
     }
 
     /// <summary>

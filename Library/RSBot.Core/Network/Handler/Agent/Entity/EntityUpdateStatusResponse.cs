@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
@@ -293,8 +293,14 @@ internal class EntityUpdateStatusResponse : IPacketHandler
             var health = packet.ReadInt();
             bionic.Health = health;
 
-            if (health <= 0 && Game.SelectedEntity?.UniqueId == bionic.UniqueId)
-                Game.SelectedEntity = null;
+            if (health <= 0)
+            {
+                if (bionic.State != null)
+                    bionic.State.LifeState = LifeState.Dead;
+
+                if (Game.SelectedEntity?.UniqueId == bionic.UniqueId)
+                    Game.SelectedEntity = null;
+            }
 
             EventManager.FireEvent("OnUpdateEntityHp", bionic);
         }

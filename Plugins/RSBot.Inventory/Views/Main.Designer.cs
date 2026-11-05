@@ -1246,11 +1246,11 @@ namespace RSBot.Inventory.Views
 
             // 
 
-            topPanel.BackColor = System.Drawing.Color.Transparent;
+            topPanel.BackColor = System.Drawing.Color.FromArgb(20, 26, 38);
 
             topPanel.Border = new System.Windows.Forms.Padding(0, 0, 0, 1);
 
-            topPanel.BorderColor = System.Drawing.Color.Transparent;
+            topPanel.BorderColor = System.Drawing.Color.FromArgb(35, 45, 60);
 
             topPanel.Controls.Add(buttonSpecialty);
 
@@ -1519,9 +1519,9 @@ namespace RSBot.Inventory.Views
 
             Controls.Add(panelStorageOrder);
 
-            Controls.Add(topPanel);
-
             Controls.Add(panel1);
+
+            Controls.Add(topPanel);
 
             Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 

@@ -29,13 +29,15 @@ public class SpawnedBionic : SpawnedEntity
     /// </value>
     public double DistanceToPlayer => Game.Player.Movement.Source.DistanceTo(Movement.Source);
 
+    private int _attackingPlayerTick;
+
     /// <summary>
     ///     Gets a value indicating whether [attacking player].
     /// </summary>
     /// <value>
     ///     <c>true</c> if [attacking player]; otherwise, <c>false</c>.
     /// </value>
-    public bool AttackingPlayer { get; private set; }
+    public bool AttackingPlayer => _attackingPlayerTick != 0 && (Kernel.TickCount - _attackingPlayerTick < 10000);
 
     /// <summary>
     ///     Gets or sets a value indicating whether this instance has health.
@@ -88,57 +90,37 @@ public class SpawnedBionic : SpawnedEntity
     /// <param name="duration">The duration.</param>
     public void StartAttackingTimer(int duration = 10000)
     {
-        //Log.Debug("Attacking timer has started.");
-
-        AttackingPlayer = true;
-        /*
-        var timer = new Timer();
-        timer.AutoReset = false;
-        timer.Elapsed += Timer_Elapsed;*/
+        _attackingPlayerTick = Kernel.TickCount;
     }
 
     /// <summary>
-    ///     Handles the Elapsed event of the Timer control.
+    ///     Clears the attacking player state.
     /// </summary>
-    /// <param name="sender">The source of the event.</param>
-    /// <param name="e">The <see cref="ElapsedEventArgs" /> instance containing the event data.</param>
-    private void Timer_Elapsed(object sender, ElapsedEventArgs e)
+    public void StopAttackingTimer()
     {
-        Log.Debug("Attacking timer has elapsed.");
-        AttackingPlayer = false;
+        _attackingPlayerTick = 0;
     }
 
     /// <summary>
-    ///     Selects the entity.
+    ///     Selects the entity immediately without blocking the bot thread.
     /// </summary>
-    /// <param name="uniqueId">The unique identifier.</param>
     /// <returns></returns>
     public bool TrySelect()
     {
         if (Game.SelectedEntity?.UniqueId == UniqueId)
             return true;
 
+        Game.SelectedEntity = this;
+
         Log.Debug(
-            $"Trying to select the entity: {UniqueId} State: {State.LifeState} Health: {Health} HasHealth: {HasHealth} Dst: {Math.Round(DistanceToPlayer, 1)}");
+            $"Selecting entity: {UniqueId} State: {State?.LifeState} Health: {Health} HasHealth: {HasHealth} Dst: {Math.Round(DistanceToPlayer, 1)}");
 
         var packet = new Packet(0x7045);
         packet.WriteUInt(UniqueId);
 
-        var awaitCallback = new AwaitCallback(response =>
-        {
-            var result = response.ReadByte() == 0x01;
-            if (result)
-                return response.ReadUInt() == UniqueId
-                    ? AwaitCallbackResult.Success
-                    : AwaitCallbackResult.ConditionFailed;
+        PacketManager.SendPacket(packet, PacketDestination.Server);
 
-            return AwaitCallbackResult.Fail;
-        }, 0xB045);
-
-        PacketManager.SendPacket(packet, PacketDestination.Server, awaitCallback);
-        awaitCallback.AwaitResponse();
-
-        return awaitCallback.IsCompleted;
+        return true;
     }
 
     /// <summary>
@@ -152,26 +134,9 @@ public class SpawnedBionic : SpawnedEntity
         var packet = new Packet(0x704B);
         packet.WriteUInt(UniqueId);
 
-        var awaitResult = new AwaitCallback(response =>
-        {
-            var successFlag = response.ReadByte();
+        PacketManager.SendPacket(packet, PacketDestination.Server);
 
-            if (successFlag == 2)
-            {
-                var errorCode = response.ReadUShort();
-
-                Log.Debug($"Error deselecting Entity {UniqueId} [Code={errorCode:X4}]");
-
-                return AwaitCallbackResult.Fail;
-            }
-
-            return AwaitCallbackResult.Success;
-        }, 0xB04B);
-
-        PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
-        awaitResult.AwaitResponse();
-
-        return awaitResult.IsCompleted;
+        return true;
     }
 
     /// <summary>

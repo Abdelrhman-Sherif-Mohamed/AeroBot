@@ -191,7 +191,7 @@ namespace RSBot.Items.Views
             // 
             // menuChangeAmount
             // 
-            menuChangeAmount.ForeColor = Color.FromArgb(0, 0, 0);
+            menuChangeAmount.ForeColor = Color.White;
             menuChangeAmount.Name = "menuChangeAmount";
             menuChangeAmount.Size = new Size(158, 24);
             menuChangeAmount.Text = "Change amount";
@@ -204,7 +204,7 @@ namespace RSBot.Items.Views
             // 
             // menuRemoveItem
             // 
-            menuRemoveItem.ForeColor = Color.FromArgb(0, 0, 0);
+            menuRemoveItem.ForeColor = Color.White;
             menuRemoveItem.Name = "menuRemoveItem";
             menuRemoveItem.Size = new Size(158, 24);
             menuRemoveItem.Text = "Remove";
@@ -220,7 +220,7 @@ namespace RSBot.Items.Views
             // 
             // menuAddToShoppingList
             // 
-            menuAddToShoppingList.ForeColor = Color.FromArgb(0, 0, 0);
+            menuAddToShoppingList.ForeColor = Color.White;
             menuAddToShoppingList.Name = "menuAddToShoppingList";
             menuAddToShoppingList.Size = new Size(188, 24);
             menuAddToShoppingList.Text = "Add to shopping list";
@@ -283,7 +283,7 @@ namespace RSBot.Items.Views
             listAvailableProducts.Columns.AddRange(new ColumnHeader[] { colAvailableName });
             listAvailableProducts.ContextMenuStrip = contextAvailableProducts;
             listAvailableProducts.Dock = DockStyle.Fill;
-            listAvailableProducts.ForeColor = Color.FromArgb(0, 0, 0);
+            listAvailableProducts.ForeColor = Color.White;
             listAvailableProducts.FullRowSelect = true;
             listAvailableProducts.HeaderStyle = ColumnHeaderStyle.Nonclickable;
             listAvailableProducts.Location = new Point(0, 71);
@@ -413,7 +413,7 @@ namespace RSBot.Items.Views
             listShoppingList.Columns.AddRange(new ColumnHeader[] { colName, colAmount });
             listShoppingList.ContextMenuStrip = contextShoppingList;
             listShoppingList.Dock = DockStyle.Fill;
-            listShoppingList.ForeColor = Color.FromArgb(0, 0, 0);
+            listShoppingList.ForeColor = Color.White;
             listShoppingList.FullRowSelect = true;
             listViewGroup6.Header = "Potion trader";
             listViewGroup6.Name = "groupPotion";
@@ -577,12 +577,12 @@ namespace RSBot.Items.Views
             // 
             // listFilter
             // 
-            listFilter.BackColor = Color.White;
+            listFilter.BackColor = Color.FromArgb(21, 27, 36);
             listFilter.BorderStyle = BorderStyle.None;
             listFilter.Columns.AddRange(new ColumnHeader[] { colItemName, colItemLevel, colGender, colPickup, colSell, collStore });
             listFilter.ContextMenuStrip = contextList;
             listFilter.Dock = DockStyle.Fill;
-            listFilter.ForeColor = Color.FromArgb(0, 0, 0);
+            listFilter.ForeColor = Color.White;
             listFilter.FullRowSelect = true;
             listFilter.Location = new Point(385, 0);
             listFilter.Margin = new Padding(4, 4, 4, 4);
@@ -592,7 +592,6 @@ namespace RSBot.Items.Views
             listFilter.TabIndex = 5;
             listFilter.UseCompatibleStateImageBehavior = false;
             listFilter.View = System.Windows.Forms.View.Details;
-            listFilter.VirtualListSize = 15000;
             // 
             // colItemName
             // 
@@ -634,7 +633,7 @@ namespace RSBot.Items.Views
             // 
             // btnAddToSell
             // 
-            btnAddToSell.ForeColor = Color.FromArgb(0, 0, 0);
+            btnAddToSell.ForeColor = Color.White;
             btnAddToSell.Name = "btnAddToSell";
             btnAddToSell.Size = new Size(243, 28);
             btnAddToSell.Text = "Sell";
@@ -642,7 +641,7 @@ namespace RSBot.Items.Views
             // 
             // btnAddToStore
             // 
-            btnAddToStore.ForeColor = Color.FromArgb(0, 0, 0);
+            btnAddToStore.ForeColor = Color.White;
             btnAddToStore.Name = "btnAddToStore";
             btnAddToStore.Size = new Size(243, 28);
             btnAddToStore.Text = "Store";
@@ -650,7 +649,7 @@ namespace RSBot.Items.Views
             // 
             // btnPickup
             // 
-            btnPickup.ForeColor = Color.FromArgb(0, 0, 0);
+            btnPickup.ForeColor = Color.White;
             btnPickup.Name = "btnPickup";
             btnPickup.Size = new Size(243, 28);
             btnPickup.Text = "Pickup";
@@ -658,7 +657,7 @@ namespace RSBot.Items.Views
             // 
             // btnPickOnlyCharacter
             // 
-            btnPickOnlyCharacter.ForeColor = Color.FromArgb(0, 0, 0);
+            btnPickOnlyCharacter.ForeColor = Color.White;
             btnPickOnlyCharacter.Name = "btnPickOnlyCharacter";
             btnPickOnlyCharacter.Size = new Size(243, 28);
             btnPickOnlyCharacter.Text = "Pickup only character";
@@ -671,7 +670,7 @@ namespace RSBot.Items.Views
             // 
             // btnDontSell
             // 
-            btnDontSell.ForeColor = Color.FromArgb(0, 0, 0);
+            btnDontSell.ForeColor = Color.White;
             btnDontSell.Name = "btnDontSell";
             btnDontSell.Size = new Size(243, 28);
             btnDontSell.Text = "Don't sell";
@@ -679,7 +678,7 @@ namespace RSBot.Items.Views
             // 
             // btnDontStore
             // 
-            btnDontStore.ForeColor = Color.FromArgb(0, 0, 0);
+            btnDontStore.ForeColor = Color.White;
             btnDontStore.Name = "btnDontStore";
             btnDontStore.Size = new Size(243, 28);
             btnDontStore.Text = "Don't store";
@@ -687,7 +686,7 @@ namespace RSBot.Items.Views
             // 
             // btnDontPickup
             // 
-            btnDontPickup.ForeColor = Color.FromArgb(0, 0, 0);
+            btnDontPickup.ForeColor = Color.White;
             btnDontPickup.Name = "btnDontPickup";
             btnDontPickup.Size = new Size(243, 28);
             btnDontPickup.Text = "Don't pickup";

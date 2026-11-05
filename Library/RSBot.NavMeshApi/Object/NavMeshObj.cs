@@ -1,4 +1,4 @@
-﻿using RSBot.NavMeshApi.Cells;
+using RSBot.NavMeshApi.Cells;
 using RSBot.NavMeshApi.Edges;
 using RSBot.NavMeshApi.Extensions;
 using RSBot.NavMeshApi.Mathematics;
@@ -286,8 +286,11 @@ public class NavMeshObj : NavMesh
         int raycastCount = 0;
         while (true)
         {
-            //if (raycastCount++ > 100)
-               //throw new Exception("raycastCount (obj) above 100");
+            if (++raycastCount > 100)
+            {
+                hit = null;
+                return NavMeshRaycastResult.Reached;
+            }
 
             if (curCell == dst.Cell)
             {

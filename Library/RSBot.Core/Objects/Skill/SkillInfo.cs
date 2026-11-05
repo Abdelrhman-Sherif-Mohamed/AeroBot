@@ -132,7 +132,7 @@ public class SkillInfo
     {
         get
         {
-            if (_lastCastTick == 0)
+            if (IsAttack || _lastCastTick == 0)
                 return false;
 
             return Kernel.TickCount - _lastCastTick < _duration;
@@ -214,11 +214,19 @@ public class SkillInfo
     }
 
     /// <summary>
+    ///     Reset the cooldown tick so the skill can be casted immediately
+    /// </summary>
+    public void ResetCooldown()
+    {
+        _cooldownTick = 0;
+    }
+
+    /// <summary>
     ///     Reset the ticks
     /// </summary>
     public void Reset()
     {
-        //_cooldownTick = 0;
+        _cooldownTick = 0;
         _lastCastTick = 0;
         Token = 0;
     }
@@ -248,7 +256,7 @@ public class SkillInfo
     public void Cast(uint target = 0, bool buff = false)
     {
         if (buff)
-            SkillManager.CastBuff(this, target);
+            SkillManager.CastBuff(this, target, awaitBuffResponse: !IsImbue);
         else
             SkillManager.CastSkill(this, target);
     }

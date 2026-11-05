@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Client.ReferenceObjects;
+using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Network;
 
 namespace RSBot.Core.Objects.Spawn;
@@ -123,7 +123,7 @@ public class SpawnedItem : SpawnedEntity
 
         Log.Status("Picking up...");
         PacketManager.SendPacket(packet, PacketDestination.Server, asyncResult);
-        asyncResult.AwaitResponse(500);
+        asyncResult.AwaitResponse(150);
         Log.StatusLang("Ready");
 
         return asyncResult.IsCompleted;

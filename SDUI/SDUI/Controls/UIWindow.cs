@@ -1768,15 +1768,34 @@ public class UIWindow : UIWindowBase
 
             const int step = NAV_ITEM_HEIGHT + 2;
             const int itemHeight = NAV_ITEM_HEIGHT;
+            const int groupGap = 10;
 
-            int contentHeight = count * step;
+            int contentHeight = 0;
             _navStep = step;
+
+            for (int i = 0; i < count; i++)
+            {
+                var page = _windowPageControl.GetPage(i);
+                if (i > 0 && page != null && _windowPageControl.GroupBreakBefore.Contains(page.Name))
+                    contentHeight += groupGap;
+
+                contentHeight += step;
+            }
+
             _navMaxScroll = Math.Max(0, startY + contentHeight - (Height - 8));
             if (_navScrollOffset > _navMaxScroll)
                 _navScrollOffset = _navMaxScroll;
 
+            int y = startY - _navScrollOffset;
             for (int i = 0; i < count; i++)
-                pageRect.Add(new(0, startY + i * step - _navScrollOffset, NAV_WIDTH, itemHeight));
+            {
+                var page = _windowPageControl.GetPage(i);
+                if (i > 0 && page != null && _windowPageControl.GroupBreakBefore.Contains(page.Name))
+                    y += groupGap;
+
+                pageRect.Add(new(0, y, NAV_WIDTH, itemHeight));
+                y += step;
+            }
 
             return;
         }

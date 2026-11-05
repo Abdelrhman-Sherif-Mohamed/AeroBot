@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Components;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects.Spawn;
 
@@ -31,16 +31,19 @@ internal class ActionSkillCastResponse : IPacketHandler
         var result = packet.ReadByte();
         if (result != 0x01)
         {
+            if (Game.Player != null)
+                Game.Player.InAction = false;
+
             var errorCode = packet.ReadByte();
 
             switch (errorCode)
             {
                 case 0x0C:
-                    // Same other skills are already running
+                    // Some other skills are already running
                     break;
 
                 case 0x0E:
-                    Game.Player.EquipAmmunition();
+                    Game.Player?.EquipAmmunition();
                     break;
 
                 case 0x05:
@@ -70,7 +73,17 @@ internal class ActionSkillCastResponse : IPacketHandler
 
             var skillInfo = Game.Player.Skills.GetSkillInfoById(action.SkillId);
             if (skillInfo == null)
-                skillInfo = SkillManager.Buffs.Find(p => p.Id == action.SkillId);
+                skillInfo = SkillManager.Buffs?.Find(p => p.Id == action.SkillId);
+
+            if (skillInfo == null && SkillManager.Skills != null)
+            {
+                foreach (var list in SkillManager.Skills.Values)
+                {
+                    skillInfo = list?.Find(p => p != null && p.Id == action.SkillId);
+                    if (skillInfo != null)
+                        break;
+                }
+            }
 
             skillInfo?.Update();
 

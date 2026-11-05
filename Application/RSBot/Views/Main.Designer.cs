@@ -47,6 +47,9 @@ namespace RSBot.Views
             btnShowClient = new SDUI.Controls.Button();
             btnClearLog = new SDUI.Controls.Button();
             bottomPanel = new SDUI.Controls.Panel();
+            logPanel = new SDUI.Controls.Panel();
+            pnlLogHeader = new System.Windows.Forms.Panel();
+            lblLogTitle = new SDUI.Controls.Label();
             buttonConfig = new SDUI.Controls.Button();
             comboServer = new SDUI.Controls.ComboBox();
             comboDivision = new SDUI.Controls.ComboBox();
@@ -64,12 +67,13 @@ namespace RSBot.Views
             menuItemExit = new ToolStripMenuItem();
             viewToolStripMenuItem = new ToolStripMenuItem();
             menuSidebar = new ToolStripMenuItem();
+            menuLog = new ToolStripMenuItem();
             toolsToolStripMenuItem = new ToolStripMenuItem();
             menuScriptRecorder = new ToolStripMenuItem();
             menuPlugins = new ToolStripMenuItem();
             aboutToolStripMenuItem = new ToolStripMenuItem();
             thisToolStripMenuItem = new ToolStripMenuItem();
-            menuStrip = new SDUI.Controls.ContextMenuStrip();
+            menuStrip = new SDUI.Controls.MenuStrip();
             botsToolStripMenuItem = new ToolStripMenuItem();
             languageToolStripMenuItem = new ToolStripMenuItem();
             themeToolStripMenuItem = new ToolStripMenuItem();
@@ -84,6 +88,8 @@ namespace RSBot.Views
             pnlBottomActions.SuspendLayout();
             pSidebar.SuspendLayout();
             menuStrip.SuspendLayout();
+            logPanel.SuspendLayout();
+            pnlLogHeader.SuspendLayout();
             SuspendLayout();
             // 
             // stripStatus
@@ -170,6 +176,63 @@ namespace RSBot.Views
             colType.Width = 75;
             colMsg.Width = 650;
             // 
+            // logPanel
+            // 
+            logPanel.BackColor = System.Drawing.Color.Transparent;
+            logPanel.Border = new Padding(0, 1, 0, 0);
+            logPanel.BorderColor = System.Drawing.Color.Transparent;
+            logPanel.Controls.Add(lstLog);
+            logPanel.Controls.Add(pnlLogHeader);
+            logPanel.Dock = DockStyle.Bottom;
+            logPanel.Location = new System.Drawing.Point(0, 512);
+            logPanel.Visible = false;
+            logPanel.Margin = new Padding(0);
+            logPanel.Name = "logPanel";
+            logPanel.Padding = new Padding(0);
+            logPanel.Radius = 0;
+            logPanel.ShadowDepth = 0F;
+            logPanel.Size = new System.Drawing.Size(1022, 120);
+            logPanel.TabIndex = 3;
+            // 
+            // pnlLogHeader
+            // 
+            pnlLogHeader.BackColor = System.Drawing.Color.Transparent;
+            pnlLogHeader.Dock = DockStyle.Top;
+            pnlLogHeader.Location = new System.Drawing.Point(0, 0);
+            pnlLogHeader.Margin = new Padding(0);
+            pnlLogHeader.Name = "pnlLogHeader";
+            pnlLogHeader.Size = new System.Drawing.Size(1022, 30);
+            pnlLogHeader.TabIndex = 0;
+            // 
+            // lblLogTitle
+            // 
+            lblLogTitle.ApplyGradient = false;
+            lblLogTitle.AutoSize = true;
+            lblLogTitle.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblLogTitle.Location = new System.Drawing.Point(12, 7);
+            lblLogTitle.Name = "lblLogTitle";
+            lblLogTitle.Size = new System.Drawing.Size(50, 15);
+            lblLogTitle.TabIndex = 0;
+            lblLogTitle.Text = "Log";
+            // 
+            // btnClearLog
+            // 
+            btnClearLog.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnClearLog.Color = System.Drawing.Color.Transparent;
+            btnClearLog.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnClearLog.Location = new System.Drawing.Point(936, 3);
+            btnClearLog.Name = "btnClearLog";
+            btnClearLog.Radius = 4;
+            btnClearLog.ShadowDepth = 0F;
+            btnClearLog.Size = new System.Drawing.Size(74, 24);
+            btnClearLog.TabIndex = 1;
+            btnClearLog.Text = "Clear";
+            btnClearLog.UseVisualStyleBackColor = true;
+            btnClearLog.Visible = true;
+            btnClearLog.Click += btnClearLog_Click;
+            pnlLogHeader.Controls.Add(btnClearLog);
+            pnlLogHeader.Controls.Add(lblLogTitle);
+            // 
             // pnlBottomActions
             // 
             pnlBottomActions.BackColor = System.Drawing.Color.Transparent;
@@ -227,11 +290,6 @@ namespace RSBot.Views
             btnShowClient.Text = "Show Client";
             btnShowClient.UseVisualStyleBackColor = true;
             btnShowClient.Click += btnShowClient_Click;
-            // 
-            // btnClearLog
-            // 
-            btnClearLog.Visible = false;
-            btnClearLog.Click += btnClearLog_Click;
             // 
             // buttonConfig
             // 
@@ -337,42 +395,32 @@ namespace RSBot.Views
             // 
             // fileToolStripMenuItem
             // 
-            fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuSelectProfile, networkConfigToolStripMenuItem, menuItemExit });
-            fileToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            fileToolStripMenuItem.Size = new System.Drawing.Size(148, 26);
+            fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuSelectProfile, networkConfigToolStripMenuItem, menuItemExit });            fileToolStripMenuItem.Name = "fileToolStripMenuItem";
+            fileToolStripMenuItem.AutoSize = true;
             fileToolStripMenuItem.Text = "File";
             // 
             // menuSelectProfile
-            // 
-            menuSelectProfile.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            menuSelectProfile.Name = "menuSelectProfile";
+            //            menuSelectProfile.Name = "menuSelectProfile";
             menuSelectProfile.Size = new System.Drawing.Size(193, 26);
             menuSelectProfile.Text = "Select Profile...";
             menuSelectProfile.Click += menuSelectProfile_Click;
             // 
             // networkConfigToolStripMenuItem
-            // 
-            networkConfigToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            networkConfigToolStripMenuItem.Name = "networkConfigToolStripMenuItem";
+            //            networkConfigToolStripMenuItem.Name = "networkConfigToolStripMenuItem";
             networkConfigToolStripMenuItem.Size = new System.Drawing.Size(193, 26);
             networkConfigToolStripMenuItem.Text = "Proxy Config";
             networkConfigToolStripMenuItem.Click += networkConfigToolStripMenuItem_Click;
             // 
             // menuItemExit
-            // 
-            menuItemExit.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            menuItemExit.Name = "menuItemExit";
+            //            menuItemExit.Name = "menuItemExit";
             menuItemExit.Size = new System.Drawing.Size(193, 26);
             menuItemExit.Text = "Exit";
             menuItemExit.Click += menuItemExit_Click;
             // 
             // viewToolStripMenuItem
             // 
-            viewToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuSidebar });
-            viewToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            viewToolStripMenuItem.Name = "viewToolStripMenuItem";
-            viewToolStripMenuItem.Size = new System.Drawing.Size(148, 26);
+            viewToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuSidebar });            viewToolStripMenuItem.Name = "viewToolStripMenuItem";
+            viewToolStripMenuItem.AutoSize = true;
             viewToolStripMenuItem.Text = "View";
             // 
             // menuSidebar
@@ -382,104 +430,94 @@ namespace RSBot.Views
             menuSidebar.Text = "Sidebar";
             menuSidebar.Click += menuSidebar_Click;
             // 
+            // menuLog
+            // 
+            menuLog.Checked = false;
+            menuLog.CheckOnClick = false;
+            menuLog.Visible = false;
+            menuLog.Name = "menuLog";
+            menuLog.Size = new System.Drawing.Size(147, 26);
+            menuLog.Text = "Log";
+            menuLog.Click += menuLog_Click;
+            // 
             // toolsToolStripMenuItem
             // 
-            toolsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuScriptRecorder });
-            toolsToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            toolsToolStripMenuItem.Name = "toolsToolStripMenuItem";
-            toolsToolStripMenuItem.Size = new System.Drawing.Size(148, 26);
+            toolsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuScriptRecorder });            toolsToolStripMenuItem.Name = "toolsToolStripMenuItem";
+            toolsToolStripMenuItem.AutoSize = true;
             toolsToolStripMenuItem.Text = "Tools";
             // 
             // menuScriptRecorder
-            // 
-            menuScriptRecorder.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            menuScriptRecorder.Name = "menuScriptRecorder";
+            //            menuScriptRecorder.Name = "menuScriptRecorder";
             menuScriptRecorder.Size = new System.Drawing.Size(201, 26);
             menuScriptRecorder.Text = "Script Recorder";
             menuScriptRecorder.Click += menuScriptRecorder_Click;
             // 
             // menuPlugins
-            // 
-            menuPlugins.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            menuPlugins.Name = "menuPlugins";
-            menuPlugins.Size = new System.Drawing.Size(148, 26);
+            //            menuPlugins.Name = "menuPlugins";
+            menuPlugins.AutoSize = true;
             menuPlugins.Text = "Plugins";
             // 
             // aboutToolStripMenuItem
             // 
-            aboutToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { thisToolStripMenuItem });
-            aboutToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            aboutToolStripMenuItem.Size = new System.Drawing.Size(148, 26);
+            aboutToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { thisToolStripMenuItem });            aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
+            aboutToolStripMenuItem.AutoSize = true;
             aboutToolStripMenuItem.Text = "About";
             // 
             // thisToolStripMenuItem
-            // 
-            thisToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            thisToolStripMenuItem.Name = "thisToolStripMenuItem";
+            //            thisToolStripMenuItem.Name = "thisToolStripMenuItem";
             thisToolStripMenuItem.Size = new System.Drawing.Size(122, 26);
             thisToolStripMenuItem.Text = "This";
             thisToolStripMenuItem.Click += menuItemThis_Click;
             // 
             // menuStrip
             // 
-            menuStrip.BackColor = System.Drawing.Color.FromArgb(0, 0, 0, 0);
+            menuStrip.BackColor = System.Drawing.Color.Transparent;
+            menuStrip.Dock = DockStyle.Top;
             menuStrip.Font = new System.Drawing.Font("Segoe UI", 9.25F);
-            menuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
+            menuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, viewToolStripMenuItem, toolsToolStripMenuItem, menuPlugins, botsToolStripMenuItem, languageToolStripMenuItem, themeToolStripMenuItem, aboutToolStripMenuItem });
+            menuStrip.Location = new System.Drawing.Point(0, 0);
             menuStrip.Name = "menuStrip";
-            menuStrip.Size = new System.Drawing.Size(149, 212);
+            menuStrip.Padding = new Padding(6, 4, 0, 4);
+            menuStrip.Size = new System.Drawing.Size(1022, 28);
+            menuStrip.TabIndex = 14;
             // 
             // botsToolStripMenuItem
-            // 
-            botsToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            botsToolStripMenuItem.Name = "botsToolStripMenuItem";
-            botsToolStripMenuItem.Size = new System.Drawing.Size(148, 26);
+            //            botsToolStripMenuItem.Name = "botsToolStripMenuItem";
+            botsToolStripMenuItem.AutoSize = true;
             botsToolStripMenuItem.Text = "Bots";
             // 
             // languageToolStripMenuItem
-            // 
-            languageToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            languageToolStripMenuItem.Name = "languageToolStripMenuItem";
-            languageToolStripMenuItem.Size = new System.Drawing.Size(148, 26);
+            //            languageToolStripMenuItem.Name = "languageToolStripMenuItem";
+            languageToolStripMenuItem.AutoSize = true;
             languageToolStripMenuItem.Text = "Language";
             // 
             // themeToolStripMenuItem
             // 
-            themeToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkToolStripMenuItem, lightToolStripMenuItem, autoToolStripMenuItem, coloredToolStripMenuItem });
-            themeToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            themeToolStripMenuItem.Name = "themeToolStripMenuItem";
-            themeToolStripMenuItem.Size = new System.Drawing.Size(148, 26);
+            themeToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkToolStripMenuItem, lightToolStripMenuItem, autoToolStripMenuItem, coloredToolStripMenuItem });            themeToolStripMenuItem.Name = "themeToolStripMenuItem";
+            themeToolStripMenuItem.AutoSize = true;
             themeToolStripMenuItem.Text = "Theme";
             // 
             // darkToolStripMenuItem
-            // 
-            darkToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            darkToolStripMenuItem.Name = "darkToolStripMenuItem";
+            //            darkToolStripMenuItem.Name = "darkToolStripMenuItem";
             darkToolStripMenuItem.Size = new System.Drawing.Size(197, 26);
             darkToolStripMenuItem.Text = "Dark";
             darkToolStripMenuItem.Click += darkToolStripMenuItem_Click;
             // 
             // lightToolStripMenuItem
-            // 
-            lightToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            lightToolStripMenuItem.Name = "lightToolStripMenuItem";
+            //            lightToolStripMenuItem.Name = "lightToolStripMenuItem";
             lightToolStripMenuItem.Size = new System.Drawing.Size(197, 26);
             lightToolStripMenuItem.Text = "Light";
             lightToolStripMenuItem.Click += lightToolStripMenuItem_Click;
             // 
             // autoToolStripMenuItem
-            // 
-            autoToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            autoToolStripMenuItem.Name = "autoToolStripMenuItem";
+            //            autoToolStripMenuItem.Name = "autoToolStripMenuItem";
             autoToolStripMenuItem.Size = new System.Drawing.Size(197, 26);
             autoToolStripMenuItem.Text = "Auto";
             autoToolStripMenuItem.Click += autoToolStripMenuItem_Click;
             // 
             // coloredToolStripMenuItem
-            // 
-            coloredToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
-            coloredToolStripMenuItem.Name = "coloredToolStripMenuItem";
+            //            coloredToolStripMenuItem.Name = "coloredToolStripMenuItem";
             coloredToolStripMenuItem.Size = new System.Drawing.Size(197, 26);
             coloredToolStripMenuItem.Text = "Choose a color";
             coloredToolStripMenuItem.Click += coloredToolStripMenuItem_Click;
@@ -519,12 +557,14 @@ namespace RSBot.Views
             ControlBox = false;
             Controls.Add(windowPageControl);
             Controls.Add(topCharacter);
+            Controls.Add(menuStrip);
             Controls.Add(pSidebar);
             Controls.Add(bottomPanel);
             Controls.Add(stripStatus);
+            MainMenuStrip = menuStrip;
             DwmMargin = 0;
             ExtendBox = true;
-            ExtendMenu = menuStrip;
+            ExtendMenu = null;
             Hatch = System.Drawing.Drawing2D.HatchStyle.Percent20;
             Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Location = new System.Drawing.Point(0, 0);
@@ -543,6 +583,10 @@ namespace RSBot.Views
             bottomPanel.PerformLayout();
             pSidebar.ResumeLayout(false);
             pSidebar.PerformLayout();
+            pnlLogHeader.ResumeLayout(false);
+            pnlLogHeader.PerformLayout();
+            logPanel.ResumeLayout(false);
+            logPanel.PerformLayout();
             menuStrip.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
@@ -560,6 +604,9 @@ namespace RSBot.Views
         private SDUI.Controls.Button btnShowClient;
         private SDUI.Controls.Button btnClearLog;
         private SDUI.Controls.Panel bottomPanel;
+        private SDUI.Controls.Panel logPanel;
+        private System.Windows.Forms.Panel pnlLogHeader;
+        private SDUI.Controls.Label lblLogTitle;
         private SDUI.Controls.Panel pSidebar;
         private System.Windows.Forms.ToolStripStatusLabel lblIngameStatus;
         private SDUI.Controls.Button btnStartStop;
@@ -575,12 +622,13 @@ namespace RSBot.Views
         private System.Windows.Forms.ToolStripMenuItem menuItemExit;
         private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem menuSidebar;
+        private System.Windows.Forms.ToolStripMenuItem menuLog;
         private System.Windows.Forms.ToolStripMenuItem toolsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem menuScriptRecorder;
         private System.Windows.Forms.ToolStripMenuItem menuPlugins;
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem thisToolStripMenuItem;
-        private SDUI.Controls.ContextMenuStrip menuStrip;
+        private SDUI.Controls.MenuStrip menuStrip;
         private System.Windows.Forms.ToolStripMenuItem themeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem darkToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem lightToolStripMenuItem;

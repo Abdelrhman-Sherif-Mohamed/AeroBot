@@ -72,7 +72,7 @@ public class Action
     /// <value>
     ///     <c>true</c> if [player is executor]; otherwise, <c>false</c>.
     /// </value>
-    public bool PlayerIsExecutor => Game.Player.UniqueId == ExecutorId;
+    public bool PlayerIsExecutor => Game.Player != null && Game.Player.UniqueId == ExecutorId;
 
     /// <summary>
     ///     Gets a value indicating whether [player is target].
@@ -80,7 +80,7 @@ public class Action
     /// <value>
     ///     <c>true</c> if [player is target]; otherwise, <c>false</c>.
     /// </value>
-    public bool PlayerIsTarget => Game.Player.UniqueId == TargetId;
+    public bool PlayerIsTarget => Game.Player != null && Game.Player.UniqueId == TargetId;
 
     /// <summary>
     ///     Deserialize the packet. 0xB070
@@ -128,12 +128,17 @@ public class Action
             packet.ReadByte();
 
         action.Flag = (ActionStateFlag)packet.ReadByte();*/
-        action.SerializeDetail(packet);
+        if (packet.Remaining > 0)
+            action.SerializeDetail(packet);
 
         if (action.TargetId != 0)
         {
             if (SpawnManager.TryGetEntity<SpawnedBionic>(action.ExecutorId, out var executor))
+            {
                 executor.TargetId = action.TargetId;
+                if (action.TargetId == Game.Player?.UniqueId)
+                    executor.StartAttackingTimer();
+            }
 
             EventManager.FireEvent("OnEntityHit", action.Id, action.ExecutorId, action.TargetId, 0, false);
         }
@@ -160,81 +165,109 @@ public class Action
 
     public void SerializeDetail(Packet packet)
     {
-        if (Flag.HasFlag(ActionStateFlag.Attack))
+        try
         {
-            var hitCount = packet.ReadByte();
-            var affectedObjectCount = packet.ReadByte();
+            if (packet == null || packet.Remaining == 0)
+                return;
 
-            for (var i = 0; i < affectedObjectCount; i++)
+            if (Flag.HasFlag(ActionStateFlag.Attack))
             {
-                var uniqueId = packet.ReadUInt();
-                if (!SpawnManager.TryGetEntity<SpawnedBionic>(uniqueId, out var entity))
-                    continue;
+                if (packet.Remaining < 2)
+                    return;
 
-                for (var j = 0; j < hitCount; j++)
+                var hitCount = packet.ReadByte();
+                var affectedObjectCount = packet.ReadByte();
+
+                for (var i = 0; i < affectedObjectCount; i++)
                 {
-                    var state = (ActionHitStateFlag)packet.ReadByte();
-                    if (state == ActionHitStateFlag.Abort)
+                    if (packet.Remaining < 4)
                         break;
 
-                    if (entity != null)
-                    {
-                        entity.State.HitState = state;
-                        if (state.HasFlag(ActionHitStateFlag.Dead))
-                            entity.State.LifeState = LifeState.Dead;
-                    }
+                    var uniqueId = packet.ReadUInt();
+                    SpawnManager.TryGetEntity<SpawnedBionic>(uniqueId, out var entity);
 
-                    if (state != ActionHitStateFlag.Block)
+                    for (var j = 0; j < hitCount; j++)
                     {
-                        var critStatus = packet.ReadByte(); // 0x01: normal 0x02 critical
+                        if (packet.Remaining < 1)
+                            break;
 
-                        var damage = BitConverter.ToInt32(new byte[]
+                        var state = (ActionHitStateFlag)packet.ReadByte();
+                        if (state == ActionHitStateFlag.Abort)
+                            break;
+
+                        if (entity != null)
                         {
-                            packet.ReadByte(),
-                            packet.ReadByte(),
-                            packet.ReadByte(),
-                            0
-                        }, 0);
+                            entity.State.HitState = state;
+                            if (state.HasFlag(ActionHitStateFlag.Dead))
+                            {
+                                entity.State.LifeState = LifeState.Dead;
+                                entity.Health = 0;
+                                if (Game.SelectedEntity?.UniqueId == uniqueId)
+                                    Game.SelectedEntity = null;
+                            }
+                        }
 
-                        //if(entity.Health < damage)
-                        //damage = entity.Health;
+                        if (state != ActionHitStateFlag.Block)
+                        {
+                            if (packet.Remaining < 8)
+                                break;
 
-                        var unknownState = packet.ReadInt();
-                        Debug.WriteLine("UnknownState:" + unknownState);
+                            var critStatus = packet.ReadByte(); // 0x01: normal 0x02 critical
 
-                        //packet.ReadUShort();
-                        //packet.ReadByte();
+                            var damage = BitConverter.ToInt32(new byte[]
+                            {
+                                packet.ReadByte(),
+                                packet.ReadByte(),
+                                packet.ReadByte(),
+                                0
+                            }, 0);
 
-                        EventManager.FireEvent("OnEntityHit", Id, ExecutorId, uniqueId, damage, critStatus == 0x02);
-                    }
+                            var unknownState = packet.ReadInt();
+                            Debug.WriteLine("UnknownState:" + unknownState);
 
-                    // dont worry it will return true for knockdown states
-                    if (state.HasFlag(ActionHitStateFlag.KnockBack))
-                    {
-                        var position = Position.FromPacketInt(packet);
-                        if (entity == null)
-                            continue;
+                            EventManager.FireEvent("OnEntityHit", Id, ExecutorId, uniqueId, damage, critStatus == 0x02);
+                        }
 
-                        entity.SetSource(position);
+                        // dont worry it will return true for knockdown states
+                        if (state.HasFlag(ActionHitStateFlag.KnockBack))
+                        {
+                            if (packet.Remaining < 14)
+                                break;
+
+                            var position = Position.FromPacketInt(packet);
+                            if (entity != null)
+                                entity.SetSource(position);
+                        }
                     }
                 }
             }
-        }
 
-        if (Flag.HasFlag(ActionStateFlag.Teleport))
-        {
-            var position = Position.FromPacketInt(packet);
-            if (PlayerIsExecutor)
+            if (Flag.HasFlag(ActionStateFlag.Teleport))
             {
-                Game.Player.SetSource(position);
-            }
-            else
-            {
-                if (!TryGetExecutor<SpawnedBionic>(out var executor))
+                if (packet.Remaining < 14)
                     return;
 
-                executor.SetSource(position);
+                var position = Position.FromPacketInt(packet);
+                if (PlayerIsExecutor)
+                {
+                    Game.Player?.SetSource(position);
+                }
+                else
+                {
+                    if (!TryGetExecutor<SpawnedBionic>(out var executor))
+                        return;
+
+                    executor?.SetSource(position);
+                }
             }
+        }
+        catch (System.IO.EndOfStreamException)
+        {
+            // Packet detail ended early, safe to ignore
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"Action.SerializeDetail: {ex.Message}");
         }
     }
 

@@ -19,6 +19,11 @@ public static class SkillManager
     private static int _lastIndex;
 
     /// <summary>
+    ///     Last target unique identifier for resetting skill sequence
+    /// </summary>
+    private static uint _lastTargetUniqueId;
+
+    /// <summary>
     ///     The last casted skill id
     /// </summary>
     public static uint LastCastedSkillId;
@@ -69,6 +74,11 @@ public static class SkillManager
     ///     Gets the config to always use skills in order.
     /// </summary>
     public static bool UseSkillsInOrder => PlayerConfig.Get("RSBot.Skills.checkUseSkillsInOrder", false);
+
+    /// <summary>
+    ///     Checks if any attack skills are configured across any monster rarity.
+    /// </summary>
+    public static bool HasConfiguredSkills => Skills != null && Skills.Values.Any(list => list != null && list.Count > 0);
 
     /// <summary>
     ///     Is the last action basic skill (Auto attack) <c>true</c>; otherwise <c>false</c>
@@ -126,6 +136,12 @@ public static class SkillManager
         if (entity == null || Game.Player == null)
             return null;
 
+        if (entity.UniqueId != _lastTargetUniqueId)
+        {
+            _lastTargetUniqueId = entity.UniqueId;
+            _lastIndex = 0;
+        }
+
         var rarity = MonsterRarity.General;
 
         if (entity is SpawnedMonster monster)
@@ -138,7 +154,6 @@ public static class SkillManager
         var distance = Game.Player.Movement.Source.DistanceTo(entity.Movement.Source);
 
         var minDifference = int.MaxValue;
-        //var weaponRange = 0;
         var closestSkill = default(SkillInfo);
 
         if (entity.State != null && entity.State.HitState == ActionHitStateFlag.KnockDown)
@@ -148,50 +163,48 @@ public static class SkillManager
         }
         else if (UseSkillsInOrder || distance < 10)
         {
-            var counter = -1;
             var skillCount = Skills[rarity].Count;
-            while (skillCount > 0 && counter < skillCount)
+            if (_lastIndex >= skillCount)
+                _lastIndex = 0;
+
+            for (var i = 0; i < skillCount; i++)
             {
-                counter++;
-                _lastIndex++;
-
-                if (_lastIndex > Skills[rarity].Count - 1)
-                    _lastIndex = 0;
-
-                if (!Skills.ContainsKey(rarity) || Skills[rarity] == null || Skills[rarity].Count <= _lastIndex)
-                    continue;
-
-                var selectedSkill = Skills[rarity][_lastIndex];
+                var index = (_lastIndex + i) % skillCount;
+                var selectedSkill = Skills[rarity][index];
                 if (selectedSkill == null || selectedSkill.Record == null || !selectedSkill.CanBeCasted)
                     continue;
 
                 closestSkill = selectedSkill;
+                _lastIndex = (index + 1) % skillCount;
                 break;
             }
 
-            //Debug.WriteLine($"while loop: {stopwatch.ElapsedMilliseconds}");
+            // Fallback: If no skill from _lastIndex is ready, pick ANY ready skill in the list
+            if (closestSkill == null)
+            {
+                closestSkill = Skills[rarity].FirstOrDefault(s => s != null && s.Record != null && s.CanBeCasted);
+            }
         }
         else
         {
-            /*var weapon = Game.Player.Inventory.GetItemAt(6);
-            if (weapon != null)
-                weaponRange = weapon.Record.Range / 10;
-            */
-
             for (var i = 0; i < Skills[rarity].Count; i++)
             {
                 var s = Skills[rarity][i];
                 if (s == null || s.Record == null || !s.CanBeCasted)
                     continue;
 
-                var difference = Math.Abs(s.Record.Action_Range / 10 - distance /* + weaponRange*/);
+                var difference = Math.Abs(s.Record.Action_Range / 10 - distance);
                 if (minDifference > difference)
                 {
                     minDifference = (short)difference;
                     closestSkill = s;
                 }
             }
-            //Debug.WriteLine($"for loop: {stopwatch.ElapsedMilliseconds}");
+
+            if (closestSkill == null)
+            {
+                closestSkill = Skills[rarity].FirstOrDefault(s => s != null && s.Record != null && s.CanBeCasted);
+            }
         }
 
         return closestSkill;
@@ -249,6 +262,15 @@ public static class SkillManager
         }
         else
         {
+            if (currentWeapon?.Record != null &&
+                currentWeapon.Record.TypeID2 == 1 &&
+                currentWeapon.Record.TypeID3 == 6 &&
+                (currentWeapon.Record.TypeID4 == (byte)skill.ReqCast_Weapon1 ||
+                 ((byte)skill.ReqCast_Weapon2 != 0xFF && currentWeapon.Record.TypeID4 == (byte)skill.ReqCast_Weapon2)))
+            {
+                return true;
+            }
+
             filter = new TypeIdFilter(p =>
                 p.TypeID2 == 1 && p.TypeID3 == 6 && (
                     p.TypeID4 == (byte)skill.ReqCast_Weapon1 ||
@@ -286,7 +308,7 @@ public static class SkillManager
         if (!SpawnManager.TryGetEntity<SpawnedBionic>(targetId, out var entity) || entity == null || entity.State == null)
             return false;
 
-        if (entity.State.LifeState == LifeState.Dead)
+        if (entity.State.LifeState == LifeState.Dead || !entity.HasHealth || entity.Health <= 0)
             return false;
 
         if (!CheckSkillRequired(skill.Record))
@@ -326,7 +348,7 @@ public static class SkillManager
         if (!SpawnManager.TryGetEntity<SpawnedBionic>(targetId, out var entity))
             return false;
 
-        if (entity.State.LifeState == LifeState.Dead)
+        if (entity.State.LifeState == LifeState.Dead || !entity.HasHealth || entity.Health <= 0)
             return false;
 
         var weapon = Game.Player.Inventory.GetItemAt(6);
@@ -548,7 +570,7 @@ public static class SkillManager
         if (entity == null)
             return false;
 
-        if (entity.State.LifeState == LifeState.Dead)
+        if (entity.State.LifeState == LifeState.Dead || !entity.HasHealth || entity.Health <= 0)
             return false;
 
         var packet = new Packet(0x7074);
@@ -628,7 +650,7 @@ public static class SkillManager
         }, 0xB074);
 
         PacketManager.SendPacket(packet, PacketDestination.Server, callback);
-        callback.AwaitResponse();
+        callback.AwaitResponse(300);
 
         return callback.IsCompleted;
     }

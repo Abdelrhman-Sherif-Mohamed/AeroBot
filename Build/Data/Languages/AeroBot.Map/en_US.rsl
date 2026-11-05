@@ -1,8 +1,9 @@
-﻿DisplayName="Map"
-AeroBot.Map.Main.label3="This function does not work while the bot is active.
+DisplayName="Map"
+TabText="Map"
+RSBot.Map.Main.label3="This function does not work while the bot is active.
  If you want the bot to auto attack while active,
  set Avoidance."
-AeroBot.Map.Main.checkBoxAutoSelectUniques="Automatically select uniques"
-AeroBot.Map.Main.label4="Show:"
-AeroBot.Map.Main.lblRegion="Not in game"
+RSBot.Map.Main.checkBoxAutoSelectUniques="Automatically select uniques"
+RSBot.Map.Main.label4="Show:"
+RSBot.Map.Main.lblRegion="Not in game"
 NoName="<No name>"

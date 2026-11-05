@@ -351,6 +351,11 @@ public partial class Main : DoubleBufferedControl
         colSell.Width = 68;
         collStore.Width = 68;
 
+        listFilter.HeaderStyle = ColumnHeaderStyle.Nonclickable;
+        listFilter.View = System.Windows.Forms.View.Details;
+        listFilter.FullRowSelect = true;
+        listFilter.Visible = true;
+
         numDegreeFrom.BackColor = Color.Transparent;
         numDegreeFrom.ForeColor = ColorScheme.ForeColor;
         numDegreeTo.BackColor = Color.Transparent;
@@ -706,9 +711,9 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private async Task QuerySellItemsAsync()
     {
-        await Task.Delay(1).ConfigureAwait(false);
+        btnSearch.Enabled = false;
+        btnReload.Enabled = false;
 
-        listFilter.Visible = false;
         listFilter.BeginUpdate();
         listFilter.Items.Clear();
         listFilter.EndUpdate();
@@ -916,69 +921,91 @@ public partial class Main : DoubleBufferedControl
             gender = ObjectGender.Female;
         }
 
-        var items = Game.ReferenceManager.GetFilteredItems(filters, Convert.ToByte(numDegreeFrom.Value),
-            Convert.ToByte(numDegreeTo.Value), gender, checkBoxRareItems.Checked, txtSellSearch.Text);
-        if (items.Count == 0)
+        try
         {
-            listFilter.Visible = true;
-            MessageBox.Show(this, LanguageManager.GetLang("NoResultsFound"), T("RSBot.Items.Warning", "Warning"));
-            return;
-        }
+            var degreeFrom = Convert.ToByte(numDegreeFrom.Value);
+            var degreeTo = Convert.ToByte(numDegreeTo.Value);
+            var rare = checkBoxRareItems.Checked;
+            var search = txtSellSearch.Text;
 
-        await PopulateSellListAsync(items);
-        labelResult.Text = $"{items.Count}";
+            var items = await Task.Run(() => Game.ReferenceManager.GetFilteredItems(filters, degreeFrom, degreeTo, gender, rare, search));
+
+            labelResult.Text = $"{items.Count}";
+
+            if (items.Count == 0)
+            {
+                listFilter.Visible = true;
+                MessageBox.Show(this, LanguageManager.GetLang("NoResultsFound"), T("RSBot.Items.Warning", "Warning"));
+                return;
+            }
+
+            PopulateSellList(items);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Items] QuerySellItemsAsync error: {ex.Message}");
+        }
+        finally
+        {
+            btnSearch.Enabled = true;
+            btnReload.Enabled = true;
+            listFilter.Visible = true;
+        }
     }
 
     /// <summary>
     ///     Populates the sell list.
     /// </summary>
     /// <param name="items">The items.</param>
-    private async Task PopulateSellListAsync(List<RefObjItem> items)
+    private void PopulateSellList(List<RefObjItem> items)
     {
         listFilter.BeginUpdate();
-
-        string getSubItemString(RefObjItem item)
+        try
         {
-            var filter = PickupManager.PickupFilter.Find(p => p.CodeName == item.CodeName);
-            if (string.IsNullOrWhiteSpace(filter.CodeName))
-                return "•";
-
-            if (filter.PickOnlyChar)
-                return "√ (C)";
-
-            return "√";
-        }
-
-        var listViewItems = new ListViewItem[items.Count];
-        for (var i = 0; i < items.Count; i++)
-        {
-            var item = items[i];
-
-            var listViewItem = new ListViewItem
+            string getSubItemString(RefObjItem item)
             {
-                Text = item.GetRealName(true),
-                Tag = item.CodeName,
-                SubItems =
+                var filter = PickupManager.PickupFilter.Find(p => p.CodeName == item.CodeName);
+                if (string.IsNullOrWhiteSpace(filter.CodeName))
+                    return "•";
+
+                if (filter.PickOnlyChar)
+                    return "√ (C)";
+
+                return "√";
+            }
+
+            var listViewItems = new ListViewItem[items.Count];
+            for (var i = 0; i < items.Count; i++)
+            {
+                var item = items[i];
+
+                var listViewItem = new ListViewItem
                 {
-                    $"{item.ReqLevel1} (Dg.{item.Degree})",
-                    ((ObjectGender)item.ReqGender).ToString(),
-                    getSubItemString(item),
-                    ShoppingManager.SellFilter.Contains(item.CodeName) ? "√" : "•",
-                    ShoppingManager.StoreFilter.Contains(item.CodeName) ? "√" : "•"
-                }
-            };
+                    Text = item.GetRealName(true),
+                    Tag = item.CodeName,
+                    SubItems =
+                    {
+                        $"{item.ReqLevel1} (Dg.{item.Degree})",
+                        ((ObjectGender)item.ReqGender).ToString(),
+                        getSubItemString(item),
+                        ShoppingManager.SellFilter.Contains(item.CodeName) ? "√" : "•",
+                        ShoppingManager.StoreFilter.Contains(item.CodeName) ? "√" : "•"
+                    }
+                };
 
-            await listViewItem.LoadItemImage(item);
-            listViewItems[i] = listViewItem;
+                listViewItem.LoadItemImageAsync(item);
+                listViewItems[i] = listViewItem;
+            }
+
+            listFilter.Items.Clear();
+            listFilter.Items.AddRange(listViewItems);
         }
-
-        listFilter.Items.AddRange(listViewItems);
-        listFilter.EndUpdate();
-
-
-        listFilter.Visible = true;
-
-        await Task.Delay(1).ConfigureAwait(false);
+        finally
+        {
+            listFilter.EndUpdate();
+            listFilter.Visible = true;
+            listFilter.Invalidate();
+        }
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Objects.Spawn;
@@ -48,7 +48,7 @@ internal class MovementBundle : IBundle
                 return;
 
             var player = Game.Party.Leader?.Player;
-            if (player != null && player.Position.DistanceToPlayer() >= 10) Game.Player.MoveTo(player.Position);
+            if (player != null && player.Position.DistanceToPlayer() >= 10) Game.Player.MoveTo(player.Position, false);
 
             return;
         }
@@ -60,7 +60,7 @@ internal class MovementBundle : IBundle
         if ((distance > Container.Bot.Area.Radius || (Config.WalkToCenter && distance > 3)) && !hasCollision)
         {
             Log.Status("Walking to center");
-            Game.Player.MoveTo(Container.Bot.Area.Position);
+            Game.Player.MoveTo(Container.Bot.Area.Position, false);
 
             return;
         }

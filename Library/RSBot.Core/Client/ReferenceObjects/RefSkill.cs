@@ -88,7 +88,6 @@ public class RefSkill : IReference<uint>
     public bool Target_Required;
 
     public bool TargetType_Animal;
-
     //public bool TargetType_Land;
     //public bool TargetType_Building;
     public bool TargetGroup_Self;
@@ -188,7 +187,7 @@ public class RefSkill : IReference<uint>
         parser.TryParse(21, out Action_Range);
         parser.TryParse(22, out Target_Required);
         parser.TryParse(23, out TargetType_Animal);
-        //parser.TryParseBool(24, out TargetType_Land);
+        //parser.TryParse(24, out TargetType_Land);
         //parser.TryParseBool(25, out TargetType_Building);
         parser.TryParse(26, out TargetGroup_Self);
         parser.TryParse(27, out TargetGroup_Ally);

@@ -28,6 +28,12 @@ namespace SDUI.Controls
         /// </summary>
         private readonly List<Control> _pages = new();
 
+        /// <summary>
+        ///     Page names that should start a new visual group in the vertical
+        ///     navigation rail. A small gap is rendered before these pages.
+        /// </summary>
+        public HashSet<string> GroupBreakBefore { get; } = new(StringComparer.OrdinalIgnoreCase);
+
         private int _selectedIndex = -1;
         public int SelectedIndex 
         { 

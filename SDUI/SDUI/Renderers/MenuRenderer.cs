@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace SDUI.Renderers;
@@ -96,10 +96,16 @@ public class MenuRenderer : ToolStripRenderer
 
     protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
     {
-        base.OnRenderItemText(e);
+        if (e.Item.Tag?.ToString() != "private")
+        {
+            var fore = e.Item.Enabled
+                ? ColorScheme.ForeColor
+                : (ColorScheme.BackColor.IsDark() ? Color.FromArgb(120, 130, 145) : Color.FromArgb(160, 165, 175));
+            e.TextColor = fore;
+            e.Item.ForeColor = fore;
+        }
 
-        if (e.Item.ForeColor != ColorScheme.ForeColor && e.Item.Tag?.ToString() != "private")
-            e.Item.ForeColor = ColorScheme.ForeColor;
+        base.OnRenderItemText(e);
     }
 
     protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)

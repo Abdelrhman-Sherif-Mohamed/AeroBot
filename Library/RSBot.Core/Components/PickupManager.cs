@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -125,7 +125,8 @@ public class PickupManager
                 if (!RunningPlayerPickup)
                     return;
 
-                while (Game.Player.InAction)
+                var inActionWait = 0;
+                while (Game.Player.InAction && inActionWait++ < 20 && RunningPlayerPickup && (Kernel.Bot?.Running == true))
                     Thread.Sleep(50);
 
                 if (item.Record.IsSpecialtyGoodBox && Game.Player.Job2SpecialtyBag.Full)

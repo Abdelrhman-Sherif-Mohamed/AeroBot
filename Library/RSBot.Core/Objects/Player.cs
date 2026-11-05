@@ -519,7 +519,32 @@ public class Player : SpawnedBionic
     /// <value>
     ///     <c>true</c> if [in action]; otherwise, <c>false</c>.
     /// </value>
-    public bool InAction { get; set; }
+    private int _inActionTick;
+    private bool _inAction;
+
+    public bool InAction
+    {
+        get
+        {
+            if (!_inAction)
+                return false;
+
+            // Failsafe: Action state should never stay active for more than 3.5 seconds
+            if (Kernel.TickCount - _inActionTick > 3500)
+            {
+                _inAction = false;
+                return false;
+            }
+
+            return true;
+        }
+        set
+        {
+            _inAction = value;
+            if (value)
+                _inActionTick = Kernel.TickCount;
+        }
+    }
 
     /// <summary>
     ///     Gets or sets a value indicating whether this <see cref="Player" /> is untouchable.
@@ -672,7 +697,7 @@ public class Player : SpawnedBionic
     /// <param name="destination">The destination.</param>
     /// <param name="sleep">if set to <c>true</c> [sleep].</param>
     /// <returns></returns>
-    public bool MoveTo(Position destination, bool sleep = true)
+    public bool MoveTo(Position destination, bool sleep = false)
     {
         var distance = Game.Player.Movement.Source.DistanceTo(destination);
         if (distance > 150)

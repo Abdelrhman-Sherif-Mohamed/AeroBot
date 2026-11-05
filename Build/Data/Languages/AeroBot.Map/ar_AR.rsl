@@ -1,8 +1,9 @@
-﻿DisplayName="الخريطة"
-AeroBot.Map.Main.label3="لا تعمل هذه الوظيفة أثناء نشاط البوت.
+DisplayName="الخريطة"
+TabText="الخريطة"
+RSBot.Map.Main.label3="لا تعمل هذه الوظيفة أثناء نشاط البوت.
  إذا كنت تريد أن يهاجم الروبوت تلقائيا أثناء النشاط ،
  تعيين التجنب."
-AeroBot.Map.Main.checkBoxAutoSelectUniques="تلقائيا اختيار اليونيك"
-AeroBot.Map.Main.label4="إظهار"
-AeroBot.Map.Main.lblRegion="ليس في اللعبة"
+RSBot.Map.Main.checkBoxAutoSelectUniques="تلقائيا اختيار اليونيك"
+RSBot.Map.Main.label4="إظهار"
+RSBot.Map.Main.lblRegion="ليس في اللعبة"
 NoName="<No name>"
