@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -262,6 +262,7 @@ public partial class Main : DoubleBufferedControl
         filterPanel.Padding = new Padding(8, 8, 8, 8);
 
         Place(listFilter, listX, margin, listW, contentH);
+        listFilter.BringToFront();
         Place(panel3, margin, height - margin - footerH, contentW, footerH);
 
         pictureBox1.Visible = false;
@@ -943,7 +944,8 @@ public partial class Main : DoubleBufferedControl
         }
         catch (Exception ex)
         {
-            Log.Debug($"[Items] QuerySellItemsAsync error: {ex.Message}");
+            Log.Notify($"[Items] Query error: {ex.Message}");
+            Log.Debug($"[Items] QuerySellItemsAsync error: {ex}");
         }
         finally
         {
@@ -959,11 +961,16 @@ public partial class Main : DoubleBufferedControl
     /// <param name="items">The items.</param>
     private void PopulateSellList(List<RefObjItem> items)
     {
+        if (items == null) return;
+
         listFilter.BeginUpdate();
         try
         {
             string getSubItemString(RefObjItem item)
             {
+                if (PickupManager.PickupFilter == null || item == null)
+                    return "•";
+
                 var filter = PickupManager.PickupFilter.Find(p => p.CodeName == item.CodeName);
                 if (string.IsNullOrWhiteSpace(filter.CodeName))
                     return "•";
@@ -974,36 +981,49 @@ public partial class Main : DoubleBufferedControl
                 return "√";
             }
 
-            var listViewItems = new ListViewItem[items.Count];
+            var listViewItems = new List<ListViewItem>(items.Count);
             for (var i = 0; i < items.Count; i++)
             {
                 var item = items[i];
+                if (item == null) continue;
+
+                var realName = item.GetRealName(true);
+                if (string.IsNullOrWhiteSpace(realName))
+                    realName = item.CodeName ?? "Unknown";
+
+                var isSell = ShoppingManager.SellFilter != null && ShoppingManager.SellFilter.Contains(item.CodeName);
+                var isStore = ShoppingManager.StoreFilter != null && ShoppingManager.StoreFilter.Contains(item.CodeName);
 
                 var listViewItem = new ListViewItem
                 {
-                    Text = item.GetRealName(true),
+                    Text = realName,
                     Tag = item.CodeName,
                     SubItems =
                     {
                         $"{item.ReqLevel1} (Dg.{item.Degree})",
                         ((ObjectGender)item.ReqGender).ToString(),
                         getSubItemString(item),
-                        ShoppingManager.SellFilter.Contains(item.CodeName) ? "√" : "•",
-                        ShoppingManager.StoreFilter.Contains(item.CodeName) ? "√" : "•"
+                        isSell ? "√" : "•",
+                        isStore ? "√" : "•"
                     }
                 };
 
                 listViewItem.LoadItemImageAsync(item);
-                listViewItems[i] = listViewItem;
+                listViewItems.Add(listViewItem);
             }
 
             listFilter.Items.Clear();
-            listFilter.Items.AddRange(listViewItems);
+            listFilter.Items.AddRange(listViewItems.ToArray());
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Items] PopulateSellList error: {ex.Message}");
         }
         finally
         {
             listFilter.EndUpdate();
             listFilter.Visible = true;
+            listFilter.BringToFront();
             listFilter.Invalidate();
         }
     }

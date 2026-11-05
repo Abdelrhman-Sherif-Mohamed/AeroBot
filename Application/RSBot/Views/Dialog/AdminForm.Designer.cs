@@ -1,4 +1,4 @@
-﻿namespace RSBot.Views;
+namespace RSBot.Views;
 
 partial class AdminForm
 {
@@ -80,6 +80,8 @@ partial class AdminForm
         btnSetDate = new System.Windows.Forms.Button();
         btnLifetime = new System.Windows.Forms.Button();
         btnExpireNow = new System.Windows.Forms.Button();
+        btnExpireAllAccounts = new System.Windows.Forms.Button();
+        tsmiExpireAllAccounts = new System.Windows.Forms.ToolStripMenuItem();
 
         btnRefresh = new System.Windows.Forms.Button();
         btnUnblock = new System.Windows.Forms.Button();
@@ -504,6 +506,7 @@ partial class AdminForm
             tsmiExtendSub,
             tsmiLifetime,
             tsmiExpireNow,
+            tsmiExpireAllAccounts,
             tsmiSep1,
             tsmiResetHwid,
             tsmiChangePassword,
@@ -561,6 +564,9 @@ partial class AdminForm
         tsmiExpireNow.Text = "⏳ إنهاء الاشتراك فوراً (Expire Now)";
         tsmiExpireNow.Click += btnExpireNow_Click;
 
+        tsmiExpireAllAccounts.Text = "⚠️ قفل اشتراك جميع الحسابات (Expire All)";
+        tsmiExpireAllAccounts.Click += btnExpireAllAccounts_Click;
+
         tsmiResetHwid.Text = "🔄 فك ربط بصمة الجهاز (Reset HWID)";
         tsmiResetHwid.Click += btnResetHwid_Click;
 
@@ -594,6 +600,7 @@ partial class AdminForm
         panelAccountActions.Controls.Add(btnSetDate);
         panelAccountActions.Controls.Add(btnLifetime);
         panelAccountActions.Controls.Add(btnExpireNow);
+        panelAccountActions.Controls.Add(btnExpireAllAccounts);
 
         panelAccountActions.Controls.Add(btnRefresh);
         panelAccountActions.Controls.Add(btnUnblock);
@@ -624,9 +631,9 @@ partial class AdminForm
         btnAdd1Day.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         btnAdd1Day.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
         btnAdd1Day.ForeColor = System.Drawing.Color.White;
-        btnAdd1Day.Location = new System.Drawing.Point(92, 7);
+        btnAdd1Day.Location = new System.Drawing.Point(90, 7);
         btnAdd1Day.Name = "btnAdd1Day";
-        btnAdd1Day.Size = new System.Drawing.Size(72, 30);
+        btnAdd1Day.Size = new System.Drawing.Size(62, 30);
         btnAdd1Day.TabIndex = 10;
         btnAdd1Day.Text = "+1 يوم";
         btnAdd1Day.UseVisualStyleBackColor = false;
@@ -636,9 +643,9 @@ partial class AdminForm
         btnAdd7Days.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         btnAdd7Days.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
         btnAdd7Days.ForeColor = System.Drawing.Color.White;
-        btnAdd7Days.Location = new System.Drawing.Point(168, 7);
+        btnAdd7Days.Location = new System.Drawing.Point(156, 7);
         btnAdd7Days.Name = "btnAdd7Days";
-        btnAdd7Days.Size = new System.Drawing.Size(72, 30);
+        btnAdd7Days.Size = new System.Drawing.Size(62, 30);
         btnAdd7Days.TabIndex = 11;
         btnAdd7Days.Text = "+7 أيام";
         btnAdd7Days.UseVisualStyleBackColor = false;
@@ -648,11 +655,11 @@ partial class AdminForm
         btnAdd30Days.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         btnAdd30Days.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
         btnAdd30Days.ForeColor = System.Drawing.Color.White;
-        btnAdd30Days.Location = new System.Drawing.Point(244, 7);
+        btnAdd30Days.Location = new System.Drawing.Point(222, 7);
         btnAdd30Days.Name = "btnAdd30Days";
-        btnAdd30Days.Size = new System.Drawing.Size(108, 30);
+        btnAdd30Days.Size = new System.Drawing.Size(96, 30);
         btnAdd30Days.TabIndex = 12;
-        btnAdd30Days.Text = "+1 شهر (30 يوم)";
+        btnAdd30Days.Text = "+1 شهر";
         btnAdd30Days.UseVisualStyleBackColor = false;
         btnAdd30Days.Click += btnAdd30Days_Click;
 
@@ -660,11 +667,11 @@ partial class AdminForm
         btnAdd60Days.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         btnAdd60Days.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
         btnAdd60Days.ForeColor = System.Drawing.Color.White;
-        btnAdd60Days.Location = new System.Drawing.Point(356, 7);
+        btnAdd60Days.Location = new System.Drawing.Point(322, 7);
         btnAdd60Days.Name = "btnAdd60Days";
-        btnAdd60Days.Size = new System.Drawing.Size(108, 30);
+        btnAdd60Days.Size = new System.Drawing.Size(96, 30);
         btnAdd60Days.TabIndex = 13;
-        btnAdd60Days.Text = "+ شهرين (60 يوم)";
+        btnAdd60Days.Text = "+ شهرين";
         btnAdd60Days.UseVisualStyleBackColor = false;
         btnAdd60Days.Click += btnAdd60Days_Click;
 
@@ -672,9 +679,9 @@ partial class AdminForm
         btnAdd90Days.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         btnAdd90Days.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
         btnAdd90Days.ForeColor = System.Drawing.Color.White;
-        btnAdd90Days.Location = new System.Drawing.Point(468, 7);
+        btnAdd90Days.Location = new System.Drawing.Point(422, 7);
         btnAdd90Days.Name = "btnAdd90Days";
-        btnAdd90Days.Size = new System.Drawing.Size(80, 30);
+        btnAdd90Days.Size = new System.Drawing.Size(76, 30);
         btnAdd90Days.TabIndex = 14;
         btnAdd90Days.Text = "+3 شهور";
         btnAdd90Days.UseVisualStyleBackColor = false;
@@ -684,11 +691,11 @@ partial class AdminForm
         btnAddCustom.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         btnAddCustom.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
         btnAddCustom.ForeColor = System.Drawing.Color.White;
-        btnAddCustom.Location = new System.Drawing.Point(552, 7);
+        btnAddCustom.Location = new System.Drawing.Point(502, 7);
         btnAddCustom.Name = "btnAddCustom";
-        btnAddCustom.Size = new System.Drawing.Size(170, 30);
+        btnAddCustom.Size = new System.Drawing.Size(130, 30);
         btnAddCustom.TabIndex = 15;
-        btnAddCustom.Text = "➕ مدة مخصصة (أيام/شهور)...";
+        btnAddCustom.Text = "➕ مدة مخصصة...";
         btnAddCustom.UseVisualStyleBackColor = false;
         btnAddCustom.Click += btnAddCustom_Click;
 
@@ -696,9 +703,9 @@ partial class AdminForm
         btnSetDate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         btnSetDate.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Regular);
         btnSetDate.ForeColor = System.Drawing.Color.White;
-        btnSetDate.Location = new System.Drawing.Point(726, 7);
+        btnSetDate.Location = new System.Drawing.Point(636, 7);
         btnSetDate.Name = "btnSetDate";
-        btnSetDate.Size = new System.Drawing.Size(110, 30);
+        btnSetDate.Size = new System.Drawing.Size(96, 30);
         btnSetDate.TabIndex = 16;
         btnSetDate.Text = "📅 تاريخ محدد...";
         btnSetDate.UseVisualStyleBackColor = false;
@@ -708,9 +715,9 @@ partial class AdminForm
         btnLifetime.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         btnLifetime.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
         btnLifetime.ForeColor = System.Drawing.Color.White;
-        btnLifetime.Location = new System.Drawing.Point(840, 7);
+        btnLifetime.Location = new System.Drawing.Point(736, 7);
         btnLifetime.Name = "btnLifetime";
-        btnLifetime.Size = new System.Drawing.Size(115, 30);
+        btnLifetime.Size = new System.Drawing.Size(108, 30);
         btnLifetime.TabIndex = 17;
         btnLifetime.Text = "♾️ دائم (Lifetime)";
         btnLifetime.UseVisualStyleBackColor = false;
@@ -720,13 +727,25 @@ partial class AdminForm
         btnExpireNow.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         btnExpireNow.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
         btnExpireNow.ForeColor = System.Drawing.Color.White;
-        btnExpireNow.Location = new System.Drawing.Point(959, 7);
+        btnExpireNow.Location = new System.Drawing.Point(848, 7);
         btnExpireNow.Name = "btnExpireNow";
         btnExpireNow.Size = new System.Drawing.Size(95, 30);
         btnExpireNow.TabIndex = 18;
         btnExpireNow.Text = "⏳ إنهاء الآن";
         btnExpireNow.UseVisualStyleBackColor = false;
         btnExpireNow.Click += btnExpireNow_Click;
+
+        btnExpireAllAccounts.BackColor = System.Drawing.Color.FromArgb(195, 35, 35);
+        btnExpireAllAccounts.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        btnExpireAllAccounts.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
+        btnExpireAllAccounts.ForeColor = System.Drawing.Color.White;
+        btnExpireAllAccounts.Location = new System.Drawing.Point(947, 7);
+        btnExpireAllAccounts.Name = "btnExpireAllAccounts";
+        btnExpireAllAccounts.Size = new System.Drawing.Size(160, 30);
+        btnExpireAllAccounts.TabIndex = 19;
+        btnExpireAllAccounts.Text = "⚠️ قفل اشتراك الجميع";
+        btnExpireAllAccounts.UseVisualStyleBackColor = false;
+        btnExpireAllAccounts.Click += btnExpireAllAccounts_Click;
 
         // --- ROW 2: ACCOUNT MANAGEMENT ACTIONS ---
         btnRefresh.BackColor = System.Drawing.Color.FromArgb(50, 54, 62);
@@ -1772,6 +1791,8 @@ partial class AdminForm
     private System.Windows.Forms.Button btnSetDate;
     private System.Windows.Forms.Button btnLifetime;
     private System.Windows.Forms.Button btnExpireNow;
+    private System.Windows.Forms.Button btnExpireAllAccounts;
+    private System.Windows.Forms.ToolStripMenuItem tsmiExpireAllAccounts;
 
     private System.Windows.Forms.Button btnRefresh;
     private System.Windows.Forms.Button btnUnblock;

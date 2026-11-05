@@ -149,9 +149,7 @@ public partial class Main : DoubleBufferedControl
 
         buttonInventory.Color = backColor;
 
-        topPanel.SendToBack();
-        panel1.SendToBack();
-        listViewMain.BringToFront();
+        listViewMain.SendToBack();
     }
 
 
@@ -963,14 +961,12 @@ public partial class Main : DoubleBufferedControl
         listViewMain.Visible = !isHappyPage && !isStorageOrderPage;
         panel1.Visible = !isHappyPage && !isStorageOrderPage;
 
-        topPanel.SendToBack();
-        panel1.SendToBack();
         if (isHappyPage)
-            panelHappy.BringToFront();
+            panelHappy.SendToBack();
         else if (isStorageOrderPage)
-            panelStorageOrder.BringToFront();
+            panelStorageOrder.SendToBack();
         else
-            listViewMain.BringToFront();
+            listViewMain.SendToBack();
 
 
 
@@ -1796,9 +1792,7 @@ public partial class Main : DoubleBufferedControl
         panelHappy.Visible = false;
         listViewMain.Visible = true;
         panel1.Visible = true;
-        topPanel.SendToBack();
-        panel1.SendToBack();
-        listViewMain.BringToFront();
+        listViewMain.SendToBack();
 
     }
 

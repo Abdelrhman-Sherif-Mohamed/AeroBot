@@ -274,6 +274,8 @@ public partial class Main : UIWindow
 
         btnStartBot.Text = ar ? "شغل البوت" : "Start Bot";
         btnStopBot.Text = ar ? "وقف البوت" : "Stop Bot";
+        if (btnSave != null)
+            btnSave.Text = ar ? "حفظ الإعدادات" : "Save Settings";
         UpdateShowClientButton(ClientManager.IsVisible);
 
         if (lblLogTitle != null)
@@ -287,6 +289,8 @@ public partial class Main : UIWindow
         StyleActionButton(btnStartBot, Color.FromArgb(34, 160, 107), Color.White);
         StyleActionButton(btnStopBot, neutralBack, neutralFore);
         StyleActionButton(btnShowClient, neutralBack, neutralFore);
+        if (btnSave != null)
+            StyleActionButton(btnSave, Color.FromArgb(41, 128, 185), Color.White);
         if (btnClearLog != null && btnClearLog.Parent != null)
             StyleActionButton(btnClearLog, neutralBack, neutralFore);
     }
@@ -378,10 +382,8 @@ public partial class Main : UIWindow
 
     private void InitializeGearMenu()
     {
-        _gearMenu = new SDUI.Controls.ContextMenuStrip();
-        _gearMenu.Renderer = new SDUI.Renderers.MenuRenderer();
-        ExtendMenu = _gearMenu;
-        RebuildGearMenu();
+        // ExtendMenu is kept null to avoid duplicate gear icon in title bar
+        ExtendMenu = null;
     }
 
     private void RebuildGearMenu()
@@ -393,10 +395,12 @@ public partial class Main : UIWindow
 
         // File
         var mFile = new ToolStripMenuItem(ar ? "ملف" : "File");
+        var mSave = new ToolStripMenuItem(ar ? "💾 حفظ الإعدادات" : "💾 Save Settings", null, btnSave_Click);
+        mSave.ShortcutKeys = Keys.Control | Keys.S;
         var mSelProfile = new ToolStripMenuItem(ar ? "اختيار الملف الشخصي..." : "Select Profile...", null, menuSelectProfile_Click);
         var mProxy = new ToolStripMenuItem(ar ? "إعدادات البروكسي" : "Proxy Config", null, networkConfigToolStripMenuItem_Click);
         var mExit = new ToolStripMenuItem(ar ? "خروج" : "Exit", null, menuItemExit_Click);
-        mFile.DropDownItems.AddRange(new ToolStripItem[] { mSelProfile, mProxy, mExit });
+        mFile.DropDownItems.AddRange(new ToolStripItem[] { mSave, new ToolStripSeparator(), mSelProfile, mProxy, mExit });
 
         // View
         var mView = new ToolStripMenuItem(ar ? "عرض" : "View");
@@ -863,8 +867,72 @@ public partial class Main : UIWindow
 
     private void btnSave_Click(object sender, EventArgs e)
     {
-        GlobalConfig.Save();
-        PlayerConfig.Save();
+        try
+        {
+            // 1. Ensure profile selection is persisted
+            if (!string.IsNullOrWhiteSpace(ProfileManager.SelectedProfile))
+            {
+                ProfileManager.SetSelectedProfile(ProfileManager.SelectedProfile);
+            }
+
+            // 2. Save Global configuration
+            GlobalConfig.Save();
+
+            // 3. Save Player configuration if player is in game or loaded
+            if (PlayerConfig.IsLoaded)
+            {
+                PlayerConfig.Save();
+            }
+            else if (Game.Player != null && !string.IsNullOrWhiteSpace(Game.Player.Name))
+            {
+                PlayerConfig.Load(Game.Player.Name);
+                PlayerConfig.Save();
+            }
+
+            // 4. Notify all plugins / botbases
+            EventManager.FireEvent("OnSaveSettings");
+            EventManager.FireEvent("OnSavePlayerConfig");
+            EventManager.FireEvent("OnSaveGlobalConfig");
+
+            bool ar = Kernel.Language == "ar_AR";
+            Log.Notify(ar ? "[AeroBot] تم حفظ جميع الإعدادات بنجاح!" : "[AeroBot] All settings have been saved successfully!");
+
+            // Visual feedback on the button
+            if (btnSave != null && !btnSave.IsDisposed)
+            {
+                var originalText = ar ? "حفظ الإعدادات" : "Save Settings";
+                btnSave.Text = ar ? "تم الحفظ ✓" : "Saved ✓";
+                btnSave.Color = Color.FromArgb(46, 171, 107);
+
+                var timer = new System.Windows.Forms.Timer { Interval = 1500 };
+                timer.Tick += (s, ev) =>
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    if (btnSave != null && !btnSave.IsDisposed)
+                    {
+                        btnSave.Text = originalText;
+                        btnSave.Color = Color.FromArgb(41, 128, 185);
+                    }
+                };
+                timer.Start();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"[AeroBot] Could not save settings: {ex.Message}");
+            MessageBox.Show(this, $"Error saving settings:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (keyData == (Keys.Control | Keys.S))
+        {
+            btnSave_Click(btnSave, EventArgs.Empty);
+            return true;
+        }
+        return base.ProcessCmdKey(ref msg, keyData);
     }
 
     /// <summary>
@@ -1062,9 +1130,7 @@ public partial class Main : UIWindow
     {
         if (Kernel.Proxy == null || !Kernel.Proxy.ClientConnected || !GlobalConfig.Get("RSBot.showExitDialog", true))
         {
-            GlobalConfig.Save();
-            PlayerConfig.Save();
-
+            SaveAllOnExit();
             Environment.Exit(0);
         }
 
@@ -1075,8 +1141,7 @@ public partial class Main : UIWindow
             return;
         }
 
-        GlobalConfig.Save();
-        PlayerConfig.Save();
+        SaveAllOnExit();
         ClientManager.Kill();
 
         Environment.Exit(0);
@@ -1099,6 +1164,30 @@ public partial class Main : UIWindow
         WindowState = FormWindowState.Normal;
     }
 
+    private void SaveAllOnExit()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(ProfileManager.SelectedProfile))
+                ProfileManager.SetSelectedProfile(ProfileManager.SelectedProfile);
+
+            GlobalConfig.Save();
+
+            if (PlayerConfig.IsLoaded)
+                PlayerConfig.Save();
+            else if (Game.Player != null && !string.IsNullOrWhiteSpace(Game.Player.Name))
+            {
+                PlayerConfig.Load(Game.Player.Name);
+                PlayerConfig.Save();
+            }
+
+            EventManager.FireEvent("OnSaveSettings");
+            EventManager.FireEvent("OnSavePlayerConfig");
+            EventManager.FireEvent("OnSaveGlobalConfig");
+        }
+        catch { }
+    }
+
     /// <summary>
     ///     Handles the Click event of the menuItemExit control.
     /// </summary>
@@ -1108,9 +1197,7 @@ public partial class Main : UIWindow
     {
         if (Kernel.Proxy == null || !Kernel.Proxy.ClientConnected || !GlobalConfig.Get("RSBot.showExitDialog", true))
         {
-            GlobalConfig.Save();
-            PlayerConfig.Save();
-
+            SaveAllOnExit();
             Environment.Exit(0);
         }
 
@@ -1118,8 +1205,7 @@ public partial class Main : UIWindow
         if (exitDialog.ShowDialog(this) != DialogResult.Yes)
             return;
 
-        GlobalConfig.Save();
-        PlayerConfig.Save();
+        SaveAllOnExit();
         ClientManager.Kill();
 
         Environment.Exit(0);

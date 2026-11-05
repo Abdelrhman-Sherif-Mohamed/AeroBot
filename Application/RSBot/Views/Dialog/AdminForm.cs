@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -367,6 +367,52 @@ public partial class AdminForm : Form
         if (confirm != DialogResult.Yes) return;
 
         await ExecuteSubscriptionActionAsync(u => _authService.ExpireAccountNowAsync(u), "إنهاء الاشتراك فوراً");
+    }
+
+    private async void btnExpireAllAccounts_Click(object sender, EventArgs e)
+    {
+        var confirm = MessageBox.Show(this,
+            "⚠️ تحذير أمني هام:\n\n" +
+            "هل أنت متأكد تماماً من قفل / إنهاء اشتراك جميع حسابات المشتركين فوراً؟\n\n" +
+            "• سيتم إنهاء الاشتراك لجميع المستخدمين فوراً.\n" +
+            "• سيتوقف البوت عندهم وسيُطلب منهم تجديد الاشتراك.\n" +
+            "• سيتم استثناء حسابات الأدمن تلقائياً للحفاظ على دخولك للوحة التحكم.\n\n" +
+            "هل ترغب في المتابعة؟",
+            "تأكيد قفل اشتراك جميع الحسابات",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+
+        if (confirm != DialogResult.Yes) return;
+
+        btnExpireAllAccounts.Enabled = false;
+        lblStatusMessage.Text = "جارٍ قفل اشتراك جميع الحسابات في السيرفر...";
+
+        try
+        {
+            var (success, failed) = await _authService.ExpireAllAccountsAsync(excludeAdmins: true);
+
+            lblStatusMessage.Text = $"تم قفل اشتراك {success} حساب بنجاح!" + (failed > 0 ? $" (فشل {failed})" : "");
+
+            MessageBox.Show(this,
+                $"تم قفل وإنهاء اشتراك {success} حساب بنجاح!" +
+                (failed > 0 ? $"\nتعذر تعديل {failed} حساب." : "") +
+                "\n\nتم استثناء حسابات الأدمن للحفاظ على صلاحياتك.",
+                "تمت العملية بنجاح",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            await RefreshDataAsync();
+            await RefreshLogsAsync();
+        }
+        catch (Exception ex)
+        {
+            lblStatusMessage.Text = $"خطأ: {ex.Message}";
+            MessageBox.Show(this, $"حدث استثناء أثناء قفل الاشتراكات:\n{ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            btnExpireAllAccounts.Enabled = true;
+        }
     }
 
     // --- ACCOUNT ACTIONS ---

@@ -1,4 +1,4 @@
-﻿using RSBot.Views.Controls;
+using RSBot.Views.Controls;
 using System.Windows.Forms;
 
 namespace RSBot.Views
@@ -62,6 +62,7 @@ namespace RSBot.Views
             botbase1ToolStripMenuItem = new ToolStripMenuItem();
             notifyIcon = new NotifyIcon(components);
             fileToolStripMenuItem = new ToolStripMenuItem();
+            menuItemSaveSettings = new ToolStripMenuItem();
             menuSelectProfile = new ToolStripMenuItem();
             networkConfigToolStripMenuItem = new ToolStripMenuItem();
             menuItemExit = new ToolStripMenuItem();
@@ -145,7 +146,6 @@ namespace RSBot.Views
             bottomPanel.Controls.Add(buttonConfig);
             bottomPanel.Controls.Add(comboServer);
             bottomPanel.Controls.Add(comboDivision);
-            bottomPanel.Controls.Add(btnSave);
             bottomPanel.Controls.Add(btnStartStop);
             bottomPanel.Dock = DockStyle.Bottom;
             bottomPanel.Location = new System.Drawing.Point(0, 512);
@@ -238,58 +238,74 @@ namespace RSBot.Views
             pnlBottomActions.BackColor = System.Drawing.Color.Transparent;
             pnlBottomActions.Border = new Padding(0);
             pnlBottomActions.BorderColor = System.Drawing.Color.Transparent;
+            pnlBottomActions.Controls.Add(btnSave);
             pnlBottomActions.Controls.Add(btnShowClient);
             pnlBottomActions.Controls.Add(btnStopBot);
             pnlBottomActions.Controls.Add(btnStartBot);
             pnlBottomActions.Dock = DockStyle.Right;
-            pnlBottomActions.Location = new System.Drawing.Point(592, 0);
+            pnlBottomActions.Location = new System.Drawing.Point(462, 0);
             pnlBottomActions.Margin = new Padding(0);
             pnlBottomActions.Name = "pnlBottomActions";
             pnlBottomActions.Radius = 0;
             pnlBottomActions.ShadowDepth = 0F;
-            pnlBottomActions.Size = new System.Drawing.Size(430, 44);
+            pnlBottomActions.Size = new System.Drawing.Size(560, 44);
             pnlBottomActions.TabIndex = 1;
             // 
-            // btnStartBot
+            // btnSave
             // 
-            btnStartBot.Color = System.Drawing.Color.FromArgb(46, 171, 107);
-            btnStartBot.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            btnStartBot.ForeColor = System.Drawing.Color.White;
-            btnStartBot.Location = new System.Drawing.Point(290, 6);
-            btnStartBot.Name = "btnStartBot";
-            btnStartBot.Radius = 4;
-            btnStartBot.Size = new System.Drawing.Size(130, 32);
-            btnStartBot.TabIndex = 0;
-            btnStartBot.Text = "Start Bot";
-            btnStartBot.UseVisualStyleBackColor = true;
-            btnStartBot.Click += btnStartBot_Click;
+            btnSave.Color = System.Drawing.Color.FromArgb(41, 128, 185);
+            btnSave.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnSave.ForeColor = System.Drawing.Color.White;
+            btnSave.Location = new System.Drawing.Point(10, 6);
+            btnSave.Name = "btnSave";
+            btnSave.Radius = 4;
+            btnSave.Size = new System.Drawing.Size(125, 32);
+            btnSave.TabIndex = 3;
+            btnSave.Text = "حفظ الإعدادات";
+            btnSave.UseVisualStyleBackColor = true;
+            btnSave.Visible = true;
+            btnSave.Click += btnSave_Click;
+            // 
+            // btnShowClient
+            // 
+            btnShowClient.Color = System.Drawing.Color.Transparent;
+            btnShowClient.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnShowClient.Location = new System.Drawing.Point(145, 6);
+            btnShowClient.Name = "btnShowClient";
+            btnShowClient.Radius = 4;
+            btnShowClient.Size = new System.Drawing.Size(125, 32);
+            btnShowClient.TabIndex = 2;
+            btnShowClient.Text = "Show Client";
+            btnShowClient.UseVisualStyleBackColor = true;
+            btnShowClient.Click += btnShowClient_Click;
             // 
             // btnStopBot
             // 
             btnStopBot.Color = System.Drawing.Color.FromArgb(217, 83, 79);
             btnStopBot.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             btnStopBot.ForeColor = System.Drawing.Color.White;
-            btnStopBot.Location = new System.Drawing.Point(150, 6);
+            btnStopBot.Location = new System.Drawing.Point(280, 6);
             btnStopBot.Name = "btnStopBot";
             btnStopBot.Radius = 4;
-            btnStopBot.Size = new System.Drawing.Size(130, 32);
+            btnStopBot.Size = new System.Drawing.Size(125, 32);
             btnStopBot.TabIndex = 1;
             btnStopBot.Text = "Stop Bot";
             btnStopBot.UseVisualStyleBackColor = true;
             btnStopBot.Click += btnStopBot_Click;
             // 
-            // btnShowClient
+            // btnStartBot
             // 
-            btnShowClient.Color = System.Drawing.Color.Transparent;
-            btnShowClient.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            btnShowClient.Location = new System.Drawing.Point(10, 6);
-            btnShowClient.Name = "btnShowClient";
-            btnShowClient.Radius = 4;
-            btnShowClient.Size = new System.Drawing.Size(130, 32);
-            btnShowClient.TabIndex = 2;
-            btnShowClient.Text = "Show Client";
-            btnShowClient.UseVisualStyleBackColor = true;
-            btnShowClient.Click += btnShowClient_Click;
+            btnStartBot.Color = System.Drawing.Color.FromArgb(46, 171, 107);
+            btnStartBot.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnStartBot.ForeColor = System.Drawing.Color.White;
+            btnStartBot.Location = new System.Drawing.Point(415, 6);
+            btnStartBot.Name = "btnStartBot";
+            btnStartBot.Radius = 4;
+            btnStartBot.Size = new System.Drawing.Size(135, 32);
+            btnStartBot.TabIndex = 0;
+            btnStartBot.Text = "Start Bot";
+            btnStartBot.UseVisualStyleBackColor = true;
+            btnStartBot.Click += btnStartBot_Click;
             // 
             // buttonConfig
             // 
@@ -314,14 +330,6 @@ namespace RSBot.Views
             comboDivision.Size = new System.Drawing.Size(0, 0);
             comboDivision.Visible = false;
             comboDivision.SelectedIndexChanged += comboDivision_SelectedIndexChanged;
-            // 
-            // btnSave
-            // 
-            btnSave.Location = new System.Drawing.Point(0, 0);
-            btnSave.Name = "btnSave";
-            btnSave.Size = new System.Drawing.Size(0, 0);
-            btnSave.Visible = false;
-            btnSave.Click += btnSave_Click;
             // 
             // btnStartStop
             // 
@@ -395,9 +403,18 @@ namespace RSBot.Views
             // 
             // fileToolStripMenuItem
             // 
-            fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuSelectProfile, networkConfigToolStripMenuItem, menuItemExit });            fileToolStripMenuItem.Name = "fileToolStripMenuItem";
+            fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuItemSaveSettings, new ToolStripSeparator(), menuSelectProfile, networkConfigToolStripMenuItem, menuItemExit });
+            fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             fileToolStripMenuItem.AutoSize = true;
             fileToolStripMenuItem.Text = "File";
+            // 
+            // menuItemSaveSettings
+            // 
+            menuItemSaveSettings.Name = "menuItemSaveSettings";
+            menuItemSaveSettings.ShortcutKeys = Keys.Control | Keys.S;
+            menuItemSaveSettings.Size = new System.Drawing.Size(193, 26);
+            menuItemSaveSettings.Text = "Save Settings";
+            menuItemSaveSettings.Click += btnSave_Click;
             // 
             // menuSelectProfile
             //            menuSelectProfile.Name = "menuSelectProfile";
@@ -619,6 +636,7 @@ namespace RSBot.Views
         private System.Windows.Forms.ToolStripMenuItem botbase1ToolStripMenuItem;
         private System.Windows.Forms.NotifyIcon notifyIcon;
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem menuItemSaveSettings;
         private System.Windows.Forms.ToolStripMenuItem menuItemExit;
         private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem menuSidebar;

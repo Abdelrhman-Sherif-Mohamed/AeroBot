@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.IO;
@@ -24,7 +24,24 @@ public class ProfileManager
     static ProfileManager()
     {
         _config = new Config(GetProfileConfigFileName());
-        _profiles = new ObservableCollection<string>(_config.GetArray<string>("RSBot.Profiles", '|'));
+        var savedProfiles = _config.GetArray<string>("RSBot.Profiles", '|');
+        if (savedProfiles == null || savedProfiles.Length == 0)
+        {
+            savedProfiles = new[] { "Default" };
+            _config.SetArray("RSBot.Profiles", savedProfiles, "|");
+            _config.Set("RSBot.SelectedProfile", "Default");
+            _config.Save();
+        }
+        else if (!savedProfiles.Contains("Default"))
+        {
+            var list = savedProfiles.ToList();
+            list.Insert(0, "Default");
+            savedProfiles = list.ToArray();
+            _config.SetArray("RSBot.Profiles", savedProfiles, "|");
+            _config.Save();
+        }
+
+        _profiles = new ObservableCollection<string>(savedProfiles);
         _profiles.CollectionChanged += Profiles_CollectionChanged;
     }
 
@@ -79,11 +96,30 @@ public class ProfileManager
     /// <param name="profile">The profile</param>
     public static bool SetSelectedProfile(string profile)
     {
-        if (!_profiles.Any(p => p == profile))
+        if (string.IsNullOrWhiteSpace(profile))
             return false;
+
+        profile = profile.Trim();
+
+        if (!_profiles.Any(p => p.Equals(profile, StringComparison.OrdinalIgnoreCase)))
+        {
+            _profiles.Add(profile);
+        }
 
         _config.Set("RSBot.SelectedProfile", profile);
         _config.Save();
+
+        var profileFile = GetProfileFile(profile);
+        if (!File.Exists(profileFile))
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(profileFile);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.Create(profileFile).Dispose();
+            }
+            catch { }
+        }
 
         return true;
     }
@@ -105,10 +141,13 @@ public class ProfileManager
     /// <returns>Is created <c>true</c>; otherwise <c>false</c></returns>
     public static bool Add(string profile, bool useAsBase = false)
     {
-        if (profile == SelectedProfile)
-            return true;
+        if (string.IsNullOrWhiteSpace(profile))
+            return false;
 
-        _profiles.Add(profile);
+        profile = profile.Trim();
+
+        if (!_profiles.Any(p => p.Equals(profile, StringComparison.OrdinalIgnoreCase)))
+            _profiles.Add(profile);
 
         if (useAsBase)
             CopyOldProfileData(profile);
@@ -117,9 +156,13 @@ public class ProfileManager
         if (!Directory.Exists(newProfileDirectory))
             Directory.CreateDirectory(newProfileDirectory);
 
+        var profileFile = GetProfileFile(profile);
+        if (!File.Exists(profileFile))
+            File.Create(profileFile).Dispose();
+
         SetSelectedProfile(profile);
 
-        return false;
+        return true;
     }
 
     /// <summary>

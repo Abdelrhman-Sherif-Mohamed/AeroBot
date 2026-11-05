@@ -1,4 +1,4 @@
-﻿﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -52,7 +52,7 @@ public static class ShoppingManager
     /// <value>
     ///     The armor sell filter.
     /// </value>
-    public static List<string> SellFilter { get; set; }
+    public static List<string> SellFilter { get; set; } = new();
 
     /// <summary>
     ///     Gets or sets the store filter.
@@ -60,7 +60,7 @@ public static class ShoppingManager
     /// <value>
     ///     The store filter.
     /// </value>
-    public static List<string> StoreFilter { get; set; }
+    public static List<string> StoreFilter { get; set; } = new();
 
     /// <summary>
     ///     Gets or sets a value indicating whether this <see cref="ShoppingManager" /> is running.
@@ -92,7 +92,7 @@ public static class ShoppingManager
     /// <value>
     ///     The buyback list.
     /// </value>
-    internal static Dictionary<byte, InventoryItem> BuybackList { get; set; }
+    internal static Dictionary<byte, InventoryItem> BuybackList { get; set; } = new();
 
     /// <summary>
     ///     Initializes this instance.
@@ -491,14 +491,29 @@ public static class ShoppingManager
 
     public static void LoadFilters()
     {
+        SellFilter ??= new List<string>();
+        StoreFilter ??= new List<string>();
+
         var configSell = PlayerConfig.GetArray<string>("RSBot.Shopping.Sell");
         var configStore = PlayerConfig.GetArray<string>("RSBot.Shopping.Store");
 
-        foreach (var item in configSell)
-            SellFilter.Add(item);
+        if (configSell != null)
+        {
+            foreach (var item in configSell)
+            {
+                if (!string.IsNullOrWhiteSpace(item) && !SellFilter.Contains(item))
+                    SellFilter.Add(item);
+            }
+        }
 
-        foreach (var item in configStore)
-            StoreFilter.Add(item);
+        if (configStore != null)
+        {
+            foreach (var item in configStore)
+            {
+                if (!string.IsNullOrWhiteSpace(item) && !StoreFilter.Contains(item))
+                    StoreFilter.Add(item);
+            }
+        }
     }
 
     public static void SaveFilters()
