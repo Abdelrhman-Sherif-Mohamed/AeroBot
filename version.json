@@ -1,8 +1,8 @@
 {
-  "version": "2.9.39",
-  "release_date": "2026-11-05",
-  "download_url": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.39.zip",
+  "version": "2.9.40",
+  "release_date": "2026-11-07",
+  "download_url": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.40.zip",
   "github_url": "https://github.com/Abdelrhman-Sherif-Mohamed/AeroBot",
-  "changelog": "Release v2.9.39: Save settings button, persistence fixes, inventory layout fix, items filter fix, remove title gear icon, admin expire all subscriptions",
-  "required": false
+  "changelog": "Release v2.9.40: Trade goods full cargo buy & client UI sync, minimap click null-safety, DC prevention during trading",
+  "required": true
 }

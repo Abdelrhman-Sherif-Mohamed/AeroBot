@@ -135,10 +135,11 @@ public static class ClientVersionDetector
         if (version >= 193)
             return GameClientType.Vietnam193;
 
-        if (version >= 188)
+        if (version >= 180)
             return GameClientType.Vietnam;
 
-        return null;
+        // Default to standard vSRO for legacy clients (e.g. 115, 120, etc.)
+        return GameClientType.Vietnam;
     }
 
     /// <summary>
@@ -155,7 +156,7 @@ public static class ClientVersionDetector
         {
             Directory = directory,
             Version = version,
-            ClientType = MapVersionToClientType(version),
+            ClientType = MapVersionToClientType(version) ?? GameClientType.Vietnam,
             Source = source
         };
     }
@@ -165,6 +166,7 @@ public static class ClientVersionDetector
         return new ClientVersionInfo
         {
             Directory = directory,
+            ClientType = GameClientType.Vietnam,
             Source = source
         };
     }

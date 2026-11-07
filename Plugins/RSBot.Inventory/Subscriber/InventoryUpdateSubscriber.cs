@@ -26,6 +26,10 @@ internal static class InventoryUpdateSubscriber
         if (RSBot.Core.Components.HappyManager.Running)
             return;
 
+        if (RSBot.Core.Components.ShoppingManager.Running ||
+            (Kernel.Bot != null && Kernel.Bot.Running && Kernel.Bot.Botbase?.Name == "RSBot.Trade"))
+            return;
+
         if (Game.Player?.Inventory == null || Game.Player.Inventory.IsSorting || Game.Player.Inventory.IsOrdering)
             return;
 

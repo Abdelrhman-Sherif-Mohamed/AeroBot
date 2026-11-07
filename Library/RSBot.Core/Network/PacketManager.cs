@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using RSBot.Core.Objects.Inventory;
 
 namespace RSBot.Core.Network;
 
@@ -133,11 +134,43 @@ public class PacketManager
     /// <param name="destination">The destination.</param>
     public static void SendPacket(Packet packet, PacketDestination destination)
     {
+        SendPacket(packet, destination, true);
+    }
+
+    /// <summary>
+    ///     Sends a packet that was received by the proxy and is forwarded to the
+    ///     other side. The packet was already recorded by the packet logger, so it
+    ///     is not recorded a second time here.
+    /// </summary>
+    internal static void SendForwardedPacket(Packet packet, PacketDestination destination)
+    {
+        SendPacket(packet, destination, false);
+    }
+
+    /// <summary>
+    ///     Sends the packet.
+    /// </summary>
+    /// <param name="packet">The packet.</param>
+    /// <param name="destination">The destination.</param>
+    /// <param name="logPacket">
+    ///     When <c>true</c> the packet is remembered for the crash dump.
+    /// </param>
+    private static void SendPacket(Packet packet, PacketDestination destination, bool logPacket)
+    {
         if (Kernel.Proxy == null)
             return;
 
         if (!packet.Locked)
             packet.Lock();
+
+        if (logPacket)
+        {
+            try
+            {
+                PacketLogger.RememberSentPacket(packet, destination);
+            }
+            catch { }
+        }
 
         try
         {
@@ -145,7 +178,25 @@ public class PacketManager
             {
                 case PacketDestination.Client:
                     if (!Game.Clientless)
+                    {
+                        // When the bot opened the NPC dialog / buys specialty trade goods itself,
+                        // do not forward the NPC dialogs, shop windows, trade scale updates, or
+                        // cargo transaction responses to sro_client. The game client never initiated
+                        // these transactions, so forwarding them causes sro_client.exe to crash
+                        // with an access violation (0xC0000005) trying to update uninitialized UI structures.
+                        if (IsBotDrivenTrade)
+                        {
+                            if (packet.Opcode == 0xB045 || // NPC dialog menu (silenced so client UI doesn't pop up)
+                                packet.Opcode == 0xB046 || // NPC shop window
+                                packet.Opcode == 0xB04B || // NPC close dialog
+                                packet.Opcode == 0x34D5)   // Specialty trade notification (causes 0xC0000005 crash in sro_client)
+                            {
+                                break;
+                            }
+                        }
+
                         Kernel.Proxy.Client?.Send(packet);
+                    }
                     break;
 
                 case PacketDestination.Server:
@@ -158,6 +209,14 @@ public class PacketManager
             Log.Fatal(e);
         }
     }
+
+    /// <summary>
+    ///     <c>true</c> when the bot opened the NPC dialog / buys goods itself. The
+    ///     game client does not know about these dialogs (it never sent the select
+    ///     or talk requests) so it can not handle the packets that belong to them.
+    /// </summary>
+    private static bool IsBotDrivenTrade =>
+        Components.ShoppingManager.BotOpenedDialog;
 
     /// <summary>
     ///     Sends the packet.

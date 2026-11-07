@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Event;
+using RSBot.Core.Event;
 
 namespace RSBot.Core.Network.Handler.Agent.Character;
 
@@ -27,6 +27,9 @@ internal class CharacterUpdateStatsResponse : IPacketHandler
     public void Invoke(Packet packet)
     {
         var player = Game.Player;
+        if (player == null)
+            return;
+
         player.PhysicalAttackMin = packet.ReadUInt();
         player.PhysicalAttackMax = packet.ReadUInt();
         player.MagicalAttackMin = packet.ReadUInt();

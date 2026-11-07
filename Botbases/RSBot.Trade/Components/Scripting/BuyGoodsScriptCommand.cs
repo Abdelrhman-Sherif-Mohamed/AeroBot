@@ -79,7 +79,9 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             var codeName = arguments[0];
 
             ShoppingManager.Running = true;
+            ShoppingManager.BotOpenedDialog = true;
             ShoppingManager.ChooseTalkOption(codeName, TalkOption.Trade);
+            Thread.Sleep(300);
 
             if (Game.SelectedEntity == null)
             {
@@ -90,6 +92,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                     npc.TrySelect();
                     Thread.Sleep(300);
                     ShoppingManager.ChooseTalkOption(npc.Record.CodeName, TalkOption.Trade);
+                    Thread.Sleep(300);
                 }
             }
 
@@ -108,7 +111,13 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
             BuyGoods();
 
+            // Settle transaction before closing dialog
+            Thread.Sleep(500);
+
             ShoppingManager.CloseShop();
+
+            // Allow dialog close response (0xB04B) to be processed before resuming movement
+            Thread.Sleep(500);
 
             return true;
         }
@@ -116,6 +125,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
         {
             IsBusy = false;
             ShoppingManager.Running = false;
+            ShoppingManager.BotOpenedDialog = false;
         }
     }
 
@@ -144,13 +154,20 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
         foreach (var item in items)
         {
-            var canSellToNpc = shopGoods.FirstOrDefault(i =>
-                Game.ReferenceManager.GetRefPackageItem(i.RefPackageItemCodeName).RefItem.ID == item.ItemId) == null;
+            if (item?.Record == null || item.Amount == 0)
+                continue;
+
+            var canSellToNpc = shopGoods == null || shopGoods.All(i =>
+            {
+                var package = Game.ReferenceManager.GetRefPackageItem(i.RefPackageItemCodeName);
+                return package?.RefItem == null || package.RefItem.ID != item.ItemId;
+            });
 
             if (!canSellToNpc)
                 continue;
 
             ShoppingManager.SellItem(item, Game.Player.JobTransport.Bionic);
+            Thread.Sleep(300); // Safe delay for server transaction confirmation
         }
     }
 
@@ -203,6 +220,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             : Math.Max(5000, (Game.Player.JobTransport?.Inventory?.Capacity ?? 5) * maxStack);
 
         var safetyLimit = 25;
+        var failedAttempts = 0;
         while (safetyLimit-- > 0)
         {
             var transport = Game.Player.JobTransport;
@@ -218,7 +236,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             var currentQuantity = transport.Inventory.GetSumAmount(packageItem.RefItemCodeName);
             if (currentQuantity >= targetQuantity)
             {
-                Log.Notify($"[Trade] تم شراء كامل بضاعة التجارة بنجاح ({currentQuantity} وحدة - حمولة 5 نجوم مكتملة)!");
+                Log.Notify($"[Trade] تم شراء كامل بضاعة التجارة بنجاح ({currentQuantity} وحدة - حمولة كاملة)!");
                 break;
             }
 
@@ -228,9 +246,37 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
             Log.Notify($"[Trade] شراء بضاعة خاصة: حزمة من {buyNextQty} (الإجمالي الحالي: {currentQuantity}/{targetQuantity})...");
 
-            ShoppingManager.PurchaseItem(transport, tabIndex, item.SlotIndex, (ushort)buyNextQty);
+            var confirmed = ShoppingManager.PurchaseItem(transport, tabIndex, item.SlotIndex, (ushort)buyNextQty);
 
             System.Threading.Thread.Sleep(350); // Intentionally wait so server responds and inventory count updates
+
+            var newQuantity = transport.Inventory?.GetSumAmount(packageItem.RefItemCodeName) ?? currentQuantity;
+
+            if (newQuantity >= targetQuantity)
+            {
+                Log.Notify($"[Trade] تم اكتمال شراء بضاعة التجارة ({newQuantity}/{targetQuantity} وحدة بنجاح)!");
+                break;
+            }
+
+            // If the server did not confirm the purchase or the transport
+            // inventory did not change, never keep spamming buy requests: that
+            // is what makes the game client disconnect right after buying.
+            if (!confirmed || newQuantity <= currentQuantity)
+            {
+                failedAttempts++;
+
+                Log.Warn($"[Trade] لم يتم تأكيد شراء البضاعة (محاولة {failedAttempts}/3، الإجمالي الحالي: {newQuantity}).");
+
+                if (failedAttempts >= 3)
+                {
+                    Log.Warn("[Trade] تم إيقاف الشراء بعد 3 محاولات فاشلة لتجنب قطع الاتصال.");
+                    break;
+                }
+            }
+            else
+            {
+                failedAttempts = 0;
+            }
         }
 
         Log.Notify($"[Trade] اكتمال عملية الشراء. إجمالي البضاعة المحمّلة بالجمل: {Game.Player.JobTransport?.Inventory?.GetSumAmount(packageItem.RefItemCodeName)} وحدة (5 نجوم كاملة).");

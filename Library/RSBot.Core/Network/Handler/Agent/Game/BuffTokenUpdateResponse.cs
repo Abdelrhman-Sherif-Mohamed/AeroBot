@@ -1,4 +1,4 @@
-﻿using System.Timers;
+using System.Timers;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
 
@@ -28,6 +28,9 @@ internal class BuffTokenUpdateResponse : IPacketHandler
     /// <param name="packet">The packet.</param>
     public void Invoke(Packet packet)
     {
+        if (Game.Player == null)
+            return;
+
         Game.Ready = true;
         Game.Player.Teleportation = null;
 

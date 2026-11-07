@@ -71,6 +71,36 @@ public static class ShoppingManager
     public static bool Running { get; set; }
 
     /// <summary>
+    ///     Gets or sets a value indicating whether the NPC dialog was opened by the
+    ///     bot (through injected packets) instead of by the game client. The client
+    ///     does not know about such a dialog and must not receive the packets that
+    ///     belong to it (trade goods purchases, trade scale updates, ...), otherwise
+    ///     sro_client.exe crashes with an access violation (0xC0000005).
+    /// </summary>
+    public static bool BotOpenedDialog { get; set; }
+
+    /// <summary>
+    ///     Gets the time of the last job trade operation (buy / sell). Used to keep
+    ///     other components (auto sort, etc.) away from the inventory right after a
+    ///     trade, while the server is still processing the transaction.
+    /// </summary>
+    public static DateTime LastTradeOperation { get; private set; } = DateTime.MinValue;
+
+    /// <summary>
+    ///     Gets a value indicating whether a job trade operation happened recently.
+    /// </summary>
+    public static bool IsRecentTradeOperation =>
+        (DateTime.Now - LastTradeOperation).TotalSeconds < 5;
+
+    /// <summary>
+    ///     Remembers that the bot performed a job trade operation now.
+    /// </summary>
+    public static void MarkTradeOperation()
+    {
+        LastTradeOperation = DateTime.Now;
+    }
+
+    /// <summary>
     ///     Gets or sets a value indicating whether [sell pet items].
     /// </summary>
     /// <value>
@@ -227,10 +257,13 @@ public static class ShoppingManager
     /// </summary>
     /// <param name="item">The item.</param>
     /// <param name="cos"></param>
-    public static void SellItem(InventoryItem item, SpawnedBionic cos = null)
+    public static bool SellItem(InventoryItem item, SpawnedBionic cos = null, int timeoutMs = 4000)
     {
-        if (SelectedEntity == null)
-            return;
+        if (SelectedEntity == null || item == null)
+            return false;
+
+        if (cos != null)
+            MarkTradeOperation();
 
         var packet = new Packet(0x7034);
         packet.WriteByte(cos == null ? InventoryOperation.SP_SELL_ITEM : InventoryOperation.SP_SELL_ITEM_COS);
@@ -242,11 +275,29 @@ public static class ShoppingManager
         packet.WriteUShort(item.Amount);
         packet.WriteUInt(SelectedEntity.UniqueId);
 
-        var awaitResult = new AwaitCallback(null, 0xB034);
-        PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
-        awaitResult.AwaitResponse();
+        var awaitResult = new AwaitCallback(response =>
+        {
+            if (response.ReadByte() != 0x01)
+                return AwaitCallbackResult.Fail;
 
-        Log.Debug("[Shopping manager] - Sold item: " + item.Record.GetRealName());
+            var operation = (InventoryOperation)response.ReadByte();
+            if (operation == InventoryOperation.SP_SELL_ITEM ||
+                operation == InventoryOperation.SP_SELL_ITEM_COS)
+                return AwaitCallbackResult.Success;
+
+            // Some other inventory operation response, keep waiting.
+            return AwaitCallbackResult.ConditionFailed;
+        }, 0xB034);
+
+        PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
+        awaitResult.AwaitResponse(timeoutMs);
+
+        if (awaitResult.IsCompleted)
+            Log.Debug("[Shopping manager] - Sold item: " + item.Record.GetRealName());
+        else
+            Log.Warn("[Shopping manager] - Failed to sell item: " + item.Record.GetRealName());
+
+        return awaitResult.IsCompleted;
     }
 
     /// <summary>
@@ -276,32 +327,56 @@ public static class ShoppingManager
     }
 
     /// <summary>
-    ///     Purchases the item to the given transport
+    ///     Purchases the item to the given transport.
     /// </summary>
     /// <param name="transport"></param>
     /// <param name="tab"></param>
     /// <param name="slot"></param>
     /// <param name="amount"></param>
-    public static void PurchaseItem(Cos transport, int tab, int slot, ushort amount)
+    /// <returns><c>true</c> when the server confirmed the purchase.</returns>
+    public static bool PurchaseItem(Cos transport, int tab, int slot, ushort amount)
     {
         if (SelectedEntity == null)
         {
             Log.Debug("Cannot buy items, because no shop is selected!");
-            return;
+            return false;
         }
+
+        if (transport == null)
+            return false;
+
+        MarkTradeOperation();
 
         var packet = new Packet(0x7034);
         packet.WriteByte(InventoryOperation.SP_BUY_ITEM_COS); //Buy item flag
-        packet.WriteUInt(0); //Always 0 but should actually be the transport's unique id as it would make more sense
-        //packet.WriteUInt(transport.UniqueId); //may be 0?
+        // The transport unique id must be sent here. Sending 0 makes the server
+        // answer with a cos id of 0 and the response can no longer be mapped to
+        // the job transport (the bot then thinks nothing was bought and keeps
+        // spamming purchases until the server kicks the client).
+        packet.WriteUInt(transport.UniqueId);
         packet.WriteByte(tab);
         packet.WriteByte(slot);
         packet.WriteUShort(amount);
         packet.WriteUInt(SelectedEntity.UniqueId);
 
-        var awaitResult = new AwaitCallback(null, 0xB034);
+        var awaitResult = new AwaitCallback(response =>
+        {
+            if (response.ReadByte() != 0x01)
+                return AwaitCallbackResult.Fail;
+
+            var operation = (InventoryOperation)response.ReadByte();
+            if (operation == InventoryOperation.SP_BUY_ITEM ||
+                operation == InventoryOperation.SP_BUY_ITEM_COS)
+                return AwaitCallbackResult.Success;
+
+            // Some other inventory operation response, keep waiting.
+            return AwaitCallbackResult.ConditionFailed;
+        }, 0xB034);
+
         PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
         awaitResult.AwaitResponse();
+
+        return awaitResult.IsCompleted;
     }
 
     /// <summary>
@@ -395,10 +470,16 @@ public static class ShoppingManager
     /// </summary>
     public static void CloseShop()
     {
-        Running = false;
-
-        if (SelectedEntity != null && SelectedEntity.TryDeselect())
-            SelectedEntity = null;
+        try
+        {
+            if (SelectedEntity != null && SelectedEntity.TryDeselect())
+                SelectedEntity = null;
+        }
+        finally
+        {
+            Running = false;
+            BotOpenedDialog = false;
+        }
     }
 
     /// <summary>
@@ -527,19 +608,51 @@ public static class ShoppingManager
     /// </summary>
     /// <param name="npcCodeName"></param>
     /// <param name="option"></param>
-    public static void ChooseTalkOption(string npcCodeName, TalkOption option)
+    public static bool ChooseTalkOption(string npcCodeName, TalkOption option)
     {
+        // Mark as bot-driven dialog before sending any select or talk packets
+        // so sro_client never receives NPC popups or uninitialized UI responses.
+        BotOpenedDialog = true;
+
         if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, npcCodeName, StringComparison.OrdinalIgnoreCase), out var entity))
         {
             if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && (p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) || p.Record.CodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase)), out entity))
             {
                 Log.Debug("Cannot access the NPC [" + npcCodeName + "] because it does not exist nearby.");
-                return;
+                BotOpenedDialog = false;
+                return false;
             }
         }
 
-        SelectNPC(entity.Record.CodeName);
-        //CloseShop();
+        // Make sure the NPC selection was acknowledged by the server before
+        // sending the talk option. Sending 0x7046 too early makes the server
+        // drop the connection.
+        if (Game.SelectedEntity?.UniqueId != entity.UniqueId || SelectedEntity?.UniqueId != entity.UniqueId)
+        {
+            PacketManager.ClearCallbacks(0xB045);
+
+            var selectPacket = new Packet(0x7045);
+            selectPacket.WriteUInt(entity.UniqueId);
+
+            var selectAwait = new AwaitCallback(response =>
+                response.ReadByte() == 0x01
+                    ? AwaitCallbackResult.Success
+                    : AwaitCallbackResult.Fail, 0xB045);
+
+            Game.SelectedEntity = entity;
+            PacketManager.SendPacket(selectPacket, PacketDestination.Server, selectAwait);
+            selectAwait.AwaitResponse(1000);
+
+            if (!selectAwait.IsCompleted)
+            {
+                Log.Debug($"[Shopping manager] NPC [{npcCodeName}] selection was not acknowledged, continuing anyway.");
+                Thread.Sleep(150);
+            }
+        }
+
+        // From this point on the dialog was opened by the bot, the game client has
+        // no idea about it. See BotOpenedDialog for details.
+        BotOpenedDialog = true;
 
         var packet = new Packet(0x7046);
         packet.WriteUInt(entity.UniqueId);
@@ -552,7 +665,9 @@ public static class ShoppingManager
                 : AwaitCallbackResult.ConditionFailed;
         }, 0xB046);
         PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
-        awaitResult.AwaitResponse(1000);
+        awaitResult.AwaitResponse(1500);
+
+        return awaitResult.IsCompleted;
     }
 
     /// <summary>

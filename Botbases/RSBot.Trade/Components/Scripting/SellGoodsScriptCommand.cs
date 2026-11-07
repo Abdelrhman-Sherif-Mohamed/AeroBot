@@ -50,9 +50,14 @@ internal class SellGoodsScriptCommand : IScriptCommand
             var codeName = arguments[0];
 
             ShoppingManager.Running = true;
-            ShoppingManager.ChooseTalkOption(codeName, TalkOption.Trade);
+            ShoppingManager.BotOpenedDialog = true;
 
-            if (Game.SelectedEntity == null)
+            // Select the NPC, wait for the selection acknowledgement and open
+            // the trade dialog before sending any sell operation.
+            var talked = ShoppingManager.ChooseTalkOption(codeName, TalkOption.Trade);
+            Thread.Sleep(300);
+
+            if (!talked && Game.SelectedEntity == null)
             {
                 // Fallback: search for NPC directly and select
                 if (SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, codeName, StringComparison.OrdinalIgnoreCase), out var npc) ||
@@ -61,6 +66,7 @@ internal class SellGoodsScriptCommand : IScriptCommand
                     npc.TrySelect();
                     Thread.Sleep(300);
                     ShoppingManager.ChooseTalkOption(npc.Record.CodeName, TalkOption.Trade);
+                    Thread.Sleep(300);
                 }
             }
 
@@ -71,9 +77,19 @@ internal class SellGoodsScriptCommand : IScriptCommand
             }
 
             Log.Notify($"[Trade] جاري بيع وتسليم بضاعة التجارة إلى {Game.SelectedEntity.Record.GetRealName()}...");
-            SellGoods();
+            var sold = SellGoods();
 
+            // Let the last transaction settle before closing the dialog,
+            // otherwise the server may consider it a protocol violation.
+            Thread.Sleep(400);
             ShoppingManager.CloseShop();
+            Thread.Sleep(200);
+
+            if (!sold)
+            {
+                Log.Warn("[Trade] لم يتم تسليم كل البضاعة. سيتم إعادة المحاولة لاحقاً.");
+                return false;
+            }
 
             Log.Notify("[Trade] تم تسليم وبيع جميع بضائع التجارة بنجاح!");
             return true;
@@ -87,49 +103,120 @@ internal class SellGoodsScriptCommand : IScriptCommand
         {
             IsBusy = false;
             ShoppingManager.Running = false;
+            ShoppingManager.BotOpenedDialog = false;
         }
     }
 
-    private void SellGoods()
+    /// <summary>
+    /// Sells every item inside the job transport, one stack at a time,
+    /// re-reading the transport inventory after each sale to verify that the
+    /// server really removed the item. This avoids sending a burst of stale
+    /// sell packets which used to disconnect the game client.
+    /// </summary>
+    private bool SellGoods()
     {
-        if (Game.Player?.JobTransport?.Inventory == null)
-            return;
+        var transport = Game.Player?.JobTransport;
+        if (transport?.Inventory == null)
+            return false;
 
-        var items = Game.Player.JobTransport.Inventory.ToArray();
-        if (items.Length == 0)
+        if (!transport.Inventory.Any(i => i != null && i.Record != null && i.Amount > 0))
         {
             Log.Notify("[Trade] لا توجد بضائع في حقيبة الجمل لبيعها.");
-            return;
+            return true;
         }
 
-        var shopGroup = Game.ReferenceManager.GetRefShopGroup(Game.SelectedEntity?.Record?.CodeName);
-        var shopGoods = shopGroup != null ? Game.ReferenceManager.GetRefShopGoods(shopGroup) : null;
-
         var soldCount = 0;
-        foreach (var item in items)
+        var failures = 0;
+        var blacklistedItems = new HashSet<uint>();
+        const int maxOperations = 400;
+
+        for (var operation = 0; operation < maxOperations; operation++)
         {
-            if (item == null || item.Record == null || item.Amount == 0)
-                continue;
-
-            // Check if item was bought from this exact NPC
-            if (shopGoods != null)
+            if (!IsBusy)
             {
-                var isOriginShopItem = shopGoods.Any(i =>
-                {
-                    var pkg = Game.ReferenceManager.GetRefPackageItem(i.RefPackageItemCodeName);
-                    return pkg?.RefItem != null && pkg.RefItem.ID == item.ItemId;
-                });
-
-                if (isOriginShopItem)
-                    continue;
+                Log.Notify("[Trade] تم إيقاف البيع بناءً على طلب الإيقاف.");
+                return false;
             }
 
-            ShoppingManager.SellItem(item, Game.Player.JobTransport.Bionic);
-            soldCount++;
-            Thread.Sleep(250); // Safe delay for server transaction confirmation
+            if (Game.SelectedEntity == null)
+            {
+                Log.Warn("[Trade] تم إغلاق نافذة التاجر قبل إنهاء البيع. إيقاف البيع.");
+                return false;
+            }
+
+            var item = transport.Inventory
+                .GetItems(i => i != null && i.Record != null && i.Amount > 0 &&
+                               !blacklistedItems.Contains(i.ItemId))
+                .OrderBy(i => i.Slot)
+                .FirstOrDefault();
+
+            if (item == null)
+                break;
+
+            var slot = item.Slot;
+            var itemId = item.ItemId;
+            var amountBefore = item.Amount;
+
+            var sold = ShoppingManager.SellItem(item, transport.Bionic, 5000);
+            Thread.Sleep(300); // Safe delay for server transaction confirmation
+
+            if (IsSold(itemId, slot, amountBefore))
+            {
+                soldCount++;
+                failures = 0;
+                continue;
+            }
+
+            // Give the server one more chance, some servers delay the
+            // inventory update a little.
+            Thread.Sleep(500);
+
+            if (IsSold(itemId, slot, amountBefore))
+            {
+                soldCount++;
+                failures = 0;
+                continue;
+            }
+
+            failures++;
+            blacklistedItems.Add(itemId);
+            Log.Warn($"[Trade] تعذر بيع {(item.Record?.GetRealName() ?? itemId.ToString())} (slot {slot}, amount {amountBefore}, sale acknowledged: {sold}).");
+
+            if (failures >= 3)
+            {
+                Log.Warn("[Trade] فشل بيع 3 أصناف متتالية. إيقاف البيع لتجنب قطع الاتصال.");
+                return false;
+            }
         }
 
         Log.Notify($"[Trade] تم بيع {soldCount} رزمة بضاعة من الجمل بنجاح.");
+
+        var leftovers = transport.Inventory.Count(i => i != null && i.Record != null && i.Amount > 0 &&
+                                                       !blacklistedItems.Contains(i.ItemId));
+
+        if (leftovers > 0)
+        {
+            Log.Warn($"[Trade] ما زال هناك {leftovers} رزمة في حقيبة الجمل لم يتم بيعها.");
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Checks whether the given stack was removed or reduced in the transport.
+    /// </summary>
+    private static bool IsSold(uint itemId, byte slot, ushort amountBefore)
+    {
+        var transport = Game.Player?.JobTransport;
+        if (transport?.Inventory == null)
+            return true;
+
+        var after = transport.Inventory.GetItemAt(slot);
+        if (after == null || after.ItemId != itemId)
+            return true;
+
+        return after.Amount < amountBefore;
     }
 
     public void Stop()

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -120,7 +120,7 @@ public static class Kernel
                 EventManager.FireEvent("OnClock");
             }
 
-            if (!Game.Ready)
+            if (!Game.Ready || Game.Player == null)
             {
                 lastTick = TickCount;
                 continue;

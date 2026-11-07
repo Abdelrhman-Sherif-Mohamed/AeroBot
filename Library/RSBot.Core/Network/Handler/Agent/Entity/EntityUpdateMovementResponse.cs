@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Components;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
 using RSBot.Core.Objects.Spawn;
@@ -29,6 +29,9 @@ internal class EntityUpdateMovementResponse : IPacketHandler
     /// <param name="packet">The packet.</param>
     public void Invoke(Packet packet)
     {
+        if (Game.Player == null)
+            return;
+
         var uniqueId = packet.ReadUInt();
 
         var movement = Movement.MotionFromPacket(packet);

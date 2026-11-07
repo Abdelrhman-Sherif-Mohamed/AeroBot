@@ -134,7 +134,15 @@ public class SpawnedBionic : SpawnedEntity
         var packet = new Packet(0x704B);
         packet.WriteUInt(UniqueId);
 
-        PacketManager.SendPacket(packet, PacketDestination.Server);
+        var awaitResult = new AwaitCallback(response =>
+        {
+            return response.ReadByte() == 0x01
+                ? AwaitCallbackResult.Success
+                : AwaitCallbackResult.Fail;
+        }, 0xB04B);
+
+        PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
+        awaitResult.AwaitResponse(500);
 
         return true;
     }

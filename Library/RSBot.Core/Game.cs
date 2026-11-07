@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Client;
+using RSBot.Core.Client;
 using RSBot.Core.Components;
 using RSBot.Core.Extensions;
 using RSBot.Core.Network;
@@ -380,10 +380,10 @@ public class Game
         var detection = ClientVersionDetector.Detect(directory);
         DetectedClientVersion = detection;
 
-        if (!apply || !detection.IsDetected)
+        if (!apply)
             return detection;
 
-        ClientType = detection.ClientType.Value;
+        ClientType = detection.ClientType ?? GameClientType.Vietnam;
 
         GlobalConfig.Set("RSBot.Game.ClientType", ClientType);
         GlobalConfig.Set("RSBot.Game.ClientVersion", detection.Version ?? 0);

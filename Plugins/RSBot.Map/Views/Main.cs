@@ -916,14 +916,18 @@ public partial class Main : DoubleBufferedControl
 
     private void mapCanvas_MouseClick(object sender, MouseEventArgs e)
     {
-        if(!Game.Ready) return;
+        try
+        {
+            if (!Game.Ready || Game.Player == null) return;
 
-        var position = Game.Player.Movement.Source;
-        position.XOffset = Game.Player.Movement.Source.XOffset +
-                           (mapCanvas.Width / 2f - e.X) / SectorSize * 192f * 10 * -1f;
-        position.YOffset = Game.Player.Movement.Source.YOffset + (mapCanvas.Height / 2f - e.Y) / SectorSize * 192f * 10;
+            var position = Game.Player.Movement.Source;
+            position.XOffset = Game.Player.Movement.Source.XOffset +
+                               (mapCanvas.Width / 2f - e.X) / SectorSize * 192f * 10 * -1f;
+            position.YOffset = Game.Player.Movement.Source.YOffset + (mapCanvas.Height / 2f - e.Y) / SectorSize * 192f * 10;
 
-        Game.Player.MoveTo(position, false);
+            Game.Player.MoveTo(position, false);
+        }
+        catch { }
     }
 
     private void checkEnableCollisions_CheckedChanged(object sender, EventArgs e)
