@@ -13,10 +13,14 @@ using SDUI.Controls;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.IO;
+using System.Text.Json;
 using System.Windows.Forms;
+using Microsoft.Web.WebView2.Core;
 using Region = RSBot.Core.Objects.Region;
 
 namespace RSBot.Map.Views;
@@ -84,6 +88,8 @@ public partial class Main : DoubleBufferedControl
 
     private bool _applyingMapLayout;
     private Size _mapBufferSize;
+    private bool _worldMapInitialized;
+    private readonly Stopwatch _lastWorldMapUpdate = Stopwatch.StartNew();
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="Main" /> class.
@@ -858,6 +864,17 @@ public partial class Main : DoubleBufferedControl
                 _navMeshRenderer?.Update(playerTransform);
         }
 
+        if (_worldMapInitialized && chkWorldMapAutoTrack.Checked && Game.Player != null)
+        {
+            if (_lastWorldMapUpdate.ElapsedMilliseconds >= 300)
+            {
+                _lastWorldMapUpdate.Restart();
+                var p = Game.Player.Position;
+                var pName = (Game.Player.Name ?? "Player").Replace("'", "\\'");
+                _ = webViewWorldMap.ExecuteScriptAsync($"if (window.aerobotUpdatePlayer) {{ window.aerobotUpdatePlayer('{pName}', {p.X}, {p.Y}, {p.Z}, {p.Region}); }}");
+            }
+        }
+
         labelSectorInfo.Text =
             $"{Game.Player.Movement.Source.Region} ({Game.Player.Movement.Source.Region.X}x{Game.Player.Movement.Source.Region.Y})";
 
@@ -947,6 +964,7 @@ public partial class Main : DoubleBufferedControl
     {
         checkBoxAutoSelectUniques.Checked = PlayerConfig.Get("RSBot.Map.AutoSelectUnique", false);
         timerUniqueChecker.Enabled = checkBoxAutoSelectUniques.Checked;
+        InitializeWorldMapAsync();
     }
 
     private void btnNvmResetToPlayer_Click(object sender, EventArgs e)
@@ -962,6 +980,12 @@ public partial class Main : DoubleBufferedControl
             if (Game.Player.Position.TryGetNavMeshTransform(out var playerTransform))
                 _navMeshRenderer?.Update(playerTransform, true);
         }
+        else if (tabControl1.SelectedTab == tabWorldMap && Game.Player != null && _worldMapInitialized)
+        {
+            var pos = Game.Player.Position;
+            var name = (Game.Player.Name ?? "Player").Replace("'", "\\'");
+            _ = webViewWorldMap.ExecuteScriptAsync($"if (window.aerobotUpdatePlayer) {{ window.aerobotUpdatePlayer('{name}', {pos.X}, {pos.Y}, {pos.Z}, {pos.Region}); if (window.aerobotCenterPlayer) window.aerobotCenterPlayer('{name}'); }}");
+        }
 
         ApplyMapLayout();
     }
@@ -975,5 +999,144 @@ public partial class Main : DoubleBufferedControl
         }
 
         bufferedGraphics?.Render();
+    }
+
+    private async void InitializeWorldMapAsync()
+    {
+        try
+        {
+            var htmlPath = Path.Combine(Application.StartupPath, "Data", "xSROMap", "index.html");
+            if (!File.Exists(htmlPath))
+            {
+                htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "xSROMap", "index.html");
+            }
+
+            if (!File.Exists(htmlPath))
+            {
+                Log.Notify($"[WorldMap] HTML not found at: {htmlPath}");
+                return;
+            }
+
+            var userDataFolder = Path.Combine(Application.StartupPath, "Data", "xSROMap", "webview_cache");
+            var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+            await webViewWorldMap.EnsureCoreWebView2Async(env);
+
+            webViewWorldMap.CoreWebView2.Settings.IsWebMessageEnabled = true;
+            webViewWorldMap.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            webViewWorldMap.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
+            webViewWorldMap.WebMessageReceived += WebViewWorldMap_WebMessageReceived;
+
+            webViewWorldMap.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
+            _worldMapInitialized = true;
+            Log.Notify("[WorldMap] World map initialized successfully.");
+        }
+        catch (Exception ex)
+        {
+            Log.Notify($"[WorldMap] Initialization failed: {ex.Message}");
+        }
+    }
+
+    private void WebViewWorldMap_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        try
+        {
+            var raw = e.TryGetWebMessageAsString();
+            if (string.IsNullOrWhiteSpace(raw))
+                raw = e.WebMessageAsJson;
+
+            if (string.IsNullOrWhiteSpace(raw)) return;
+
+            using var doc = JsonDocument.Parse(raw);
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("action", out var actionProp)) return;
+
+            var action = actionProp.GetString();
+            if (action == "moveTo")
+            {
+                if (Game.Player == null)
+                {
+                    Log.Notify("[WorldMap] Cannot move: Player is not in game!");
+                    return;
+                }
+
+                var x = root.GetProperty("x").GetDouble();
+                var y = root.GetProperty("y").GetDouble();
+                var z = root.GetProperty("z").GetDouble();
+                var region = root.GetProperty("region").GetInt32();
+                var actualRegion = (ushort)(region < 0 ? region + 65536 : region);
+
+                var pos = new Position(actualRegion, (float)x, (float)y, (float)z);
+                Game.Player.MoveTo(pos, false);
+                Log.Notify($"[WorldMap] Moving player to {pos}");
+            }
+            else if (action == "loadScript")
+            {
+                if (root.TryGetProperty("script", out var scriptProp))
+                {
+                    var script = scriptProp.GetString();
+                    if (!string.IsNullOrWhiteSpace(script))
+                    {
+                        var scriptsDir = Path.Combine(Application.StartupPath, "Data", "Scripts");
+                        Directory.CreateDirectory(scriptsDir);
+                        var scriptFile = Path.Combine(scriptsDir, "world_map_generated.txt");
+                        File.WriteAllText(scriptFile, script);
+                        Clipboard.SetText(script);
+                        Log.Notify($"[WorldMap] Script saved to {scriptFile} and copied to clipboard.");
+                        MessageBox.Show($"تم حفظ الإسكربت ونسخه إلى الحافظة بنجاح!\nالمسار: {scriptFile}", "AeroBot Map", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+            else if (action == "addWaypoint")
+            {
+                var x = root.GetProperty("x").GetDouble();
+                var y = root.GetProperty("y").GetDouble();
+                var z = root.GetProperty("z").GetDouble();
+                var region = root.GetProperty("region").GetInt32();
+                var actualRegion = (ushort)(region < 0 ? region + 65536 : region);
+                var xsec = actualRegion & 0xFF;
+                var ysec = (actualRegion >> 8) & 0xFF;
+
+                var line = $"move {Math.Round(x)} {Math.Round(y)} {Math.Round(z)} {xsec} {ysec}";
+                Clipboard.SetText(line);
+                Log.Notify($"[WorldMap] Waypoint copied: {line}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Notify($"[WorldMap] Error handling web message: {ex.Message}");
+        }
+    }
+
+    private void btnWorldMapCenterPlayer_Click(object sender, EventArgs e)
+    {
+        if (_worldMapInitialized && Game.Player != null)
+        {
+            var name = (Game.Player.Name ?? "Player").Replace("'", "\\'");
+            _ = webViewWorldMap.ExecuteScriptAsync($"if (window.aerobotCenterPlayer) {{ window.aerobotCenterPlayer('{name}'); }}");
+        }
+    }
+
+    private void btnWorldMapReload_Click(object sender, EventArgs e)
+    {
+        if (_worldMapInitialized)
+        {
+            webViewWorldMap.Reload();
+        }
+    }
+
+    private void btnWorldMapOpenExternal_Click(object sender, EventArgs e)
+    {
+        try
+        {
+            var htmlPath = Path.Combine(Application.StartupPath, "Data", "xSROMap", "index.html");
+            if (File.Exists(htmlPath))
+            {
+                Process.Start(new ProcessStartInfo(htmlPath) { UseShellExecute = true });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Notify($"[WorldMap] Could not open external browser: {ex.Message}");
+        }
     }
 }

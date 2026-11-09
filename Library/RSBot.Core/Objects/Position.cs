@@ -57,6 +57,11 @@ public struct Position
     public float Y => YOffset == 0 ? 0 : Region.IsDungeon ? YOffset / 10 : (Region.Y - 92) * 192 + YOffset / 10;
 
     /// <summary>
+    ///     Gets the z coordinate (height).
+    /// </summary>
+    public float Z => ZOffset;
+
+    /// <summary>
     ///     Gets offset from x sector.
     /// </summary>
     public float XSectorOffset => Region.IsDungeon ? (127 * 192 + XOffset / 10) * 10 % 1920 : XOffset;

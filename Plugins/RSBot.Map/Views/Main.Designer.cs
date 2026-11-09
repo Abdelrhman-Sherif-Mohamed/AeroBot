@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace RSBot.Map.Views
 {
@@ -52,8 +52,18 @@ namespace RSBot.Map.Views
             panel1 = new System.Windows.Forms.Panel();
             panel2 = new System.Windows.Forms.Panel();
             panel3 = new System.Windows.Forms.Panel();
+            tabWorldMap = new System.Windows.Forms.TabPage();
+            panelWorldMapTop = new System.Windows.Forms.Panel();
+            btnWorldMapCenterPlayer = new SDUI.Controls.Button();
+            chkWorldMapAutoTrack = new SDUI.Controls.CheckBox();
+            btnWorldMapReload = new SDUI.Controls.Button();
+            btnWorldMapOpenExternal = new SDUI.Controls.Button();
+            webViewWorldMap = new Microsoft.Web.WebView2.WinForms.WebView2();
             tabControl1.SuspendLayout();
             tabNavMeshViewer.SuspendLayout();
+            tabWorldMap.SuspendLayout();
+            panelWorldMapTop.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)webViewWorldMap).BeginInit();
             panel1.SuspendLayout();
             panel2.SuspendLayout();
             panel3.SuspendLayout();
@@ -193,6 +203,7 @@ namespace RSBot.Map.Views
             // 
             tabControl1.Controls.Add(mapCanvas);
             tabControl1.Controls.Add(tabNavMeshViewer);
+            tabControl1.Controls.Add(tabWorldMap);
             tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             tabControl1.ItemSize = new System.Drawing.Size(80, 24);
             tabControl1.Location = new System.Drawing.Point(0, 0);
@@ -225,6 +236,94 @@ namespace RSBot.Map.Views
             tabNavMeshViewer.Size = new System.Drawing.Size(358, 469);
             tabNavMeshViewer.TabIndex = 1;
             tabNavMeshViewer.Text = "NavMesh Viewer";
+            // 
+            // tabWorldMap
+            // 
+            tabWorldMap.BackColor = System.Drawing.Color.White;
+            tabWorldMap.Controls.Add(webViewWorldMap);
+            tabWorldMap.Controls.Add(panelWorldMapTop);
+            tabWorldMap.Location = new System.Drawing.Point(4, 28);
+            tabWorldMap.Name = "tabWorldMap";
+            tabWorldMap.Padding = new System.Windows.Forms.Padding(0);
+            tabWorldMap.Size = new System.Drawing.Size(358, 469);
+            tabWorldMap.TabIndex = 2;
+            tabWorldMap.Text = "خريطة العالم";
+            // 
+            // panelWorldMapTop
+            // 
+            panelWorldMapTop.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
+            panelWorldMapTop.Controls.Add(btnWorldMapCenterPlayer);
+            panelWorldMapTop.Controls.Add(chkWorldMapAutoTrack);
+            panelWorldMapTop.Controls.Add(btnWorldMapReload);
+            panelWorldMapTop.Controls.Add(btnWorldMapOpenExternal);
+            panelWorldMapTop.Dock = System.Windows.Forms.DockStyle.Top;
+            panelWorldMapTop.Location = new System.Drawing.Point(0, 0);
+            panelWorldMapTop.Name = "panelWorldMapTop";
+            panelWorldMapTop.Size = new System.Drawing.Size(358, 34);
+            panelWorldMapTop.TabIndex = 1;
+            // 
+            // btnWorldMapCenterPlayer
+            // 
+            btnWorldMapCenterPlayer.Color = System.Drawing.Color.Transparent;
+            btnWorldMapCenterPlayer.Location = new System.Drawing.Point(4, 5);
+            btnWorldMapCenterPlayer.Name = "btnWorldMapCenterPlayer";
+            btnWorldMapCenterPlayer.Radius = 4;
+            btnWorldMapCenterPlayer.ShadowDepth = 2F;
+            btnWorldMapCenterPlayer.Size = new System.Drawing.Size(95, 24);
+            btnWorldMapCenterPlayer.TabIndex = 0;
+            btnWorldMapCenterPlayer.Text = "توسيط اللاعب";
+            btnWorldMapCenterPlayer.UseVisualStyleBackColor = true;
+            btnWorldMapCenterPlayer.Click += btnWorldMapCenterPlayer_Click;
+            // 
+            // chkWorldMapAutoTrack
+            // 
+            chkWorldMapAutoTrack.AutoSize = true;
+            chkWorldMapAutoTrack.Checked = true;
+            chkWorldMapAutoTrack.CheckState = System.Windows.Forms.CheckState.Checked;
+            chkWorldMapAutoTrack.Depth = 0;
+            chkWorldMapAutoTrack.Location = new System.Drawing.Point(105, 5);
+            chkWorldMapAutoTrack.Margin = new System.Windows.Forms.Padding(0);
+            chkWorldMapAutoTrack.MouseLocation = new System.Drawing.Point(-1, -1);
+            chkWorldMapAutoTrack.Name = "chkWorldMapAutoTrack";
+            chkWorldMapAutoTrack.Ripple = true;
+            chkWorldMapAutoTrack.Size = new System.Drawing.Size(85, 24);
+            chkWorldMapAutoTrack.TabIndex = 1;
+            chkWorldMapAutoTrack.Text = "تتبع مباشر";
+            chkWorldMapAutoTrack.UseVisualStyleBackColor = true;
+            // 
+            // btnWorldMapReload
+            // 
+            btnWorldMapReload.Color = System.Drawing.Color.Transparent;
+            btnWorldMapReload.Location = new System.Drawing.Point(195, 5);
+            btnWorldMapReload.Name = "btnWorldMapReload";
+            btnWorldMapReload.Radius = 4;
+            btnWorldMapReload.ShadowDepth = 2F;
+            btnWorldMapReload.Size = new System.Drawing.Size(70, 24);
+            btnWorldMapReload.TabIndex = 2;
+            btnWorldMapReload.Text = "تحديث";
+            btnWorldMapReload.UseVisualStyleBackColor = true;
+            btnWorldMapReload.Click += btnWorldMapReload_Click;
+            // 
+            // btnWorldMapOpenExternal
+            // 
+            btnWorldMapOpenExternal.Color = System.Drawing.Color.Transparent;
+            btnWorldMapOpenExternal.Location = new System.Drawing.Point(270, 5);
+            btnWorldMapOpenExternal.Name = "btnWorldMapOpenExternal";
+            btnWorldMapOpenExternal.Radius = 4;
+            btnWorldMapOpenExternal.ShadowDepth = 2F;
+            btnWorldMapOpenExternal.Size = new System.Drawing.Size(75, 24);
+            btnWorldMapOpenExternal.TabIndex = 3;
+            btnWorldMapOpenExternal.Text = "متصفح";
+            btnWorldMapOpenExternal.UseVisualStyleBackColor = true;
+            btnWorldMapOpenExternal.Click += btnWorldMapOpenExternal_Click;
+            // 
+            // webViewWorldMap
+            // 
+            webViewWorldMap.Dock = System.Windows.Forms.DockStyle.Fill;
+            webViewWorldMap.Location = new System.Drawing.Point(0, 34);
+            webViewWorldMap.Name = "webViewWorldMap";
+            webViewWorldMap.Size = new System.Drawing.Size(358, 435);
+            webViewWorldMap.TabIndex = 0;
             // 
             // btnNvmResetToPlayer
             // 
@@ -311,6 +410,10 @@ namespace RSBot.Map.Views
             Load += Main_Load;
             tabControl1.ResumeLayout(false);
             tabNavMeshViewer.ResumeLayout(false);
+            tabWorldMap.ResumeLayout(false);
+            panelWorldMapTop.ResumeLayout(false);
+            panelWorldMapTop.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)webViewWorldMap).EndInit();
             panel1.ResumeLayout(false);
             panel1.PerformLayout();
             panel2.ResumeLayout(false);
@@ -335,6 +438,13 @@ namespace RSBot.Map.Views
         private SDUI.Controls.TabControl tabControl1;
         private System.Windows.Forms.TabPage mapCanvas;
         private System.Windows.Forms.TabPage tabNavMeshViewer;
+        private System.Windows.Forms.TabPage tabWorldMap;
+        private System.Windows.Forms.Panel panelWorldMapTop;
+        private SDUI.Controls.Button btnWorldMapCenterPlayer;
+        private SDUI.Controls.CheckBox chkWorldMapAutoTrack;
+        private SDUI.Controls.Button btnWorldMapReload;
+        private SDUI.Controls.Button btnWorldMapOpenExternal;
+        private Microsoft.Web.WebView2.WinForms.WebView2 webViewWorldMap;
         private System.Windows.Forms.Panel panelNavMeshRendererCanvas;
         private SDUI.Controls.Label labelSectorInfo;
         private SDUI.Controls.Button btnNvmResetToPlayer;
