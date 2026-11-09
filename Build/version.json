@@ -1,8 +1,8 @@
 {
-  "version": "2.9.42",
+  "version": "2.9.43",
   "release_date": "2026-11-09",
-  "download_url": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.42.zip",
+  "download_url": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.43.zip",
   "github_url": "https://github.com/Abdelrhman-Sherif-Mohamed/AeroBot",
-  "changelog": "Release v2.9.42: Enforce subscription expiration and require admin activation for new registrations",
+  "changelog": "Release v2.9.43: Fix Trade combat against thieves, dynamic attack range for weapons, and skill casting fix",
   "required": true
 }

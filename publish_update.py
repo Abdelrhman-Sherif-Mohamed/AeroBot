@@ -2,19 +2,19 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """🔒 تحديث نظام الاشتراكات والتسجيل (Subscription & Registration Enforcement):
-  - تفعيل فحص صلاحية الاشتراكات لجميع الحسابات تلقائياً.
-  - إيقاف جميع الاشتراكات المنتهية وإلزامية التفعيل من قِبل الإدارة.
-  - أي حساب جديد يتم إنشاؤه يكون مقفلاً تلقائياً ولا يمكن الدخول به إلا بعد تفعيل الاشتراك من قِبل الأدمن عبر Wolves Admin."""
+changelog_ar = """⚔️ إصلاح قتال الثيف في التريدة ومسافة الاشتباك (Trade Combat Fix):
+  - إصلاح مشكلة عدم ضرب الثيف وتخطي شرط فحص الـ Health الخاطئ للأهداف المستهدفة.
+  - ضبط مسافة القتال ديناميكياً حسب نوع السلاح (الأسلحة بعيدة المدى كالقوس والعصا تضرب من مسافة 14 متراً دون الدخول داخل الثيف).
+  - تفعيل استخدام مهارات الدامج والإمبيو (Imbue) تلقائياً ضد الثيف."""
 
-changelog_en = """🔒 Subscription & Registration Enforcement:
-  - Enabled active subscription expiration checks for all accounts.
-  - Expired non-renewed accounts, requiring admin activation.
-  - New user registrations are locked upon creation until manually activated by admin via Wolves Admin."""
+changelog_en = """⚔️ Trade Thief Combat & Weapon Range Fix:
+  - Fixed combat bug where bot would walk inside thief without attacking due to uninitialized health check.
+  - Dynamic weapon range calculation (bow/staff/crossbow engages at 14m instead of walking into target).
+  - Enabled automatic weapon imbue and skill casting against thieves."""
 
 data = {
-    "version": "2.9.42",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.42.zip",
+    "version": "2.9.43",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.43.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -31,4 +31,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.42 update to Firebase! Status:', res.status)
+    print('Published 2.9.43 update to Firebase! Status:', res.status)
