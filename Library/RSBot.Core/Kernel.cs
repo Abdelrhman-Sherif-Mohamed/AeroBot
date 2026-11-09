@@ -120,7 +120,8 @@ public static class Kernel
                 EventManager.FireEvent("OnClock");
             }
 
-            if (!Game.Ready || Game.Player == null)
+            var player = Game.Player;
+            if (!Game.Ready || player == null)
             {
                 lastTick = TickCount;
                 continue;
@@ -130,12 +131,12 @@ public static class Kernel
             {
                 var elapsed = TickCount - lastTick;
 
-                Game.Player.Update(elapsed);
-                Game.Player.Transport?.Update(elapsed);
-                Game.Player.JobTransport?.Update(elapsed);
-                Game.Player.AbilityPet?.Update(elapsed);
-                Game.Player.Growth?.Update(elapsed);
-                Game.Player.Fellow?.Update(elapsed);
+                player.Update(elapsed);
+                player.Transport?.Update(elapsed);
+                player.JobTransport?.Update(elapsed);
+                player.AbilityPet?.Update(elapsed);
+                player.Growth?.Update(elapsed);
+                player.Fellow?.Update(elapsed);
 
                 SpawnManager.Update(elapsed);
 

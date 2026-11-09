@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 using System.IO;
 
@@ -696,38 +696,38 @@ internal class RouteBundle
 
 
 
-            if (TransportHasGoods())
+            var isPlayerInTown = AttackBundle.IsPlayerInTown();
+            var buyGoodsLine = ScriptManager.FindBuyGoodsCommandLine();
+            var transportHasGoods = TransportHasGoods() || TradeConfig.SkipNpcIfHasGoods;
 
+            if (transportHasGoods || !isPlayerInTown)
             {
-
-                var buyGoodsLine = ScriptManager.FindBuyGoodsCommandLine();
-
                 var startLine = buyGoodsLine >= 0
-
                     ? ScriptManager.FindNearestMoveCommandLineAfter(buyGoodsLine + 1)
-
                     : ScriptManager.FindNearestMoveCommandLine();
 
-
-
-                Log.Notify($"[Trade] الجمل محمّل بالبضاعة! التحرك فوراً من الخطوة #{startLine} نحو بوابة الخروج والوجهة دون الرجوع للخلف.");
-
+                var reason = transportHasGoods
+                    ? "الجمل محمّل بالبضاعة"
+                    : "اللاعب خارج المدينة على مسار التجارة";
+                Log.Notify($"[Trade] {reason}! التحرك فوراً من أقرب نقطة على المسار: السطر #{startLine} نحو الوجهة دون الرجوع للخلف.");
                 Task.Run(() => ScriptManager.RunScript(startLine));
-
             }
-
             else
-
             {
-
-                var buyGoodsLine = ScriptManager.FindBuyGoodsCommandLine();
-
-                var startLine = buyGoodsLine >= 0 ? 0 : ScriptManager.FindNearestMoveCommandLine();
+                var startLine = 0;
+                if (buyGoodsLine > 0)
+                {
+                    var nearestBefore = ScriptManager.FindNearestMoveCommandLineBefore(buyGoodsLine);
+                    if (nearestBefore > 0)
+                        startLine = nearestBefore;
+                }
+                else
+                {
+                    startLine = ScriptManager.FindNearestMoveCommandLine();
+                }
 
                 Log.Notify($"[Trade] بدء السير لشراء البضاعة والتحرك: السطر #{startLine}");
-
                 Task.Run(() => ScriptManager.RunScript(startLine));
-
             }
 
 

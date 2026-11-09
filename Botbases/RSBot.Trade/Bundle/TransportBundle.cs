@@ -22,6 +22,7 @@ internal class TransportBundle
     public bool TransportStuck { get; private set; }
 
     private DateTime _lastMountAttempt = DateTime.MinValue;
+    private DateTime _lastTransportSummonAttempt = DateTime.MinValue;
 
 
     /// <summary>
@@ -91,12 +92,16 @@ internal class TransportBundle
                 return;
             }
 
+            if ((DateTime.UtcNow - _lastTransportSummonAttempt).TotalSeconds < 5.0)
+                return;
+
             var jobTransportItem = Game.Player.Inventory
                 .GetNormalPartItems(i => i.Record.CodeName.Contains("COS_T_") && i.Record.Tid == 4588)
                 .FirstOrDefault();
 
             if (jobTransportItem != null)
             {
+                _lastTransportSummonAttempt = DateTime.UtcNow;
                 Log.Notify($"[Trade] Summoning transport [{jobTransportItem.Record.GetRealName()}]");
                 jobTransportItem.Use();
 
@@ -115,7 +120,8 @@ internal class TransportBundle
             return;
 
         if (TradeConfig.MountTransport && !Game.Player.HasActiveVehicle &&
-            !Bundles.AttackBundle.IsAttacking && !Game.Player.InAction)
+            !Bundles.AttackBundle.IsAttacking && !Game.Player.InAction &&
+            Game.Player.State?.BattleState != BattleState.InBattle)
         {
             // Do NOT freeze or pause the script! Player and transport march together on foot!
             // When the 20-second combat penalty expires, mounting will succeed while moving!
@@ -197,14 +203,14 @@ internal class TransportBundle
         if (Game.Player?.JobTransport == null)
             return true;
 
-        if (!SpawnManager.TryGetEntity<SpawnedBionic>(Game.Player.JobTransport.UniqueId, out var bionic))
+        var transportId = Game.Player.JobTransport.UniqueId;
+        if (transportId == 0)
             return true;
 
-        var attackers = bionic.GetAttackers();
-        if (attackers == null || attackers.Count == 0)
+        if (!SpawnManager.TryGetEntities<SpawnedBionic>(e => e.TargetId == transportId, out var attackers) || attackers == null)
             return true;
 
-        return !attackers.Any(a => AttackBundle.IsThief(a));
+        return !attackers.Any(AttackBundle.IsThief);
     }
 
     /// <summary>

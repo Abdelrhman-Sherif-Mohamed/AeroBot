@@ -643,7 +643,7 @@ public class Player : SpawnedBionic
     {
         base.Update(delta);
 
-        if (HasActiveVehicle)
+        if (HasActiveVehicle && Vehicle != null)
             Movement = Vehicle.Movement;
 
         return true;

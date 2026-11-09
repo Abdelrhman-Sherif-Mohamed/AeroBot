@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RSBot.Core.Event;
@@ -27,7 +27,10 @@ public static class SpawnManager
     public static T GetEntity<T>(uint uniqueId)
         where T : SpawnedEntity
     {
-        return (T)_entities.Find(p => p != null && p.UniqueId == uniqueId);
+        lock (_lock)
+        {
+            return _entities.Find(p => p != null && p.UniqueId == uniqueId) as T;
+        }
     }
 
     /// <summary>
@@ -38,7 +41,10 @@ public static class SpawnManager
     public static T GetEntity<T>(Func<T, bool> condition)
         where T : SpawnedEntity
     {
-        return (T)_entities.Find(p => p is T entityT && condition(entityT));
+        lock (_lock)
+        {
+            return _entities.Find(p => p is T entityT && condition(entityT)) as T;
+        }
     }
 
     /// <summary>
@@ -63,6 +69,9 @@ public static class SpawnManager
     public static bool TryGetEntityIncludingMe(uint uniqueId, out SpawnedEntity entity)
     {
         entity = null;
+
+        if (Game.Player == null)
+            return TryGetEntity(uniqueId, out entity);
 
         if (uniqueId == Game.Player.UniqueId)
             entity = Game.Player;
@@ -328,8 +337,21 @@ public static class SpawnManager
     {
         lock (_lock)
         {
-            foreach (var entity in _entities)
-                entity.Update(delta);
+            for (var i = 0; i < _entities.Count; i++)
+            {
+                var entity = _entities[i];
+                if (entity != null)
+                {
+                    try
+                    {
+                        entity.Update(delta);
+                    }
+                    catch
+                    {
+                        // Protect against individual entity tick glitches
+                    }
+                }
+            }
         }
     }
 

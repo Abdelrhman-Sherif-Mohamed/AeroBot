@@ -148,10 +148,32 @@ public static class SkillManager
             if (Skills != null && Skills.ContainsKey(monster.Rarity) && Skills[monster.Rarity] != null && Skills[monster.Rarity].Count > 0)
                 rarity = monster.Rarity;
 
-        if (Skills == null || !Skills.ContainsKey(rarity) || Skills[rarity] == null || Skills[rarity].Count == 0)
+        List<SkillInfo> targetSkills = null;
+        if (Skills != null && Skills.ContainsKey(rarity) && Skills[rarity] != null && Skills[rarity].Count > 0)
+        {
+            targetSkills = Skills[rarity];
+        }
+        else if (Skills != null)
+        {
+            if (Skills.ContainsKey(MonsterRarity.General) && Skills[MonsterRarity.General] != null && Skills[MonsterRarity.General].Count > 0)
+                targetSkills = Skills[MonsterRarity.General];
+            else
+                targetSkills = Skills.Values.FirstOrDefault(l => l != null && l.Count > 0);
+        }
+
+        // Automatic fallback: if user has not configured skills in the UI at all,
+        // use the character's known active attack skills that match the equipped weapon!
+        if ((targetSkills == null || targetSkills.Count == 0) && Game.Player?.Skills?.KnownSkills != null)
+        {
+            targetSkills = Game.Player.Skills.KnownSkills
+                .Where(s => s != null && s.IsAttack && !s.IsPassive && !s.IsImbue && CheckSkillRequired(s.Record))
+                .ToList();
+        }
+
+        if (targetSkills == null || targetSkills.Count == 0)
             return null;
 
-        var distance = Game.Player.Movement.Source.DistanceTo(entity.Movement.Source);
+        var distance = entity.DistanceToPlayer;
 
         var minDifference = int.MaxValue;
         var closestSkill = default(SkillInfo);
@@ -159,18 +181,18 @@ public static class SkillManager
         if (entity.State != null && entity.State.HitState == ActionHitStateFlag.KnockDown)
         {
             // try to get attack skill for only knockdown states
-            closestSkill = Skills[rarity].Find(p => p?.Record?.Params != null && p.Record.Params.Contains(25697));
+            closestSkill = targetSkills.Find(p => p?.Record?.Params != null && p.Record.Params.Contains(25697));
         }
         else if (UseSkillsInOrder || distance < 10)
         {
-            var skillCount = Skills[rarity].Count;
+            var skillCount = targetSkills.Count;
             if (_lastIndex >= skillCount)
                 _lastIndex = 0;
 
             for (var i = 0; i < skillCount; i++)
             {
                 var index = (_lastIndex + i) % skillCount;
-                var selectedSkill = Skills[rarity][index];
+                var selectedSkill = targetSkills[index];
                 if (selectedSkill == null || selectedSkill.Record == null || !selectedSkill.CanBeCasted)
                     continue;
 
@@ -182,14 +204,14 @@ public static class SkillManager
             // Fallback: If no skill from _lastIndex is ready, pick ANY ready skill in the list
             if (closestSkill == null)
             {
-                closestSkill = Skills[rarity].FirstOrDefault(s => s != null && s.Record != null && s.CanBeCasted);
+                closestSkill = targetSkills.FirstOrDefault(s => s != null && s.Record != null && s.CanBeCasted);
             }
         }
         else
         {
-            for (var i = 0; i < Skills[rarity].Count; i++)
+            for (var i = 0; i < targetSkills.Count; i++)
             {
-                var s = Skills[rarity][i];
+                var s = targetSkills[i];
                 if (s == null || s.Record == null || !s.CanBeCasted)
                     continue;
 
@@ -203,7 +225,7 @@ public static class SkillManager
 
             if (closestSkill == null)
             {
-                closestSkill = Skills[rarity].FirstOrDefault(s => s != null && s.Record != null && s.CanBeCasted);
+                closestSkill = targetSkills.FirstOrDefault(s => s != null && s.Record != null && s.CanBeCasted);
             }
         }
 
@@ -308,7 +330,7 @@ public static class SkillManager
         if (!SpawnManager.TryGetEntity<SpawnedBionic>(targetId, out var entity) || entity == null || entity.State == null)
             return false;
 
-        if (entity.State.LifeState == LifeState.Dead || !entity.HasHealth || entity.Health <= 0)
+        if (entity.State.LifeState == LifeState.Dead)
             return false;
 
         if (!CheckSkillRequired(skill.Record))
@@ -348,7 +370,7 @@ public static class SkillManager
         if (!SpawnManager.TryGetEntity<SpawnedBionic>(targetId, out var entity))
             return false;
 
-        if (entity.State.LifeState == LifeState.Dead || !entity.HasHealth || entity.Health <= 0)
+        if (entity.State.LifeState == LifeState.Dead)
             return false;
 
         var weapon = Game.Player.Inventory.GetItemAt(6);
@@ -564,13 +586,16 @@ public static class SkillManager
     /// <param name="skill"></param>
     /// <param name="targetId"></param>
     /// <returns></returns>
-    public static bool CastAutoAttack()
+    public static bool CastAutoAttack(uint targetId = 0)
     {
-        var entity = Game.SelectedEntity;
+        var entity = targetId != 0
+            ? (SpawnManager.TryGetEntity<SpawnedBionic>(targetId, out var b) ? b : Game.SelectedEntity)
+            : Game.SelectedEntity;
+
         if (entity == null)
             return false;
 
-        if (entity.State.LifeState == LifeState.Dead || !entity.HasHealth || entity.Health <= 0)
+        if (entity.State != null && entity.State.LifeState == LifeState.Dead)
             return false;
 
         var packet = new Packet(0x7074);
@@ -585,7 +610,7 @@ public static class SkillManager
         packet.WriteUInt(entity.UniqueId);
 
         Log.Debug(
-            $"Normal Attacking to: {entity.UniqueId} State: {entity.State.LifeState} Health: {entity.Health} HasHealth: {entity.HasHealth} Dst: {Math.Round(entity.DistanceToPlayer, 1)}");
+            $"Normal Attacking to: {entity.UniqueId} State: {entity.State?.LifeState} Health: {entity.Health} HasHealth: {entity.HasHealth} Dst: {Math.Round(entity.DistanceToPlayer, 1)}");
 
         PacketManager.SendPacket(packet, PacketDestination.Server);
 

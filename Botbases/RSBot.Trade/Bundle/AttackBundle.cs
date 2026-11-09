@@ -4,6 +4,7 @@ using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
+using RSBot.Core.Objects.Skill;
 using RSBot.Core.Objects.Spawn;
 using RSBot.Trade.Components;
 
@@ -143,19 +144,26 @@ internal class AttackBundle
     /// </summary>
     private static bool IsThiefPlayer(SpawnedPlayer player)
     {
-        if (player == null || player.Job != JobType.Thief)
+        if (player == null)
             return false;
 
-        // Regular case: the thief wears the job suit and the server reported it.
-        if (player.WearsJobSuite)
+        // 1. Explicit thief job
+        if (player.Job == JobType.Thief)
             return true;
 
-        // Fallback for servers that do not send the job suit info correctly:
-        // a thief-job player that is targeting us or our transport is hostile.
+        // 2. In Silkroad, thief aliases start with '*' and wear job suit
+        if (player.WearsJobSuite && player.Name != null && player.Name.StartsWith("*"))
+        {
+            if (player.Job != JobType.Trade && player.Job != JobType.Hunter)
+                return true;
+        }
+
+        // 3. Fallback for servers that do not send the job suit info correctly:
+        // a job player targeting us or our transport is hostile.
         var playerUniqueId = Game.Player?.UniqueId ?? 0;
         var transportUniqueId = Game.Player?.JobTransport?.UniqueId ?? 0;
 
-        return player.TargetId != 0 &&
+        return player.WearsJobSuite && player.TargetId != 0 &&
                (player.TargetId == playerUniqueId ||
                 (transportUniqueId != 0 && player.TargetId == transportUniqueId));
     }
@@ -380,25 +388,109 @@ internal class AttackBundle
         IsAttacking = true;
         EnsureScriptPaused();
 
-        // Walk to the thief until it is in attack range.
-        if (target.DistanceToPlayer > EngageDistance)
+        // If target is very far away (> 25m), step closer towards it, stopping before its position to avoid collision
+        if (target.DistanceToPlayer > 25.0)
         {
-            if (DateTime.UtcNow - _lastMove >= MoveInterval)
+            if (DateTime.UtcNow - _lastMove >= TimeSpan.FromSeconds(1))
             {
                 _lastMove = DateTime.UtcNow;
-                player.MoveTo(target.Position, sleep: false);
+                var dirX = target.Position.X - player.Position.X;
+                var dirY = target.Position.Y - player.Position.Y;
+                var dist = Math.Sqrt(dirX * dirX + dirY * dirY);
+                if (dist > 5)
+                {
+                    var ratio = (dist - 4.0) / dist;
+                    var targetX = player.Position.X + dirX * ratio;
+                    var targetY = player.Position.Y + dirY * ratio;
+                    player.MoveTo(new Position((float)targetX, (float)targetY, target.Position.Region), sleep: false);
+                }
             }
 
             return;
         }
 
-        if (player.Movement.Moving)
-            player.StopMoving();
-
         if (TradeConfig.CastBuffs)
             EventManager.FireEvent("Bundle.Buff.Invoke");
 
-        EventManager.FireEvent("Bundle.Attack.Invoke");
+        // Cast weapon imbue (Fire/Cold/Lightning) if available
+        if (SkillManager.ImbueSkill?.Record != null &&
+            player.State != null &&
+            !player.State.HasActiveBuff(SkillManager.ImbueSkill, out _) &&
+            SkillManager.ImbueSkill.CanBeCasted)
+        {
+            SkillManager.ImbueSkill.Cast(buff: true);
+        }
+
+        AttackTarget(target);
+    }
+
+    /// <summary>
+    ///     Gets the effective combat range for the given skill or equipped weapon.
+    /// </summary>
+    private static double GetSkillRange(SkillInfo skill)
+    {
+        if (skill?.Record != null && skill.Record.Action_Range > 0)
+            return (skill.Record.Action_Range / 10.0) + 2.0;
+
+        var weapon = Game.Player?.Weapon;
+        if (weapon?.Record != null)
+        {
+            var type4 = weapon.Record.TypeID4;
+            if (type4 == 6 || type4 == 12 || type4 == 10 || type4 == 11)
+                return 16.0;
+        }
+
+        return 3.5;
+    }
+
+    /// <summary>
+    ///     Attacks the given thief target directly with configured or learned skills,
+    ///     falling back to auto attack.
+    /// </summary>
+    private static void AttackTarget(SpawnedBionic target)
+    {
+        var player = Game.Player;
+        if (player == null || !player.CanAttack)
+            return;
+
+        if (player.InAction)
+        {
+            if (SkillManager.IsLastCastedBasic)
+                SkillManager.CancelAction();
+
+            return;
+        }
+
+        // Make sure the auto attack packet is sent at the right entity.
+        if (Game.SelectedEntity?.UniqueId != target.UniqueId)
+            Game.SelectedEntity = target;
+
+        try
+        {
+            var skill = SkillManager.GetNextSkill();
+            if (skill != null)
+            {
+                var skillRange = GetSkillRange(skill);
+                if (target.DistanceToPlayer <= skillRange)
+                {
+                    if (SkillManager.CastSkill(skill, target.UniqueId))
+                        return;
+                }
+                else
+                {
+                    // Target is beyond skill cast range - auto attack closes the gap smoothly
+                    SkillManager.CastAutoAttack(target.UniqueId);
+                    return;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[Trade] Skill cast failed: {ex.Message}");
+        }
+
+        // Always fall back to the basic attack if no skill was casted
+        SkillManager.CastAutoAttack(target.UniqueId);
     }
 
     /// <summary>
@@ -587,6 +679,7 @@ internal class AttackBundle
         var player = Game.Player;
         if (TradeConfig.MountTransport && player != null && !player.HasActiveVehicle &&
             player.JobTransport != null && !player.InAction &&
+            player.State?.BattleState != BattleState.InBattle &&
             player.JobTransport.Position.DistanceToPlayer() <= TradeConfig.MaxTransportDistance + 5)
         {
             player.JobTransport.Mount();

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -265,13 +265,13 @@ internal static class TradeConfig
 
     public static bool AttackThiefPlayers
     {
-        get => PlayerConfig.Get("RSBot.Trade.AttackThiefPlayers", false);
+        get => PlayerConfig.Get("RSBot.Trade.AttackThiefPlayers", true);
         set => PlayerConfig.Set("RSBot.Trade.AttackThiefPlayers", value);
     }
 
     public static bool AttackThiefNpcs
     {
-        get => PlayerConfig.Get("RSBot.Trade.AttackThiefNpcs", false);
+        get => PlayerConfig.Get("RSBot.Trade.AttackThiefNpcs", true);
         set => PlayerConfig.Set("RSBot.Trade.AttackThiefNpcs", value);
     }
 

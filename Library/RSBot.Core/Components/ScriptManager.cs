@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -406,6 +406,42 @@ public class ScriptManager
 
         Log.Notify($"[Script] تم تحديد أقرب نقطة أمامية على المسار: السطر #{closest.Key} على مسافة {Math.Round(closest.Value.DistanceToPlayer(), 1)} متر.");
 
+        return closest.Key;
+    }
+
+    /// <summary>
+    ///     Finds the nearest walk command line before or at a maximum line index.
+    /// </summary>
+    public static int FindNearestMoveCommandLineBefore(int beforeLine)
+    {
+        if (Commands == null || Commands.Length == 0) return 0;
+
+        var line = -1;
+        var allMoves = new Dictionary<int, Position>();
+
+        foreach (var command in Commands)
+        {
+            line++;
+            if (line > beforeLine)
+                break;
+
+            if (command.Trim().StartsWith("//") ||
+                command.Trim().StartsWith("#") ||
+                !command.Trim().StartsWith("move") ||
+                string.IsNullOrWhiteSpace(command))
+                continue;
+
+            var args = command.Split(ArgumentSeparator, StringSplitOptions.RemoveEmptyEntries).Skip(1).ToArray();
+            var curPos = ParsePosition(args);
+
+            allMoves[line] = curPos;
+        }
+
+        if (allMoves.Count == 0)
+            return 0;
+
+        var closest = allMoves.MinBy(c => c.Value.DistanceToPlayer());
+        Log.Notify($"[Script] تم تحديد أقرب نقطة داخل المدينة: السطر #{closest.Key} على مسافة {Math.Round(closest.Value.DistanceToPlayer(), 1)} متر.");
         return closest.Key;
     }
 

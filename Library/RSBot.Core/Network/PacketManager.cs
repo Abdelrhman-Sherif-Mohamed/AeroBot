@@ -86,7 +86,14 @@ public class PacketManager
         foreach (var handler in Handlers.Where(handler =>
                      handler != null && handler.Opcode == packet.Opcode && handler.Destination == destination))
         {
-            handler.Invoke(packet);
+            try
+            {
+                handler.Invoke(packet);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug($"[PacketManager] Suppressed non-critical handler exception in {handler.GetType().Name} for opcode 0x{packet.Opcode:X4}: {ex.Message}");
+            }
             packet.SeekRead(0, SeekOrigin.Begin);
         }
     }
