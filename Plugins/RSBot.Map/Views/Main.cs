@@ -906,11 +906,13 @@ public partial class Main : DoubleBufferedControl
 
     private float GetMapX(Position gamePosition)
     {
+        if (Game.Player == null) return 0f;
         return mapCanvas.Width / 2f + (gamePosition.X - Game.Player.Movement.Source.X) * _scale;
     }
 
     private float GetMapY(Position gamePosition)
     {
+        if (Game.Player == null) return 0f;
         return mapCanvas.Height / 2f + (gamePosition.Y - Game.Player.Movement.Source.Y) * _scale * -1.0f;
     }
 
@@ -920,10 +922,11 @@ public partial class Main : DoubleBufferedControl
         {
             if (!Game.Ready || Game.Player == null) return;
 
-            var position = Game.Player.Movement.Source;
-            position.XOffset = Game.Player.Movement.Source.XOffset +
+            var source = Game.Player.Movement.Source;
+            var position = source;
+            position.XOffset = source.XOffset +
                                (mapCanvas.Width / 2f - e.X) / SectorSize * 192f * 10 * -1f;
-            position.YOffset = Game.Player.Movement.Source.YOffset + (mapCanvas.Height / 2f - e.Y) / SectorSize * 192f * 10;
+            position.YOffset = source.YOffset + (mapCanvas.Height / 2f - e.Y) / SectorSize * 192f * 10;
 
             Game.Player.MoveTo(position, false);
         }

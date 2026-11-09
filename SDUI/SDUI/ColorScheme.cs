@@ -23,6 +23,7 @@ public class ThemeDefinition
 {
     public string Name { get; set; } = "Custom";
     public string BackColor { get; set; }
+    public string ChromeColor { get; set; }
     public string CardColor { get; set; }
     public string CardColor2 { get; set; }
     public string ForeColor { get; set; }
@@ -45,6 +46,7 @@ public class ColorScheme
 
     // Custom Overrides (null means computed dynamically)
     public static Color? CustomBackColor { get; set; }
+    public static Color? CustomChromeColor { get; set; }
     public static Color? CustomCardColor { get; set; }
     public static Color? CustomCardColor2 { get; set; }
     public static Color? CustomForeColor { get; set; }
@@ -77,7 +79,7 @@ public class ColorScheme
     /// <summary>
     /// App chrome (title bar, side rail, footer) color. Light: #F8F9FA, Dark: #0B1220
     /// </summary>
-    public static Color ChromeColor => BackColor.IsDark() ? Color.FromArgb(11, 18, 32) : Color.FromArgb(248, 249, 250);
+    public static Color ChromeColor => CustomChromeColor ?? (BackColor.IsDark() ? Color.FromArgb(11, 18, 32) : Color.FromArgb(248, 249, 250));
 
     /// <summary>
     /// Secondary Card / Inner Container Background: #1e2530
@@ -203,6 +205,7 @@ public class ColorScheme
     public static void ResetToDefault()
     {
         CustomBackColor = null;
+        CustomChromeColor = null;
         CustomCardColor = null;
         CustomCardColor2 = null;
         CustomForeColor = null;
@@ -317,6 +320,7 @@ public class ColorScheme
         {
             Name = themeName,
             BackColor = ColorToHex(BackColor),
+            ChromeColor = ColorToHex(ChromeColor),
             CardColor = ColorToHex(CardColor),
             CardColor2 = ColorToHex(CardColor2),
             ForeColor = ColorToHex(ForeColor),
@@ -339,6 +343,7 @@ public class ColorScheme
         if (def == null) return;
 
         if (!string.IsNullOrEmpty(def.BackColor)) CustomBackColor = HexToColor(def.BackColor, BackColor);
+        if (!string.IsNullOrEmpty(def.ChromeColor)) CustomChromeColor = HexToColor(def.ChromeColor, ChromeColor);
         if (!string.IsNullOrEmpty(def.CardColor)) CustomCardColor = HexToColor(def.CardColor, CardColor);
         if (!string.IsNullOrEmpty(def.CardColor2)) CustomCardColor2 = HexToColor(def.CardColor2, CardColor2);
         if (!string.IsNullOrEmpty(def.ForeColor)) CustomForeColor = HexToColor(def.ForeColor, ForeColor);

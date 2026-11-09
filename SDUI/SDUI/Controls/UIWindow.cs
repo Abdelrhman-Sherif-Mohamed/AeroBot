@@ -1159,7 +1159,7 @@ public class UIWindow : UIWindowBase
         // Clean flat title bar (vBot style) in light mode, subtle chrome in dark mode.
         if (_titleHeightDPI > 0 && Width > 0)
         {
-            var baseCol = ColorScheme.BackColor;
+            var baseCol = ColorScheme.CustomChromeColor ?? ColorScheme.BackColor;
             var titleRect = new RectangleF(0, 0, Width, _titleHeightDPI);
 
             if (baseCol.IsDark())
@@ -1176,7 +1176,7 @@ public class UIWindow : UIWindowBase
             }
             else
             {
-                using var chrome = new SolidBrush(Color.FromArgb(248, 249, 250));
+                using var chrome = new SolidBrush(ColorScheme.CustomChromeColor ?? Color.FromArgb(248, 249, 250));
                 graphics.FillRectangle(chrome, titleRect);
             }
 
@@ -1640,8 +1640,8 @@ public class UIWindow : UIWindowBase
     {
         bool dark = ColorScheme.BackColor.IsDark();
 
-        var sidebarBg = dark ? Color.FromArgb(15, 23, 42) : Color.FromArgb(248, 249, 250);
-        var dividerColor = dark ? Color.FromArgb(30, 41, 59) : Color.FromArgb(229, 231, 235);
+        var sidebarBg = ColorScheme.CustomChromeColor ?? (dark ? Color.FromArgb(15, 23, 42) : Color.FromArgb(248, 249, 250));
+        var dividerColor = ColorScheme.CustomBorderColor ?? (dark ? Color.FromArgb(30, 41, 59) : Color.FromArgb(229, 231, 235));
 
         int navLeft = 0;
         int navTop = (int)_titleHeightDPI;
@@ -1657,12 +1657,12 @@ public class UIWindow : UIWindowBase
 
         int sel = _windowPageControl.SelectedIndex;
 
-        var washHover = dark ? Color.FromArgb(30, 41, 59) : Color.FromArgb(241, 245, 249);
-        var activeBg = dark ? Color.FromArgb(17, 61, 44) : Color.FromArgb(231, 244, 236);
-        var textIdle = dark ? Color.FromArgb(203, 213, 225) : Color.FromArgb(55, 65, 81);
-        var textActive = dark ? Color.FromArgb(52, 211, 153) : Color.FromArgb(31, 122, 77);
-        var iconIdle = dark ? Color.FromArgb(148, 163, 184) : Color.FromArgb(107, 114, 128);
-        var iconActive = dark ? Color.FromArgb(52, 211, 153) : Color.FromArgb(34, 160, 107);
+        var washHover = ColorScheme.CustomButtonHoverColor ?? (dark ? Color.FromArgb(30, 41, 59) : Color.FromArgb(241, 245, 249));
+        var activeBg = ColorScheme.CustomSelectionColor ?? (dark ? Color.FromArgb(17, 61, 44) : Color.FromArgb(231, 244, 236));
+        var textIdle = ColorScheme.CustomSecondaryForeColor ?? (dark ? Color.FromArgb(203, 213, 225) : Color.FromArgb(55, 65, 81));
+        var textActive = ColorScheme.CustomAccentColor ?? (dark ? Color.FromArgb(52, 211, 153) : Color.FromArgb(31, 122, 77));
+        var iconIdle = ColorScheme.CustomSecondaryForeColor ?? (dark ? Color.FromArgb(148, 163, 184) : Color.FromArgb(107, 114, 128));
+        var iconActive = ColorScheme.CustomAccentColor ?? (dark ? Color.FromArgb(52, 211, 153) : Color.FromArgb(34, 160, 107));
 
         using var centerFmt = new StringFormat
         {

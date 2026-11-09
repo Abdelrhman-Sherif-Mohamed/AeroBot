@@ -1,4 +1,5 @@
-﻿using RSBot.Core.Components;
+using System;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
 using RSBot.Core.Objects.Quests;
@@ -29,10 +30,18 @@ internal class CharacterDataEndResponse : IPacketHandler
     /// <param name="packet">The packet.</param>
     public void Invoke(Packet packet)
     {
-        SpawnManager.Clear();
+        try
+        {
+            SpawnManager.Clear();
 
-        packet = Game.ChunkedPacket;
-        packet.Lock();
+            packet = Game.ChunkedPacket;
+            if (packet == null)
+            {
+                Log.Warn("[CharacterDataEnd] Chunked packet is null. Skipping character load.");
+                return;
+            }
+
+            packet.Lock();
 
         if (Game.ClientType >= GameClientType.Thailand)
             packet.ReadUInt(); // serverTimestamp 
@@ -178,5 +187,10 @@ internal class CharacterDataEndResponse : IPacketHandler
 
         PacketManager.SendPacket(new Packet(0x3012), PacketDestination.Server);
         Game.Ready = true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[CharacterDataEndResponse] Error loading character: {ex.Message}");
+        }
     }
 }

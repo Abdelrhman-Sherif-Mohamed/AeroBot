@@ -212,6 +212,16 @@ public class InventoryItemCollection : ICollection<InventoryItem>
         _collection.Sort((a, b) => a.Slot.CompareTo(b.Slot));
     }
 
+    private static bool IsMovable(InventoryItem item)
+    {
+        if (item?.Record == null) return false;
+        if (item.Record.IsTrading || item.Record.IsSpecialtyGoodBox) return false;
+        var code = item.Record.CodeName;
+        if (!string.IsNullOrEmpty(code) && (code.Contains("_TRADE_") || code.Contains("SPECIALTY") || code.StartsWith("ITEM_ETC_TRADE_")))
+            return false;
+        return true;
+    }
+
     /// <summary>
     ///     Merges partial stacks of stackable items inside this collection.
     /// </summary>
@@ -220,45 +230,86 @@ public class InventoryItemCollection : ICollection<InventoryItem>
     /// <param name="maxIterations">The maximum number of iterations, used to avoid deadlocks.</param>
     /// <returns>The number of iterations that were performed.</returns>
     protected int SortStackableItems(Func<byte, byte, ushort, bool> moveItem, byte minimumSlot = 0,
-        int maxIterations = 10)
+        int maxIterations = 500)
     {
         var iterations = 0;
 
-        //Ignore items which move operations failed in the next iteration
-        var blacklistedItems = new List<uint>(4);
+        //Ignore items which move operations failed to avoid endless retries
+        var blacklistedItems = new HashSet<uint>();
 
-        for (var iIteration = 0; iIteration < maxIterations; iIteration++)
+        // Keep merging until there is not a single possible merge left, so that
+        // every partial stack is combined (not just the first group per iteration).
+        while (iterations < maxIterations)
         {
             iterations++;
 
-            var itemsToStackGroups = this.Where(i =>
-                    i.Slot >= minimumSlot && i.Record.IsStackable && i.Record.MaxStack > i.Amount &&
-                    !blacklistedItems.Contains(i.ItemId))
-                .GroupBy(i => i.ItemId);
+            var movedAny = false;
 
-            if (!itemsToStackGroups.Any())
-                break;
-
-            var itemsToStack = itemsToStackGroups.FirstOrDefault(g => g.Count() >= 2)
-                ?.OrderBy(i => i.Slot)
+            var stackGroups = this
+                .Where(i => i != null && i.Slot >= minimumSlot && i.Record != null &&
+                            i.Record.IsStackable && i.Record.MaxStack > 1 &&
+                            IsMovable(i) &&
+                            !blacklistedItems.Contains(i.ItemId))
+                .GroupBy(i => i.ItemId)
                 .ToList();
 
-            if (itemsToStack == null)
+            foreach (var group in stackGroups)
+            {
+                var items = group.OrderBy(i => i.Slot).ToList();
+                if (items.Count < 2)
+                    continue;
+
+                var itemId = group.Key;
+
+                // Use the first non-full stack as the accumulator, then pour every
+                // other stack of the same item into it (and continue with the next
+                // accumulator when it becomes full).
+                foreach (var destinationSeed in items)
+                {
+                    if (blacklistedItems.Contains(itemId))
+                        break;
+
+                    var destination = GetItemAt(destinationSeed.Slot);
+                    if (destination?.Record == null || destination.Amount >= destination.Record.MaxStack)
+                        continue;
+
+                    var sources = GetItems(i => i != null && i.ItemId == itemId &&
+                                                i.Slot >= minimumSlot && i.Slot != destination.Slot &&
+                                                i.Record != null && i.Amount < i.Record.MaxStack)
+                        .OrderBy(i => i.Slot)
+                        .ToList();
+
+                    foreach (var sourceSeed in sources)
+                    {
+                        var dest = GetItemAt(destination.Slot);
+                        if (dest?.Record == null || dest.Amount >= dest.Record.MaxStack)
+                            break;
+
+                        var source = GetItemAt(sourceSeed.Slot);
+                        if (source == null || source.Amount == 0)
+                            continue;
+
+                        var amount = dest.Record.MaxStack - dest.Amount;
+                        var actualAmount = source.Amount > amount ? amount : source.Amount;
+                        if (actualAmount <= 0)
+                            continue;
+
+                        if (moveItem(source.Slot, dest.Slot, (ushort)actualAmount))
+                        {
+                            movedAny = true;
+                        }
+                        else
+                        {
+                            // Do not retry the same item id forever
+                            blacklistedItems.Add(itemId);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!movedAny)
                 break;
-
-            var source = itemsToStack.FirstOrDefault();
-            if (source == null)
-                continue;
-
-            var destination = itemsToStack.FirstOrDefault(i => i.Record.ID == source.ItemId && i.Slot != source.Slot);
-            if (destination == null)
-                continue;
-
-            var amount = destination.Record.MaxStack - destination.Amount;
-            var actualAmount = source.Amount > amount ? amount : source.Amount;
-
-            if (!moveItem(source.Slot, destination.Slot, (ushort)actualAmount))
-                blacklistedItems.Add(source.ItemId);
         }
 
         return iterations;
@@ -384,8 +435,8 @@ public class InventoryItemCollection : ICollection<InventoryItem>
     /// <returns>The number of movement operations performed.</returns>
     public int OrderStorageItems(Func<byte, byte, ushort, bool> moveItem, bool splitByPages = true, int maxIterations = 300)
     {
-        // Step 1: Merge partial stacks first
-        SortStackableItems(moveItem, 0, 10);
+        // Step 1: Merge partial stacks first (exhaustively, not just one group)
+        SortStackableItems(moveItem, 0, 500);
 
         // Step 2: Collect all eligible items
         var items = this.ToList();
@@ -597,11 +648,11 @@ public class InventoryItemCollection : ICollection<InventoryItem>
     /// <returns>The number of movement operations performed.</returns>
     protected int OrderItems(Func<byte, byte, ushort, bool> moveItem, byte minimumSlot = 0, int maxIterations = 200)
     {
-        // Step 1: Merge partial stacks first
-        SortStackableItems(moveItem, minimumSlot, 10);
+        // Step 1: Merge partial stacks first (exhaustively, not just one group)
+        SortStackableItems(moveItem, minimumSlot, 500);
 
         // Step 2: Collect all eligible items
-        var eligibleItems = this.Where(i => i.Slot >= minimumSlot).ToList();
+        var eligibleItems = this.Where(i => i.Slot >= minimumSlot && IsMovable(i)).ToList();
         if (eligibleItems.Count == 0)
             return 0;
 
