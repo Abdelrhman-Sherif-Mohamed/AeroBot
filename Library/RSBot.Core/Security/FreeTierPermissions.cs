@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -8,7 +8,7 @@ using System.Text.Json.Serialization;
 namespace RSBot.Core.Security;
 
 /// <summary>
-/// Data model representing the permissions and conditions for the Free Tier of Wolves Bot.
+/// Data model representing the permissions and conditions for the Free Tier of AeroBot.
 /// Stored in Firebase Realtime Database at /free_permissions.json and cached locally.
 /// </summary>
 public class FreeTierPermissions
@@ -17,7 +17,7 @@ public class FreeTierPermissions
     public bool Enabled { get; set; } = true;
 
     [JsonPropertyName("notice")]
-    public string Notice { get; set; } = "أنت تستخدم النسخة المجانية من Wolves Bot. للاشتراك وفتح جميع المميزات تواصل مع الإدارة.";
+    public string Notice { get; set; } = "أنت تستخدم النسخة المجانية من AeroBot. للاشتراك وفتح جميع المميزات تواصل مع الإدارة.";
 
     // --- Botbase Modes ---
     [JsonPropertyName("allowGrindingBot")]

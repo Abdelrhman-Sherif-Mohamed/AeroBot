@@ -91,6 +91,7 @@ partial class AdminForm
         btnAddAccount = new System.Windows.Forms.Button();
         btnDeleteAccount = new System.Windows.Forms.Button();
         btnToggleAdmin = new System.Windows.Forms.Button();
+        btnSetMaxAccounts = new System.Windows.Forms.Button();
         tsmiToggleAdmin = new System.Windows.Forms.ToolStripMenuItem();
         chkAutoRefresh = new System.Windows.Forms.CheckBox();
 
@@ -272,6 +273,8 @@ partial class AdminForm
         lblTotalAccounts.TabIndex = 0;
         lblTotalAccounts.Text = "👥 الحسابات: 0 / 16";
         lblTotalAccounts.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+        lblTotalAccounts.Cursor = System.Windows.Forms.Cursors.Hand;
+        lblTotalAccounts.Click += lblTotalAccounts_Click;
 
         // 
         // lblServerStatus
@@ -307,7 +310,7 @@ partial class AdminForm
         lblTitle.Name = "lblTitle";
         lblTitle.Size = new System.Drawing.Size(175, 28);
         lblTitle.TabIndex = 1;
-        lblTitle.Text = "WOLVES ADMIN";
+        lblTitle.Text = "AEROBOT ADMIN";
 
         // 
         // picLogo
@@ -610,6 +613,7 @@ partial class AdminForm
         panelAccountActions.Controls.Add(btnAddAccount);
         panelAccountActions.Controls.Add(btnDeleteAccount);
         panelAccountActions.Controls.Add(btnToggleAdmin);
+        panelAccountActions.Controls.Add(btnSetMaxAccounts);
         panelAccountActions.Controls.Add(chkAutoRefresh);
 
         panelAccountActions.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -844,6 +848,18 @@ partial class AdminForm
         btnToggleAdmin.UseVisualStyleBackColor = false;
         btnToggleAdmin.Click += btnToggleAdmin_Click;
 
+        btnSetMaxAccounts.BackColor = System.Drawing.Color.FromArgb(110, 50, 160);
+        btnSetMaxAccounts.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        btnSetMaxAccounts.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+        btnSetMaxAccounts.ForeColor = System.Drawing.Color.White;
+        btnSetMaxAccounts.Location = new System.Drawing.Point(932, 48);
+        btnSetMaxAccounts.Name = "btnSetMaxAccounts";
+        btnSetMaxAccounts.Size = new System.Drawing.Size(130, 32);
+        btnSetMaxAccounts.TabIndex = 8;
+        btnSetMaxAccounts.Text = "🔢 سعة الحسابات";
+        btnSetMaxAccounts.UseVisualStyleBackColor = false;
+        btnSetMaxAccounts.Click += btnSetMaxAccounts_Click;
+
         chkAutoRefresh.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
         chkAutoRefresh.AutoSize = true;
         chkAutoRefresh.Checked = true;
@@ -1050,7 +1066,7 @@ partial class AdminForm
         numMaxAccounts.Font = new System.Drawing.Font("Segoe UI", 10F);
         numMaxAccounts.ForeColor = System.Drawing.Color.White;
         numMaxAccounts.Location = new System.Drawing.Point(20, 175);
-        numMaxAccounts.Maximum = new decimal(new int[] { 100, 0, 0, 0 });
+        numMaxAccounts.Maximum = new decimal(new int[] { 10000, 0, 0, 0 });
         numMaxAccounts.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
         numMaxAccounts.Name = "numMaxAccounts";
         numMaxAccounts.Size = new System.Drawing.Size(120, 25);
@@ -1394,7 +1410,7 @@ partial class AdminForm
         RightToLeft = System.Windows.Forms.RightToLeft.Yes;
         RightToLeftLayout = true;
         StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-        Text = "Wolves Admin - لوحة تحكم وإدارة الحسابات والاشتراكات الشهرية واليومية";
+        Text = "AeroBot Admin - لوحة تحكم وإدارة الحسابات والاشتراكات الشهرية واليومية";
         Load += AdminForm_Load;
 
         panelTop.ResumeLayout(false);
@@ -1689,7 +1705,7 @@ partial class AdminForm
         txtFreeNotice.Multiline = true;
         txtFreeNotice.Name = "txtFreeNotice";
         txtFreeNotice.Size = new System.Drawing.Size(315, 115);
-        txtFreeNotice.Text = "أنت تستخدم النسخة المجانية من Wolves Bot. للاشتراك وفتح جميع المميزات تواصل مع الإدارة.";
+        txtFreeNotice.Text = "أنت تستخدم النسخة المجانية من AeroBot. للاشتراك وفتح جميع المميزات تواصل مع الإدارة.";
 
         // btnSavePermissions
         btnSavePermissions.BackColor = System.Drawing.Color.FromArgb(46, 125, 50);
@@ -1802,6 +1818,7 @@ partial class AdminForm
     private System.Windows.Forms.Button btnAddAccount;
     private System.Windows.Forms.Button btnDeleteAccount;
     private System.Windows.Forms.Button btnToggleAdmin;
+    private System.Windows.Forms.Button btnSetMaxAccounts;
     private System.Windows.Forms.ToolStripMenuItem tsmiToggleAdmin;
     private System.Windows.Forms.CheckBox chkAutoRefresh;
 

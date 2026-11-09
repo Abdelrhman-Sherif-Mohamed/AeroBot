@@ -522,6 +522,65 @@ public partial class AdminForm : Form
         }
     }
 
+        private async void btnSetMaxAccounts_Click(object sender, EventArgs e)
+    {
+        await PromptChangeMaxAccountsAsync();
+    }
+
+    private async void lblTotalAccounts_Click(object sender, EventArgs e)
+    {
+        await PromptChangeMaxAccountsAsync();
+    }
+
+    private async Task PromptChangeMaxAccountsAsync()
+    {
+        try
+        {
+            var settings = await _authService.GetSettingsAsync() ?? new GlobalAuthSettings();
+            var current = settings.MaxAccounts > 0 ? settings.MaxAccounts : 16;
+            var input = InputPrompt.Show(
+                $"الحد الأقصى الحالي لعدد الحسابات المسموح بإنشائها في السيرفر هو: {current}\n\nأدخل الحد الأقصى الجديد (مثلاً 20، 30، 50، 100):",
+                "التحكم في سعة الحسابات (Max Accounts)",
+                current.ToString());
+
+            if (string.IsNullOrWhiteSpace(input))
+                return;
+
+            if (int.TryParse(input.Trim(), out var newLimit) && newLimit > 0)
+            {
+                settings.MaxAccounts = newLimit;
+                lblStatusMessage.Text = $"جارٍ حفظ الحد الأقصى الجديد ({newLimit}) على السيرفر...";
+
+                var ok = await _authService.SaveSettingsAsync(settings);
+                if (ok)
+                {
+                    if (newLimit <= (int)numMaxAccounts.Maximum)
+                        numMaxAccounts.Value = newLimit;
+
+                    MessageBox.Show(this,
+                        $"تم تحديث الحد الأقصى لعدد الحسابات في السيرفر إلى ({newLimit}) بنجاح! 💾\n\nأصبح بإمكانك الآن تسجيل وإنشاء حتى {newLimit} حساب.",
+                        "تم تحديث سعة الحسابات",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+
+                    await RefreshDataAsync();
+                }
+                else
+                {
+                    MessageBox.Show(this, "تعذر حفظ الإعدادات على سيرفر الفايربيس.", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            else
+            {
+                MessageBox.Show(this, "يرجى إدخال رقم صحيح أكبر من الصفر.", "قيمة غير صحيحة", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"حدث خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     private async void btnAddAccount_Click(object sender, EventArgs e)
     {
         var result = InputPrompt.ShowNewAccountDialog();

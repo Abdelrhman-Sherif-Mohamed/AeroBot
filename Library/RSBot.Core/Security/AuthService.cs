@@ -332,9 +332,7 @@ public class AuthService
             var salt = Guid.NewGuid().ToString("N");
             var hash = ComputeHash(password, salt);
 
-            var initialExpiresAt = settings.DefaultTrialHours > 0
-                ? DateTime.UtcNow.AddHours(settings.DefaultTrialHours).ToString("yyyy-MM-dd HH:mm:ss")
-                : string.Empty;
+            var initialExpiresAt = "2026-01-01 00:00:00";
 
             var account = new UserAccount
             {
@@ -348,8 +346,8 @@ public class AuthService
                 BlockedReason = string.Empty,
                 CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
                 LastLoginAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
-                IsOnline = true,
-                Notes = string.Empty,
+                IsOnline = false,
+                Notes = "حساب جديد بانتظار التفعيل",
                 ExpiresAt = initialExpiresAt,
                 IsLifetime = false,
                 IsAdmin = false
@@ -361,10 +359,10 @@ public class AuthService
                 return AuthResult.Fail("حدث خطأ أثناء حفظ الحساب في السيرفر. يرجى المحاولة مرة أخرى.");
             }
 
-            await LogSecurityEventAsync(username, "REGISTER", hwid, ip, $"تم تسجيل حساب جديد بنجاح وربطه بالجهاز ({allAccounts.Count + 1}/{maxCap})");
+            await LogSecurityEventAsync(username, "REGISTER", hwid, ip, $"تم تسجيل حساب جديد بنجاح وربطه بالجهاز ({allAccounts.Count + 1}/{maxCap}) - بانتظار تفعيل الاشتراك");
 
-            CurrentUser = account;
-            return AuthResult.Ok($"تم إنشاء الحساب بنجاح وربطه بهذا الجهاز!\n(الحساب {allAccounts.Count + 1} من أصل {maxCap})", account);
+            // Do not set CurrentUser since account requires activation before login
+            return AuthResult.Ok($"تم إنشاء الحساب بنجاح وربطه بهذا الجهاز!\n(الحساب {allAccounts.Count + 1} من أصل {maxCap})\nالحساب حالياً بانتظار تفعيل الاشتراك من قِبل الإدارة.", account);
         }
         catch (Exception ex)
         {
@@ -409,14 +407,14 @@ public class AuthService
             {
                 await LogSecurityEventAsync(username, "LOGIN_REJECTED_BLOCKED", currentHwid, currentIp, "محاولة تسجيل دخول لحساب محظور مسبقاً");
                 var reason = string.IsNullOrWhiteSpace(account.BlockedReason) ? "مخالفة شروط الاستخدام" : account.BlockedReason;
-                return AuthResult.Fail($"هذا الحساب محظور!\n\nسبب الحظر:\n{reason}\n\nيرجى التواصل مع إدارة Wolves لفك الحظر.");
+                return AuthResult.Fail($"هذا الحساب محظور!\n\nسبب الحظر:\n{reason}\n\nيرجى التواصل مع إدارة Aerobot لفك الحظر.");
             }
 
             // Check if subscription has expired
             if (account.IsExpired)
             {
-                await LogSecurityEventAsync(username, "LOGIN_REJECTED_EXPIRED", currentHwid, currentIp, "محاولة تسجيل دخول باشتراك منتهي");
-                return AuthResult.Fail($"عذراً، لقد انتهت صلاحية اشتراك هذا الحساب بتاريخ:\n{account.ExpiresAt}\n\nيرجى تجديد الاشتراك مع إدارة Wolves Bot للاستمرار في استخدام البوت.");
+                await LogSecurityEventAsync(username, "LOGIN_REJECTED_EXPIRED", currentHwid, currentIp, "محاولة تسجيل دخول باشتراك منتهي أو غير مفعل");
+                return AuthResult.Fail($"عذراً، هذا الحساب غير مفعل أو انتهت صلاحية اشتراكه!\n\nيرجى التواصل مع إدارة Aerobot لتفعيل الاشتراك.");
             }
 
             // Case A: HWID is empty (Admin performed Reset HWID to allow PC transfer)
@@ -434,9 +432,14 @@ public class AuthService
                 return AuthResult.Ok("تم تسجيل الدخول وربط جهازك الجديد بنجاح!", account);
             }
 
-            // Case B: HWID matches current machine
-            if (string.Equals(account.HWID, currentHwid, StringComparison.OrdinalIgnoreCase))
+            // Case B: HWID matches current machine (with automatic upgrade from WLV- to AERO-)
+            var isHwidMatch = string.Equals(account.HWID, currentHwid, StringComparison.OrdinalIgnoreCase) ||
+                (account.HWID != null && account.HWID.StartsWith("WLV-", StringComparison.OrdinalIgnoreCase) &&
+                 string.Equals(account.HWID.Substring(4), currentHwid.StartsWith("AERO-", StringComparison.OrdinalIgnoreCase) ? currentHwid.Substring(5) : currentHwid, StringComparison.OrdinalIgnoreCase));
+
+            if (isHwidMatch)
             {
+                account.HWID = currentHwid; // Upgrade WLV- to AERO- seamlessly
                 account.LastLoginIP = currentIp;
                 account.LastLoginAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
                 account.IsOnline = true;
@@ -562,8 +565,10 @@ public class AuthService
 
         username = username.Trim();
         var all = await GetAllAccountsAsync();
-        if (all.Count >= 16)
-            return AuthResult.Fail("تم الوصول للحد الأقصى للحسابات (16 حساباً).");
+        var settings = await GetSettingsAsync();
+        var maxCap = settings.MaxAccounts > 0 ? settings.MaxAccounts : 16;
+        if (all.Count >= maxCap)
+            return AuthResult.Fail($"تم الوصول للحد الأقصى للحسابات ({maxCap} حساباً). يمكنك زيادة الحد الأقصى من لوحة الإعدادات أو زر سعة الحسابات.");
 
         if (all.ContainsKey(username.ToLowerInvariant()))
             return AuthResult.Fail("اسم المستخدم موجود مسبقاً.");
@@ -815,7 +820,7 @@ public class AuthService
         try
         {
             var fresh = await GetAccountAsync(CurrentUser.Username);
-            if (fresh == null || fresh.IsBlocked)
+            if (fresh == null || fresh.IsBlocked || fresh.IsExpired)
             {
                 TriggerSubscriptionExpired();
                 return false;

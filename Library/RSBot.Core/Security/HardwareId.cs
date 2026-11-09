@@ -76,14 +76,14 @@ public static class HardwareId
             var hashBytes = sha.ComputeHash(Encoding.UTF8.GetBytes(sb.ToString()));
             var hex = Convert.ToHexString(hashBytes);
 
-            // Format as readable segmented HWID: WLV-XXXXXXXX-XXXXXXXX-XXXXXXXX
-            _cachedHwid = $"WLV-{hex.Substring(0, 8)}-{hex.Substring(8, 8)}-{hex.Substring(16, 8)}";
+            // Format as readable segmented HWID: AERO-XXXXXXXX-XXXXXXXX-XXXXXXXX
+            _cachedHwid = $"AERO-{hex.Substring(0, 8)}-{hex.Substring(8, 8)}-{hex.Substring(16, 8)}";
             return _cachedHwid;
         }
         catch
         {
             // Ultimate fallback
-            _cachedHwid = $"WLV-{Math.Abs(Environment.MachineName.GetHashCode()):X8}-{Math.Abs(Environment.UserName.GetHashCode()):X8}";
+            _cachedHwid = $"AERO-{Math.Abs(Environment.MachineName.GetHashCode()):X8}-{Math.Abs(Environment.UserName.GetHashCode()):X8}";
             return _cachedHwid;
         }
     }
