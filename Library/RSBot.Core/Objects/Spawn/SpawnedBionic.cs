@@ -131,18 +131,26 @@ public class SpawnedBionic : SpawnedEntity
     {
         Log.Debug($"Entity deselected: {UniqueId}");
 
-        var packet = new Packet(0x704B);
-        packet.WriteUInt(UniqueId);
-
-        var awaitResult = new AwaitCallback(response =>
+        // If the server does not acknowledge the close (0xB04B) the NPC dialog stays
+        // open server-side and the player becomes unable to move. Retry once.
+        for (var attempt = 1; attempt <= 2; attempt++)
         {
-            return response.ReadByte() == 0x01
-                ? AwaitCallbackResult.Success
-                : AwaitCallbackResult.Fail;
-        }, 0xB04B);
+            var packet = new Packet(0x704B);
+            packet.WriteUInt(UniqueId);
 
-        PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
-        awaitResult.AwaitResponse(500);
+            var awaitResult = new AwaitCallback(response =>
+            {
+                return response.ReadByte() == 0x01
+                    ? AwaitCallbackResult.Success
+                    : AwaitCallbackResult.Fail;
+            }, 0xB04B);
+
+            PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
+            awaitResult.AwaitResponse(600);
+
+            if (awaitResult.IsCompleted)
+                return true;
+        }
 
         return true;
     }

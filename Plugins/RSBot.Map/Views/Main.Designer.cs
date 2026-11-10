@@ -104,7 +104,7 @@ namespace RSBot.Map.Views
             // trmInterval
             // 
             trmInterval.Enabled = true;
-            trmInterval.Interval = 50;
+            trmInterval.Interval = 100;
             trmInterval.Tick += trmInterval_Tick;
             // 
             // lvMonster

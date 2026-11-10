@@ -27,9 +27,12 @@ internal class AttackBundle : IBundle
             if (Game.SelectedEntity == null || Game.Player == null || !Game.Player.CanAttack)
                 return;
 
+            // A forced target (e.g. the leader's target in Target Support mode)
+            // is always attacked, even if it is a player.
+            var isForcedTarget = TargetOverride.IsForced(Game.SelectedEntity.UniqueId);
+
             if (Game.SelectedEntity.State?.LifeState == LifeState.Dead ||
-                !Game.SelectedEntity.HasHealth ||
-                Game.SelectedEntity.Health <= 0)
+                (!isForcedTarget && Game.SelectedEntity.HasHealth && Game.SelectedEntity.Health <= 0))
             {
                 Game.SelectedEntity = null;
                 return;
@@ -71,8 +74,9 @@ internal class AttackBundle : IBundle
 
             if (skill == null)
             {
-                if (PlayerConfig.Get("RSBot.Skills.checkUseDefaultAttack", false) &&
-                    !SkillManager.HasConfiguredSkills)
+                if (isForcedTarget ||
+                    (PlayerConfig.Get("RSBot.Skills.checkUseDefaultAttack", false) &&
+                     !SkillManager.HasConfiguredSkills))
                 {
                     SkillManager.CastAutoAttack();
                 }
@@ -87,6 +91,14 @@ internal class AttackBundle : IBundle
 
             if (Game.SelectedEntity.DistanceToPlayer > skillRange)
             {
+                if (isForcedTarget)
+                {
+                    // Keep the forced target and use the basic attack instead
+                    // of dropping it.
+                    SkillManager.CastAutoAttack();
+                    return;
+                }
+
                 var walkToCenter = PlayerConfig.Get<bool>("RSBot.Training.radioCenter");
                 if (walkToCenter || (Container.Bot?.Area != null && Container.Bot.Area.Radius <= 30))
                 {

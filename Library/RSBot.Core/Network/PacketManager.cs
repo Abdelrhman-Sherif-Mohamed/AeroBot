@@ -151,7 +151,7 @@ public class PacketManager
     /// </summary>
     internal static void SendForwardedPacket(Packet packet, PacketDestination destination)
     {
-        SendPacket(packet, destination, false);
+        SendPacket(packet, destination, false, true);
     }
 
     /// <summary>
@@ -162,7 +162,12 @@ public class PacketManager
     /// <param name="logPacket">
     ///     When <c>true</c> the packet is remembered for the crash dump.
     /// </param>
-    private static void SendPacket(Packet packet, PacketDestination destination, bool logPacket)
+    /// <param name="isForwarded">
+    ///     <c>true</c> when the packet comes from the game client / server and is
+    ///     only proxied, <c>false</c> for packets the bot creates itself.
+    /// </param>
+    private static void SendPacket(Packet packet, PacketDestination destination, bool logPacket,
+        bool isForwarded = false)
     {
         if (Kernel.Proxy == null)
             return;
@@ -175,6 +180,7 @@ public class PacketManager
             try
             {
                 PacketLogger.RememberSentPacket(packet, destination);
+                PacketLogger.LogBotPacket(packet, destination);
             }
             catch { }
         }
@@ -196,7 +202,8 @@ public class PacketManager
                             if (packet.Opcode == 0xB045 || // NPC dialog menu (silenced so client UI doesn't pop up)
                                 packet.Opcode == 0xB046 || // NPC shop window
                                 packet.Opcode == 0xB04B || // NPC close dialog
-                                packet.Opcode == 0x34D5)   // Specialty trade notification (causes 0xC0000005 crash in sro_client)
+                                packet.Opcode == 0x34D5 || // Specialty trade notification (causes 0xC0000005 crash in sro_client)
+                                packet.Opcode == 0xB034)   // Raw buy response (silenced so client doesn't deselect or error out)
                             {
                                 break;
                             }
@@ -207,6 +214,20 @@ public class PacketManager
                     break;
 
                 case PacketDestination.Server:
+                    // Only suppress the close-dialog packet (0x704B) that the game client
+                    // sends on its own. sro_client deselects the NPC automatically because
+                    // it did not initiate the dialog, and forwarding that would close the
+                    // shop in the middle of a bot transaction.
+                    //
+                    // Packets created by the bot itself MUST always reach the server:
+                    // dropping the bot's own 0x704B leaves the shop open on the server,
+                    // and the server refuses to move the player while a dialog is open,
+                    // so the bot appears stuck at the NPC forever.
+                    if (isForwarded && IsBotDrivenTrade && packet.Opcode == 0x704B)
+                    {
+                        break;
+                    }
+
                     Kernel.Proxy.Server?.Send(packet);
                     break;
             }

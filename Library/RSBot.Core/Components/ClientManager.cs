@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using RSBot.Core.Event;
 using RSBot.Core.Extensions;
+using RSBot.Core.Network;
 using static RSBot.Core.Extensions.NativeExtensions;
 
 namespace RSBot.Core.Components;
@@ -507,6 +508,18 @@ public class ClientManager
         }
 
         SessionLog.Write($"Client process {processId} exited (exit code {exitCode})");
+
+        // Keep the packets that went through the proxy right before the client died.
+        // This makes it possible to find the packet that made sro_client crash.
+        // A clean exit (code 0) does not need a dump.
+        if (!string.Equals(exitCode, "0x00000000", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                PacketLogger.DumpRecent($"client process {processId} exited ({exitCode})");
+            }
+            catch { }
+        }
 
         CleanupClientFiles(processId);
 

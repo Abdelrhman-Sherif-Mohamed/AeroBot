@@ -68,6 +68,16 @@ public partial class Main : DoubleBufferedControl
         BuildGoodsTab();
         BuildRouteTab();
 
+        tabControlMain.SelectedIndexChanged += (s, e) =>
+        {
+            if (tabControlMain.SelectedTab == tabPageGoods)
+            {
+                RefreshGoods();
+            }
+        };
+
+        RefreshGoods();
+
         panelLog = BuildLogPanel();
 
         var root = new TableLayoutPanel

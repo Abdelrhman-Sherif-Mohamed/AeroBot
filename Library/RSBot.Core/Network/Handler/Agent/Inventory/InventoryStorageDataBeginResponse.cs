@@ -27,8 +27,8 @@ internal class InventoryStorageDataBeginResponse : IPacketHandler
     public void Invoke(Packet packet)
     {
         Game.ChunkedPacket = new Packet(0);
-        Game.Player.Storage = Game.Player.Storage ?? new Storage();
-        Game.Player.Storage.Clear();
+        Game.Player.Storage = Game.Player.Storage ?? new Storage();
+        Game.Player.Storage.Clear();
         Game.Player.Storage.Gold = packet.ReadULong();
     }
 }

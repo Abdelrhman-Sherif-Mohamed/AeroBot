@@ -3,27 +3,31 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• إصلاح مشكلة فصل اللعبة (Disconnect) عند شراء بضائع التجارة من تاجر البضائع — الشراء بقى شغال وبيتم تحميل البضاعة على الجمل لحد 5000 وحدة بدون كراش.
-• إصلاح مشكلة "البوت بيلزق في التاجر" بعد الشراء: البوت بقى يقفل نافذة المتجر صح ويبدأ يتحرك فوراً بدون ما يفضل واقف عند الـNPC.
-• إصلاح مسار تاجر البضائع في جانجان (Specialty Trader Seopok) — مسار جديد أسهل وبيوصل للتاجر بالظبط.
-• إزالة سجلات الباكيتات (Packet Logs) من صندوق اللوج نهائياً — مبقاش بيظهر للمستخدم أي تفاصيل باكيتات ولا بيتم إنشاء ملف packets.log.
-• إصلاح رعشة ورفريش الخريطة الصغيرة (Minimap) — الخريطة بقت تترسم بس لما اللاعب يتحرك فعلاً، وبدون فلاش أو اهتزاز.
-• إصلاح هجمات قطاع الطرق (Thieves) أثناء التجارة: البوت بقى يهاجم من مسافة السلاح بدل ما يمشي جوه الهدف.
-• دعم مساعد الاستهداف (Target Support) على اللاعبين مش الوحوش بس.
-• تحسين تثبيت سعر وكمية الشراء واختيار البضاعة المفضلة أثناء شراء بضائع التجارة."""
+changelog_ar = """• حل شامل ونهائي لنظام التجارة (Trade System):
+  - إصلاح شراء بضائع التجارة بالكامل حتى 5000 وحدة (5 نجوم كاملة) بدون فصل اللعبة (Disconnect).
+  - حل مشكلة الوقوف أو التعليق عند تاجر البضائع بعد الشراء: إغلاق نافذة المتجر بالشكل الصحيح والانطلاق فوراً في المسار.
+  - إصلاح مسار تاجر البضائع في جانجان (Jangan Specialty Trader Seopok) بمسار دقيق وسلس.
+  - إصلاح قتال قطاع الطرق (Thieves) أثناء التجارة: الهجوم من مسافة السلاح بدقة وتفعيل المهارات والإمبيو دون الدخول داخل الهدف.
+• تحسينات الأداء والواجهة:
+  - إزالة سجلات الباكيتات نهائياً من صندوق السجلات (Packet Logs) لمنع البطء والتشويش.
+  - إصلاح رعشة ووميض الخريطة الصغيرة (Minimap) وجعل التحديث سلساً عند الحركة فقط.
+  - دعم مساعد الاستهداف (Target Support) للاعبين والوحوش معاً.
+• حزمة تحديث رسمية متزامنة ونظيفة 100% لجميع المستخدمين."""
 
-changelog_en = """• Fixed the game client disconnect (DC) when buying trade goods — purchasing now works and loads up to 5000 units onto the transport without crashing.
-• Fixed the "bot stuck at the NPC" bug after buying: the bot now closes the shop dialog correctly and starts moving immediately.
-• Fixed the Jangan Specialty Trader (Seopok) route — new cleaner path that ends exactly on the trader.
-• Removed packet logs from the log window completely — no packet dumps are shown to users and packets.log is no longer created.
-• Fixed the minimap flicker / constant refresh — the map now repaints only when the player actually moves, with no flicker or shaking.
-• Fixed trade thief combat: the bot now engages from weapon range instead of walking inside the target.
-• Target Support now works on players as well as monsters.
-• Improved trade purchase stability, quantity handling and preferred goods selection."""
+changelog_en = """• Complete and comprehensive resolution of the Trade System:
+  - Fixed trade goods purchase up to 5000 units (full 5-star cargo) without game client disconnects (DC).
+  - Fixed bot getting stuck at the NPC trader after purchase: correctly closes shop dialog and resumes movement immediately.
+  - Updated Jangan Specialty Trader (Seopok) route with accurate pathing and interaction points.
+  - Fixed combat against thieves during trading: attacks from proper weapon range with skills and imbue without colliding into targets.
+• Performance and UI Enhancements:
+  - Completely silenced raw packet logs from UI log box and eliminated packets.log creation.
+  - Eliminated minimap flicker and unnecessary repaints; refreshes cleanly only upon player movement.
+  - Enhanced Target Support for both monsters and players.
+• Clean, fully synced 100% production release for all users."""
 
 data = {
-    "version": "2.9.44",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.44.zip",
+    "version": "2.9.45",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.45.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -40,4 +44,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.44 update to Firebase! Status:', res.status)
+    print('Published 2.9.45 update to Firebase! Status:', res.status)

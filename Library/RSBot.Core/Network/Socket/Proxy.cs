@@ -90,16 +90,49 @@ public class Proxy
     /// </summary>
     public void Shutdown()
     {
+        DetachClient(Client);
         Client?.Shutdown();
         Client = null;
 
+        DetachServer(Server);
         Server?.Disconnect();
         Server = null;
+
+        IsConnectedToGatewayserver = false;
+        IsConnectedToAgentserver = false;
 
         _agentIp = null;
         _agentPort = 0;
         _gatewayIp = null;
         _gatewayPort = 0;
+    }
+
+    /// <summary>
+    ///     Removes every event subscription from the given server instance so a
+    ///     late/stale socket callback can not report a bogus disconnect after a
+    ///     new server instance has been created.
+    /// </summary>
+    private void DetachServer(Server server)
+    {
+        if (server == null)
+            return;
+
+        server.Connected -= Server_OnConnected;
+        server.Disconnected -= Server_OnDisconnected;
+        server.PacketReceived -= Server_OnPacketReceived;
+    }
+
+    /// <summary>
+    ///     Removes every event subscription from the given client instance.
+    /// </summary>
+    private void DetachClient(Client client)
+    {
+        if (client == null)
+            return;
+
+        client.Connected -= Client_OnConnected;
+        client.Disconnected -= Client_OnDisconnected;
+        client.PacketReceived -= Client_OnPacketReceived;
     }
 
     /// <summary>
@@ -122,7 +155,9 @@ public class Proxy
                 IsConnectedToAgentserver = false;
                 IsConnectedToGatewayserver = true;
 
+                _suppressServerDisconnect = true;
                 Server.Connect(_gatewayIp, port);
+                _suppressServerDisconnect = false;
 
                 if (Server.IsConnected)
                     return;
@@ -132,6 +167,10 @@ public class Proxy
         }
 
         SessionLog.Write($"Could not connect to any of the gateway ports ({string.Join(", ", ports)})");
+        Log.Warn("Could not connect to any gateway server.");
+
+        IsConnectedToGatewayserver = false;
+        EventManager.FireEvent("OnGatewayServerDisconnected");
     }
 
     /// <summary>
@@ -201,7 +240,21 @@ public class Proxy
         IsConnectedToGatewayserver = false;
         IsConnectedToAgentserver = true;
 
+        _suppressServerDisconnect = true;
         Server.Connect(_agentIp, _agentPort);
+        _suppressServerDisconnect = false;
+
+        if (Server.IsConnected)
+            return;
+
+        Log.Warn("Could not connect to the game (agent) server.");
+        SessionLog.Write("Could not connect to the game (agent) server");
+
+        IsConnectedToAgentserver = false;
+        Game.Ready = false;
+        Game.Started = false;
+
+        EventManager.FireEvent("OnAgentServerDisconnected");
     }
 
     /// <summary>
@@ -209,11 +262,19 @@ public class Proxy
     /// </summary>
     private void CreateNewServerInstance()
     {
-        if (Server != null && Server.IsConnected)
-            Server.Disconnect();
-
+        // Reset the connection flags *before* disconnecting the old server.
+        // Otherwise the old server's Disconnected event fires while the flags
+        // still describe the previous connection and triggers a bogus
+        // "agent server disconnected" (which makes the client restart loop).
         IsConnectedToGatewayserver = false;
         IsConnectedToAgentserver = false;
+
+        var oldServer = Server;
+        if (oldServer != null)
+        {
+            DetachServer(oldServer);
+            oldServer.Disconnect();
+        }
 
         Server = new Server();
         Server.Connected += Server_OnConnected;
@@ -227,6 +288,13 @@ public class Proxy
     /// <param name="clientPort">The client port.</param>
     private void CreateNewClientInstance(ushort clientPort)
     {
+        var oldClient = Client;
+        if (oldClient != null)
+        {
+            DetachClient(oldClient);
+            oldClient.Shutdown();
+        }
+
         Client = new Client();
         Client.Connected += Client_OnConnected;
         Client.PacketReceived += Client_OnPacketReceived;
@@ -259,7 +327,9 @@ public class Proxy
             if (packet != null)
                 try
                 {
-                    PacketManager.SendPacket(packet, destination);
+                    // The packet was already recorded by PacketLogger.LogPacket above,
+                    // so it must not be recorded a second time here.
+                    PacketManager.SendForwardedPacket(packet, destination);
 
                     packet.SeekRead(0, SeekOrigin.Begin);
 
@@ -279,6 +349,13 @@ public class Proxy
     private ushort _agentPort;
     private string _gatewayIp;
     private ushort _gatewayPort;
+
+    /// <summary>
+    ///     When true, a server disconnect event is treated as an expected
+    ///     connect/reconnect failure and is not forwarded to the UI (forwarding
+    ///     it would shut the whole proxy down in the middle of a reconnect).
+    /// </summary>
+    private bool _suppressServerDisconnect;
 
     #endregion Fields
 
@@ -360,6 +437,9 @@ public class Proxy
     /// </summary>
     private void Server_OnDisconnected()
     {
+        if (_suppressServerDisconnect)
+            return;
+
         if (IsConnectedToAgentserver)
         {
             Log.Warn("Disconnected from game server!");

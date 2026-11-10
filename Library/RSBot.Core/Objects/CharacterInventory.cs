@@ -146,7 +146,7 @@ public class CharacterInventory : InventoryItemCollection
     /// </summary>
     public bool IsOrdering { get; private set; }
 
-    public void Sort()
+    public void Sort(int maxIterations = 500)
     {
         if (IsSorting || IsOrdering || Game.Player == null || Game.Player.InAction)
             return;
@@ -154,10 +154,15 @@ public class CharacterInventory : InventoryItemCollection
         IsSorting = true;
         Log.Debug("Sorting the character inventory...");
 
-        var iterations = SortStackableItems(MoveItem, NORMAL_PART_MIN_SLOT);
-
-        IsSorting = false;
-        Log.Debug($"Sorting finished after {iterations}/10");
+        try
+        {
+            var iterations = SortStackableItems(MoveItem, NORMAL_PART_MIN_SLOT, maxIterations);
+            Log.Debug($"Sorting finished after {iterations} iteration(s).");
+        }
+        finally
+        {
+            IsSorting = false;
+        }
     }
 
     /// <summary>

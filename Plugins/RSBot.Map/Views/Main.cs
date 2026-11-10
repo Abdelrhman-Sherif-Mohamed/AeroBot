@@ -18,6 +18,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
@@ -93,6 +94,24 @@ public partial class Main : DoubleBufferedControl
     private readonly Stopwatch _lastWorldMapUpdate = Stopwatch.StartNew();
 
     /// <summary>
+    ///     Throttles the repaint of the minimap. Redrawing the whole map and
+    ///     rebuilding the entity list 20 times per second made the map flicker /
+    ///     shake and wasted a lot of CPU.
+    /// </summary>
+    private readonly Stopwatch _lastMapRender = Stopwatch.StartNew();
+    private Position? _lastRenderedPlayerPosition;
+
+    /// <summary>
+    ///     Throttles the entity list (lvMonster) rebuild.
+    /// </summary>
+    private readonly Stopwatch _lastEntityListUpdate = Stopwatch.StartNew();
+
+    /// <summary>
+    ///     <c>true</c> when the entity list should be rebuilt during the current frame.
+    /// </summary>
+    private bool _updateEntityList;
+
+    /// <summary>
     ///     Initializes a new instance of the <see cref="Main" /> class.
     /// </summary>
     public Main()
@@ -104,6 +123,19 @@ public partial class Main : DoubleBufferedControl
         _cachedImages ??= new();
 
         EventManager.SubscribeEvent("OnEnterGame", OnEnterGame);
+
+        // The minimap tab page must be double buffered, otherwise every repaint
+        // erases the control first and the map visibly flickers.
+        try
+        {
+            typeof(Control)
+                .GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.SetValue(mapCanvas, true);
+            typeof(Control)
+                .GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.SetValue(tabControl1, true);
+        }
+        catch { }
 
         bufferedGraphicsContext = BufferedGraphicsManager.Current;
         bufferedGraphicsContext.MaximumBuffer = new Size(mapCanvas.Width + 1, mapCanvas.Height + 1);
@@ -470,6 +502,11 @@ public partial class Main : DoubleBufferedControl
     /// <param name="position"></param>
     private void AddGridItem(string name, string type, byte level, Position position)
     {
+        // The list is rebuilt only a few times per second (see trmInterval_Tick),
+        // rebuilding it on every single render made the whole map flicker.
+        if (!_updateEntityList)
+            return;
+
         if (string.IsNullOrWhiteSpace(name))
             name = T("NoName", "<No name>");
 
@@ -573,8 +610,11 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void PopulateMapAndGrid(Graphics graphics)
     {
-        lvMonster.BeginUpdate();
-        lvMonster.Items.Clear();
+        if (_updateEntityList)
+        {
+            lvMonster.BeginUpdate();
+            lvMonster.Items.Clear();
+        }
 
         try
         {
@@ -685,7 +725,8 @@ public partial class Main : DoubleBufferedControl
             Log.Debug($"[Map] Render error: {ex.Message}");
         }
 
-        lvMonster.EndUpdate();
+        if (_updateEntityList)
+            lvMonster.EndUpdate();
     }
 
     private Image LoadSectorImage(string sectorImgName)
@@ -840,8 +881,13 @@ public partial class Main : DoubleBufferedControl
 
             PointF point = new()
             {
-                X = mapCanvas.Width / 2f - SectorSize - Game.Player.Movement.Source.XSectorOffset / 10f * _scale,
-                Y = mapCanvas.Height / 2f - SectorSize * 2f + Game.Player.Movement.Source.YSectorOffset / 10f * _scale
+                // Round to whole pixels: fractional offsets re-sampled the sector
+                // texture with a different sub-pixel phase on every frame, which is
+                // what made the map look like it was shaking.
+                X = (float)Math.Round(mapCanvas.Width / 2f - SectorSize -
+                                      Game.Player.Movement.Source.XSectorOffset / 10f * _scale),
+                Y = (float)Math.Round(mapCanvas.Height / 2f - SectorSize * 2f +
+                                      Game.Player.Movement.Source.YSectorOffset / 10f * _scale)
             };
 
             graphics.DrawImage(_currentSectorGraphic, point);
@@ -867,7 +913,7 @@ public partial class Main : DoubleBufferedControl
 
         if (_worldMapInitialized && chkWorldMapAutoTrack.Checked && Game.Player != null)
         {
-            if (_lastWorldMapUpdate.ElapsedMilliseconds >= 300)
+            if (_lastWorldMapUpdate.ElapsedMilliseconds >= 500)
             {
                 _lastWorldMapUpdate.Restart();
                 var p = Game.Player.Position;
@@ -878,6 +924,23 @@ public partial class Main : DoubleBufferedControl
 
         labelSectorInfo.Text =
             $"{Game.Player.Movement.Source.Region} ({Game.Player.Movement.Source.Region.X}x{Game.Player.Movement.Source.Region.Y})";
+
+        // Only repaint when the player actually moved (or the frame is older than
+        // half a second). Repainting the complete minimap 20 times per second made
+        // it shimmer/shake and consumed a lot of CPU for nothing.
+        var playerPosition = Game.Player.Movement.Source;
+        var playerMoved = _lastRenderedPlayerPosition == null ||
+                          playerPosition.DistanceTo(_lastRenderedPlayerPosition.Value) >= 0.05;
+
+        if (!playerMoved && _lastMapRender.ElapsedMilliseconds < 500)
+            return;
+
+        _lastMapRender.Restart();
+        _lastRenderedPlayerPosition = playerPosition;
+
+        _updateEntityList = _lastEntityListUpdate.ElapsedMilliseconds >= 800;
+        if (_updateEntityList)
+            _lastEntityListUpdate.Restart();
 
         bufferedGraphics.Graphics.Clear(Color.Black);
         RedrawMap();
@@ -1016,7 +1079,16 @@ public partial class Main : DoubleBufferedControl
             return;
         }
 
-        bufferedGraphics?.Render();
+        // Render into the graphics of the actual paint event instead of a graphics
+        // object created from CreateGraphics(): drawing to the control surface while
+        // Windows is already painting it causes tearing and the "shaking" minimap.
+        try
+        {
+            bufferedGraphics?.Render(e.Graphics);
+        }
+        catch
+        {
+        }
     }
 
     private async void InitializeWorldMapAsync()

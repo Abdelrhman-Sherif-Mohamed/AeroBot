@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
@@ -27,6 +27,12 @@ internal partial class Main : DoubleBufferedControl
     ///     Suppresses the client type events while the view is loading or updating itself.
     /// </summary>
     private bool _suppressClientTypeEvents;
+
+    private readonly object _clientRestartLock = new();
+    private bool _clientRestarting;
+    private int _clientRestartCount;
+    private DateTime _clientRestartWindowStart = DateTime.MinValue;
+    private DateTime _lastClientRestartUtc = DateTime.MinValue;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="Main" /> class.
@@ -328,7 +334,7 @@ internal partial class Main : DoubleBufferedControl
             GlobalConfig.Get<string>("RSBot.SilkroadExecutable"));
         checkEnableStaticCaptcha.Checked = GlobalConfig.Get<bool>("RSBot.General.EnableStaticCaptcha");
         checkAutoCaptcha.Checked = GlobalConfig.Get("RSBot.General.EnableAutoCaptcha", true);
-        checkEnableAutoLogin.Checked = GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin");
+        checkEnableAutoLogin.Checked = GlobalConfig.Get("RSBot.General.EnableAutomatedLogin", true);
         checkStartBot.Checked = GlobalConfig.Get<bool>("RSBot.General.StartBot");
         checkUseReturnScroll.Checked = GlobalConfig.Get<bool>("RSBot.General.UseReturnScroll");
         checkStayConnected.Checked = GlobalConfig.Get<bool>("RSBot.General.StayConnected");
@@ -439,18 +445,41 @@ internal partial class Main : DoubleBufferedControl
     /// </summary>
     private async Task StartClientProcess()
     {
-        btnStartClient.Enabled = false;
-        Game.Start();
-
-        await Task.Run(async () =>
+        lock (_clientRestartLock)
         {
-            var startedResult = await ClientManager.Start();
-            if (!startedResult)
+            if (_clientRestarting)
             {
-                OnExitClient();
-                Log.WarnLang("ClientStartingError");
+                Log.Debug("[AutoLogin] Client start already in progress, ignoring duplicate request.");
+                return;
             }
-        });
+
+            _clientRestarting = true;
+        }
+
+        try
+        {
+            btnStartClient.Enabled = false;
+            Game.Start();
+
+            await Task.Run(async () =>
+            {
+                var startedResult = await ClientManager.Start();
+                if (!startedResult)
+                {
+                    OnExitClient();
+                    Log.WarnLang("ClientStartingError");
+                }
+            });
+
+            _lastClientRestartUtc = DateTime.UtcNow;
+        }
+        finally
+        {
+            lock (_clientRestartLock)
+            {
+                _clientRestarting = false;
+            }
+        }
     }
 
     /// <summary>
@@ -520,6 +549,10 @@ internal partial class Main : DoubleBufferedControl
     /// </summary>
     private async void OnEnterGame()
     {
+        // A successful login resets the automatic restart loop counter.
+        _clientRestartCount = 0;
+        _clientRestartWindowStart = DateTime.MinValue;
+
         if (!Game.Clientless)
         {
             btnClientHideShow.Enabled = true;
@@ -579,20 +612,47 @@ internal partial class Main : DoubleBufferedControl
 
         ClientManager.Kill();
 
-        if (GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin"))
+        if (!GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin"))
         {
-            btnStartClient.Enabled = false;
-            btnStartClientless.Enabled = false;
-
-            Thread.Sleep(2000);
-
-            await StartClientProcess().ConfigureAwait(false);
+            btnGoClientless.Enabled = false;
+            btnStartClient.Enabled = true;
+            btnStartClientless.Enabled = true;
             return;
         }
 
-        btnGoClientless.Enabled = false;
-        btnStartClient.Enabled = true;
-        btnStartClientless.Enabled = true;
+        var isAr = Kernel.Language == "ar_AR";
+        var now = DateTime.UtcNow;
+
+        // Restart loop guard: at most 5 automatic client starts per 3 minutes.
+        if (now - _clientRestartWindowStart > TimeSpan.FromMinutes(3))
+        {
+            _clientRestartWindowStart = now;
+            _clientRestartCount = 0;
+        }
+
+        _clientRestartCount++;
+
+        if (_clientRestartCount > 5)
+        {
+            Log.Warn(isAr
+                ? "[AutoLogin] تم إيقاف إعادة تشغيل الكلينت مؤقتاً بعد 5 محاولات متتالية لتجنب حلقة الفتح والإغلاق."
+                : "[AutoLogin] Auto client restart disabled after 5 consecutive attempts to avoid an open/close loop.");
+
+            btnStartClient.Enabled = true;
+            btnStartClientless.Enabled = true;
+            return;
+        }
+
+        btnStartClient.Enabled = false;
+        btnStartClientless.Enabled = false;
+
+        // Small cooldown between restarts so a dying client process has time
+        // to fully exit before a new instance is created.
+        var sinceLastRestart = now - _lastClientRestartUtc;
+        if (sinceLastRestart < TimeSpan.FromSeconds(4))
+            await Task.Delay(TimeSpan.FromSeconds(4) - sinceLastRestart).ConfigureAwait(false);
+
+        await StartClientProcess().ConfigureAwait(false);
     }
 
     /// <summary>

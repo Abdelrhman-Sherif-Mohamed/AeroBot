@@ -130,7 +130,10 @@ public partial class Main : UIWindow
         "Wolves.Control",
         "Wolves.Stall",
         "Wolves.AvatarTester",
-        "Wolves.Players"
+        "Wolves.Players",
+        "SonicBot.TargetSupport",
+        "SonicBot.Trivia",
+        "SonicBot.MobSelector"
     };
 
     /// <summary>
@@ -258,6 +261,47 @@ public partial class Main : UIWindow
                 var spacer = new Bitmap(1, 20);
                 lstLog.SmallImageList = new ImageList { ImageSize = new Size(1, 20) };
                 lstLog.SmallImageList.Images.Add(spacer);
+            }
+
+            if (lstLog.ContextMenuStrip == null)
+            {
+                var contextMenu = new System.Windows.Forms.ContextMenuStrip();
+                var copyItem = new ToolStripMenuItem("نسخ السطر المحدد (Ctrl+C)", null, (s, e) =>
+                {
+                    if (lstLog.SelectedItems.Count > 0)
+                    {
+                        var lines = lstLog.SelectedItems.Cast<ListViewItem>()
+                            .Select(i => $"{i.SubItems[0].Text} {i.SubItems[1].Text} {i.SubItems[2].Text}");
+                        Clipboard.SetText(string.Join(Environment.NewLine, lines));
+                    }
+                });
+                var openLogItem = new ToolStripMenuItem("فتح ملف الباكتات (packets.log)", null, (s, e) =>
+                {
+                    try
+                    {
+                        var path = RSBot.Core.Network.PacketLogger.LocalLogPath;
+                        if (System.IO.File.Exists(path))
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+                    }
+                    catch { }
+                });
+                var clearItem = new ToolStripMenuItem("مسح السجلات", null, (s, e) => lstLog.Items.Clear());
+
+                contextMenu.Items.Add(copyItem);
+                contextMenu.Items.Add(openLogItem);
+                contextMenu.Items.Add(new ToolStripSeparator());
+                contextMenu.Items.Add(clearItem);
+                lstLog.ContextMenuStrip = contextMenu;
+
+                lstLog.KeyDown += (s, e) =>
+                {
+                    if (e.Control && e.KeyCode == Keys.C && lstLog.SelectedItems.Count > 0)
+                    {
+                        var lines = lstLog.SelectedItems.Cast<ListViewItem>()
+                            .Select(i => $"{i.SubItems[0].Text} {i.SubItems[1].Text} {i.SubItems[2].Text}");
+                        Clipboard.SetText(string.Join(Environment.NewLine, lines));
+                    }
+                };
             }
         }
 

@@ -57,7 +57,8 @@ internal class InventoryOperationRequest : IPacketHandler
             case InventoryOperation.SP_BUY_ITEM_COS:
 
                 var cosUniqueId = packet.ReadUInt();
-                if (Game.Player.Transport?.UniqueId != cosUniqueId)
+                if (Game.Player.Transport?.UniqueId != cosUniqueId &&
+                    Game.Player.JobTransport?.UniqueId != cosUniqueId)
                     return;
 
                 tab = packet.ReadByte();
@@ -72,7 +73,8 @@ internal class InventoryOperationRequest : IPacketHandler
             case InventoryOperation.SP_SELL_ITEM_COS:
 
                 cosUniqueId = packet.ReadUInt();
-                if (Game.Player.Transport?.UniqueId != cosUniqueId)
+                if (Game.Player.Transport?.UniqueId != cosUniqueId &&
+                    Game.Player.JobTransport?.UniqueId != cosUniqueId)
                     return;
 
                 slot = packet.ReadByte();

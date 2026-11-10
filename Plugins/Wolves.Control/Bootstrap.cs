@@ -20,6 +20,9 @@ public class Bootstrap : IPlugin
 
     public void Initialize()
     {
+        // Mirror the leader's target continuously (players included).
+        RSBot.Core.Event.EventManager.SubscribeEvent("OnTick", TargetSupportManager.Instance.Tick);
+
         Log.Notify("[Wolves.Control] Control and Target Support plugin initialized!");
     }
 

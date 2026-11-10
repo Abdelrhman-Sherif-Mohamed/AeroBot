@@ -4,11 +4,25 @@ using RSBot.Core.Network.Protocol;
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace RSBot.Core.Network;
 
 public class Server : NetBase
 {
+    /// <summary>
+    ///     Captures the socket used for a specific BeginReceive call so a late
+    ///     callback from an old connection can never read from a new socket.
+    /// </summary>
+    private sealed class ReceiveState
+    {
+        public Socket Socket;
+        public byte[] Buffer;
+    }
+
+    private int _receiving;
+    private int _disconnectedRaised;
+
     /// <summary>
     ///     Gets or sets the ip.
     /// </summary>
@@ -26,6 +40,17 @@ public class Server : NetBase
     public ushort Port { get; set; }
 
     /// <summary>
+    ///     Raises the disconnected event only once per established connection.
+    /// </summary>
+    public override void OnDisconnected()
+    {
+        if (Interlocked.Exchange(ref _disconnectedRaised, 1) == 1)
+            return;
+
+        base.OnDisconnected();
+    }
+
+    /// <summary>
     ///     Connects the specified ip.
     /// </summary>
     /// <param name="ip">The ip.</param>
@@ -37,6 +62,9 @@ public class Server : NetBase
 
         if (_socket != null)
             Disconnect();
+
+        Interlocked.Exchange(ref _receiving, 0);
+        Interlocked.Exchange(ref _disconnectedRaised, 0);
 
         try
         {
@@ -87,7 +115,7 @@ public class Server : NetBase
 
             EnablePacketDispatcher = true;
 
-            _socket?.BeginReceive(_buffer, 0, _buffer.Length, SocketFlags.None, OnBeginReceiveCallback, null);
+            StartReceive();
 
             OnConnected();
 
@@ -99,27 +127,54 @@ public class Server : NetBase
         }
     }
 
+    private void StartReceive()
+    {
+        var socket = _socket;
+        if (socket == null || IsClosing || !EnablePacketDispatcher)
+            return;
+
+        if (Interlocked.Exchange(ref _receiving, 1) == 1)
+            return;
+
+        try
+        {
+            socket.BeginReceive(_buffer, 0, _buffer.Length, SocketFlags.None,
+                OnBeginReceiveCallback, new ReceiveState { Socket = socket, Buffer = _buffer });
+        }
+        catch
+        {
+            Interlocked.Exchange(ref _receiving, 0);
+            OnDisconnected();
+        }
+    }
+
     /// <summary>
     ///     Waits for data.
     /// </summary>
     /// <param name="result">The result.</param>
     private void OnBeginReceiveCallback(IAsyncResult ar)
     {
+        Interlocked.Exchange(ref _receiving, 0);
+
         if (IsClosing || !EnablePacketDispatcher)
+            return;
+
+        var state = ar.AsyncState as ReceiveState;
+        if (state == null || !ReferenceEquals(state.Socket, _socket))
             return;
 
         var receivedSize = 0;
 
         try
         {
-            receivedSize = _socket.EndReceive(ar, out var error);
+            receivedSize = state.Socket.EndReceive(ar, out var error);
             if (receivedSize == 0 || error != SocketError.Success)
             {
                 OnDisconnected();
                 return;
             }
 
-            _protocol.Recv(_buffer, 0, receivedSize);
+            _protocol.Recv(state.Buffer, 0, receivedSize);
         }
         catch (SocketException se)
         {
@@ -132,17 +187,14 @@ public class Server : NetBase
             Log.Notify("[Fatal]: Could not handshake the client, restarting client process now...");
             Game.Start();
         }
+        catch (ObjectDisposedException)
+        {
+            OnDisconnected();
+        }
         finally
         {
-            try
-            {
-                if (receivedSize != 0 && _socket != null && _socket.Connected)
-                    _socket.BeginReceive(_buffer, 0, _buffer.Length, SocketFlags.None, OnBeginReceiveCallback, null);
-            }
-            catch
-            {
-                OnDisconnected();
-            }
+            if (receivedSize != 0)
+                StartReceive();
         }
     }
 

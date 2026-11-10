@@ -326,7 +326,14 @@ internal class InventoryOperationResponse : IPacketHandler
             return;
         }
 
-        var npc = Game.SelectedEntity;
+        // The bot opens the shop dialog with its own packets, so Game.SelectedEntity
+        // is not always set when the response arrives. Fall back to the NPC of the
+        // open dialog / the shop the bot talks to, otherwise the bought goods would
+        // never be added to the transport inventory and the buy loop would repeat.
+        var npc = Game.SelectedEntity
+                  ?? Game.Player?.State?.DialogState?.Npc
+                  ?? ShoppingManager.SelectedEntity;
+
         if (npc?.Record == null)
         {
             Log.Debug("Could not determine which item was bought, since currently no entity is selected.");

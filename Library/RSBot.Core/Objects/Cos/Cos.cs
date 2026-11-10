@@ -208,14 +208,28 @@ public class Cos : SpawnedEntity
         return true;
     }
 
-    public virtual bool Mount()
+    public virtual bool Mount(int timeoutMs = 1000)
     {
+        // Already riding this cos?
+        if (Game.Player.HasActiveVehicle && Game.Player.Vehicle?.UniqueId == UniqueId)
+            return true;
+
         var packet = new Packet(0x70CB);
         packet.WriteByte(1);
         packet.WriteInt(UniqueId);
-        PacketManager.SendPacket(packet, PacketDestination.Server);
 
-        return true;
+        var awaitCallback = new AwaitCallback(response =>
+        {
+            var result = response.ReadByte();
+
+            return result == 1 ? AwaitCallbackResult.Success : AwaitCallbackResult.Fail;
+        }, 0xB0CB);
+
+        PacketManager.SendPacket(packet, PacketDestination.Server, awaitCallback);
+        awaitCallback.AwaitResponse(timeoutMs);
+
+        return awaitCallback.IsCompleted ||
+               (Game.Player.HasActiveVehicle && Game.Player.Vehicle?.UniqueId == UniqueId);
     }
 
     public virtual bool Dismount()

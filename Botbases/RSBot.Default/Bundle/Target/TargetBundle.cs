@@ -37,6 +37,11 @@ internal class TargetBundle : IBundle
         if (Game.SelectedEntity == null)
             return;
 
+        // A forced target (e.g. the leader's target) must not be dropped by
+        // the obstacle handler.
+        if (TargetOverride.IsForced(Game.SelectedEntity.UniqueId))
+            return;
+
         var selectedEntityUniqueId = Game.SelectedEntity.UniqueId;
         Game.SelectedEntity?.TryDeselect();
         Game.SelectedEntity = null;
@@ -73,6 +78,31 @@ internal class TargetBundle : IBundle
             });
 
             var attacker = GetFromCurrentAttackers();
+            if (TargetOverride.IsActive)
+            {
+                // An external component (e.g. the Control plugin's Target
+                // Support) may force a target. Honour it above everything
+                // else, including player targets which the default monster
+                // targeting would otherwise deselect.
+                if (TargetOverride.TryGet(out var forced) && forced != null &&
+                    forced.State?.LifeState == LifeState.Alive &&
+                    forced.HasHealth && forced.Health > 0)
+                {
+                    if (Game.SelectedEntity?.UniqueId != forced.UniqueId)
+                        forced.TrySelect();
+
+                    Bundles.Movement.LastEntityWasBehindObstacle = false;
+                    return;
+                }
+
+                // Forced target is gone or dead; do not pick a random monster
+                // until the forcing component refreshes or clears it.
+                if (Game.SelectedEntity != null && TargetOverride.IsForced(Game.SelectedEntity.UniqueId))
+                    Game.SelectedEntity = null;
+
+                return;
+            }
+
             if (attacker != null && Game.SelectedEntity == null)
             {
                 Log.Debug("[TargetBundle] Emergency situation: Attacking the weaker mob first!");
@@ -100,10 +130,9 @@ internal class TargetBundle : IBundle
             if (warlockModeEnabled && Game.SelectedEntity?.State != null && Game.SelectedEntity.State.HasTwoDots())
                 return;
 
-            if (Game.SelectedEntity != null && (Game.SelectedEntity is not SpawnedMonster ||
+            if (Game.SelectedEntity != null && !TargetOverride.IsForced(Game.SelectedEntity.UniqueId) && (Game.SelectedEntity is not SpawnedMonster ||
                 Game.SelectedEntity.State?.LifeState == LifeState.Dead ||
-                !Game.SelectedEntity.HasHealth ||
-                Game.SelectedEntity.Health <= 0))
+                (Game.SelectedEntity.HasHealth && Game.SelectedEntity.Health <= 0)))
             {
                 Game.SelectedEntity = null;
             }

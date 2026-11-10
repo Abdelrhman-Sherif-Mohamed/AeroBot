@@ -49,20 +49,9 @@ internal class SellGoodsScriptCommand : IScriptCommand
             IsBusy = true;
             var codeName = arguments[0];
 
-            // Dismount transport before opening dialog/selling
-            if (Game.Player != null && Game.Player.HasActiveVehicle)
-            {
-                Log.Notify("[Trade] الترجل من وسيلة النقل قبل بيع البضاعة...");
-                Game.Player.JobTransport?.Dismount();
-                Game.Player.Vehicle?.Dismount();
-                for (var d = 0; d < 20; d++)
-                {
-                    if (!Game.Player.HasActiveVehicle)
-                        break;
-                    Thread.Sleep(100);
-                }
-                Thread.Sleep(300);
-            }
+            // In Silkroad Online / vSRO, players stay mounted on their trade transport
+            // when selling specialty trade goods to the merchant.
+            Thread.Sleep(300);
 
             ShoppingManager.Running = true;
             ShoppingManager.BotOpenedDialog = true;

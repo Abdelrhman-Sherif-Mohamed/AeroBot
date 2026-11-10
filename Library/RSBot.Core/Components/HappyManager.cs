@@ -386,14 +386,16 @@ public static class HappyManager
                 if (Game.Player == null || Game.Player.Inventory == null)
                     break;
 
-                // Check if normal inventory has free slots for rewards
-                if (GetNormalInventoryFreeSlots() == 0)
+                // Check if normal inventory has free slots for rewards. Merge
+                // stacks early (one spare slot) so the exchange is never
+                // interrupted by a full inventory in the middle of the dialog.
+                if (GetNormalInventoryFreeSlots() <= 1)
                 {
-                    Log.Notify(isAr ? "[Happy] الشنطة ممتلئة! جارٍ دمج الأكوام المتشابهة لتوفير مساحة..." : "[Happy] Inventory full! Merging duplicate stacks to free space...");
-                    Game.Player.Inventory.Sort();
-                    var fullWait = 0;
-                    while (Game.Player.Inventory.IsSorting && fullWait++ < 25 && !_cancelRequested)
-                        Thread.Sleep(100);
+                    if (HasStackableDuplicates())
+                    {
+                        Log.Notify(isAr ? "[Happy] الشنطة على وشك الامتلاء! جارٍ دمج كل الأكوام المتشابهة أولاً..." : "[Happy] Inventory almost full! Merging all duplicate stacks first...");
+                        SortInventoryExhaustive();
+                    }
 
                     if (GetNormalInventoryFreeSlots() == 0)
                     {
@@ -525,12 +527,9 @@ public static class HappyManager
                 var (step3Success, step3InvFull) = SendDialogAction(0x05, 800);
                 if (step3InvFull)
                 {
-                    Log.Warn(isAr ? "[Happy] الشنطة ممتلئة ولا تتسع للمزيد من الجوائز! جارٍ دمج الأكوام المتشابهة..." : "[Happy] Inventory full! Merging duplicate stacks...");
+                    Log.Warn(isAr ? "[Happy] الشنطة ممتلئة ولا تتسع للمزيد من الجوائز! جارٍ دمج كل الأكوام المتشابهة..." : "[Happy] Inventory full! Merging all duplicate stacks...");
                     SendCloseDialog(npc.UniqueId);
-                    Game.Player.Inventory.Sort();
-                    var fullWait = 0;
-                    while (Game.Player.Inventory.IsSorting && fullWait++ < 25 && !_cancelRequested)
-                        Thread.Sleep(100);
+                    SortInventoryExhaustive();
 
                     if (GetNormalInventoryFreeSlots() == 0)
                     {
@@ -598,7 +597,7 @@ public static class HappyManager
                 try
                 {
                     Thread.Sleep(150);
-                    Game.Player.Inventory.Sort();
+                    SortInventoryExhaustive();
                 }
                 catch (Exception ex)
                 {
@@ -625,6 +624,56 @@ public static class HappyManager
                 Game.SelectedEntity = null;
             }
         }
+    }
+
+    /// <summary>
+    /// Returns true when at least two partial stacks of the same item exist
+    /// in the normal inventory part.
+    /// </summary>
+    private static bool HasStackableDuplicates()
+    {
+        var inventory = Game.Player?.Inventory;
+        if (inventory == null)
+            return false;
+
+        return inventory.GetNormalPartItems()
+            .Where(i => i?.Record != null && i.Record.IsStackable && i.Record.MaxStack > 1)
+            .GroupBy(i => i.ItemId)
+            .Any(g => g.Count() >= 2);
+    }
+
+    /// <summary>
+    /// Merges every possible duplicate stack in the player inventory.
+    /// Retries a few times when the player is busy (in action), because the
+    /// inventory can not be sorted while an action is still playing.
+    /// </summary>
+    private static bool SortInventoryExhaustive(int attempts = 12)
+    {
+        if (Game.Player?.Inventory == null)
+            return false;
+
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            if (_cancelRequested)
+                return false;
+
+            if (Game.Player.InAction)
+            {
+                Thread.Sleep(150);
+                continue;
+            }
+
+            Game.Player.Inventory.Sort();
+
+            // Sort() is synchronous, but wait in case another sort is running.
+            var wait = 0;
+            while (Game.Player.Inventory.IsSorting && wait++ < 50 && !_cancelRequested)
+                Thread.Sleep(100);
+
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

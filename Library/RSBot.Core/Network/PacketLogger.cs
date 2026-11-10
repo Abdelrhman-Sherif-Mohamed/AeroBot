@@ -10,7 +10,6 @@ public static class PacketLogger
 {
     private static readonly object _fileLock = new();
     private static string _localLogPath;
-    private static readonly string _sharedLogPath = @"E:\WolvesBot\packets.log";
     private static bool _initialized;
 
     /// <summary>
@@ -20,6 +19,26 @@ public static class PacketLogger
 
     private static readonly object _bufferLock = new();
     private static readonly Queue<string> _rememberedPackets = new();
+
+    /// <summary>
+    ///     Packet logging to the UI log and to packets.log is a developer tool only.
+    ///     It is disabled by default so normal users never see packet dumps.
+    ///     Enable it with "RSBot.Log.PacketLogger{True}" in the global profile config.
+    /// </summary>
+    public static bool PacketLoggingEnabled
+    {
+        get
+        {
+            try
+            {
+                return GlobalConfig.Get("RSBot.Log.PacketLogger", false);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
 
     public static string LocalLogPath
     {
@@ -40,15 +59,10 @@ public static class PacketLogger
             try
             {
                 var header = $"\r\n================================================================================\r\n" +
-                             $"=== AeroBot Packet Logger (Click / Dialog / Inventory): {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===\r\n" +
+                             $"=== AeroBot Packet Logger: {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===\r\n" +
                              $"================================================================================\r\n\r\n";
 
                 File.WriteAllText(LocalLogPath, header, Encoding.UTF8);
-
-                if (Directory.Exists(@"E:\WolvesBot"))
-                {
-                    File.WriteAllText(_sharedLogPath, header, Encoding.UTF8);
-                }
 
                 _initialized = true;
             }
@@ -57,29 +71,27 @@ public static class PacketLogger
     }
 
     /// <summary>
-    /// Checks if this packet is strictly a click / interaction / dialog packet.
+    /// Checks if this packet should be logged and surfaced to UI / disk.
     /// </summary>
-    private static bool IsClickPacket(ushort opcode, out string description)
+    private static bool ShouldLog(ushort opcode, PacketDestination destination, bool isBotSent, out string description)
     {
         switch (opcode)
         {
             case 0x7045:
-                description = "Click / Select NPC (0x7045)";
+                description = "Select Target (0x7045)";
                 return true;
             case 0xB045:
-                description = "Select NPC Response (0xB045)";
+                description = "Select Target Response (0xB045)";
                 return true;
             case 0x7046:
-                description = "Click / Talk Option (0x7046)";
+                description = "Talk Option (0x7046)";
                 return true;
             case 0xB046:
                 description = "Talk Option Response (0xB046)";
                 return true;
             case 0x30D4:
-                description = "Click / Dialog Button Action (0x30D4)";
-                return true;
             case 0x70D4:
-                description = "Click / Dialog Button Action (0x70D4)";
+                description = "Dialog Action (0x70D4)";
                 return true;
             case 0x30D5:
                 description = "Dialog Action Response (0x30D5)";
@@ -91,24 +103,66 @@ public static class PacketLogger
                 description = $"Dialog Event State (0x{opcode:X4})";
                 return true;
             case 0x704B:
-                description = "Click / Close Dialog (0x704B)";
+                description = "Close Dialog (0x704B)";
                 return true;
             case 0xB04B:
                 description = "Close Dialog Response (0xB04B)";
                 return true;
             case 0x7034:
-                description = "Inventory Operation Request (0x7034)";
+                description = "Inventory/Trade Operation Request (0x7034)";
                 return true;
             case 0xB034:
-                description = "Inventory Operation Response (0xB034)";
+                description = "Inventory/Trade Operation Response (0xB034)";
                 return true;
             case 0x30E8:
                 description = "Job Trade Scale Update (0x30E8)";
                 return true;
-            default:
-                description = null;
-                return false;
+            case 0x34D5:
+                description = "Specialty Trade Notification (0x34D5)";
+                return true;
+            case 0x30E7:
+            case 0x70E7:
+                description = $"Specialty Shop Info (0x{opcode:X4})";
+                return true;
+            case 0x7162:
+            case 0xB162:
+                description = $"COS Action (0x{opcode:X4})";
+                return true;
+            case 0x705A:
+            case 0xB05A:
+                description = $"Job Action (0x{opcode:X4})";
+                return true;
+            case 0x3040:
+                description = "Inventory Item Update (0x3040)";
+                return true;
+            case 0x3049:
+                description = "COS Inventory Item Update (0x3049)";
+                return true;
+            case 0x303D:
+                description = "Gold Update (0x303D)";
+                return true;
+            case 0x3252:
+                description = "Trade State (0x3252)";
+                return true;
         }
+
+        // If sent by client to server, catch all actions except movement and keepalive
+        if (destination == PacketDestination.Server && !isBotSent)
+        {
+            if (opcode != 0x7021 && // Movement
+                opcode != 0x2002 && // Ping
+                opcode != 0x5000 && // Security / Keepalive
+                opcode != 0x9000 &&
+                opcode != 0x7005 &&
+                opcode != 0x7001)   // Handshake
+            {
+                description = $"Client Action (0x{opcode:X4})";
+                return true;
+            }
+        }
+
+        description = null;
+        return false;
     }
 
     /// <summary>
@@ -164,9 +218,7 @@ public static class PacketLogger
     }
 
     /// <summary>
-    ///     Writes the last packets that went through the proxy to a file. This is
-    ///     called when the game client exits so the packets that caused a crash are
-    ///     preserved even when they are not part of the filtered packet log.
+    ///     Writes the last packets that went through the proxy to a file.
     /// </summary>
     public static void DumpRecent(string reason)
     {
@@ -216,14 +268,28 @@ public static class PacketLogger
 
     public static void LogPacket(Packet packet, PacketDestination destination)
     {
+        LogPacketInternal(packet, destination, isBotSent: false);
+    }
+
+    public static void LogBotPacket(Packet packet, PacketDestination destination)
+    {
+        LogPacketInternal(packet, destination, isBotSent: true);
+    }
+
+    private static void LogPacketInternal(Packet packet, PacketDestination destination, bool isBotSent)
+    {
         if (packet == null) return;
 
-        // Keep every packet in memory for the crash dump, even the ones that are
-        // not written to the filtered text log below.
-        RememberPacket(packet, destination);
+        // The in-memory ring buffer is always filled: it is only written to disk when
+        // the game client really crashes / disconnects, so it never shows anywhere.
+        if (!isBotSent)
+            RememberPacket(packet, destination);
 
-        // STRICT FILTER: Only log click / dialogue / interaction packets!
-        if (!IsClickPacket(packet.Opcode, out var desc))
+        // No packet output to the UI log and no packets.log file for normal users.
+        if (!PacketLoggingEnabled)
+            return;
+
+        if (!ShouldLog(packet.Opcode, destination, isBotSent, out var desc))
             return;
 
         EnsureInitialized();
@@ -231,9 +297,8 @@ public static class PacketLogger
         try
         {
             var bytes = packet.GetBytes() ?? Array.Empty<byte>();
-            var isClientToServer = destination == PacketDestination.Server;
-            var dirStr = isClientToServer ? "Client -> Server" : "Server -> Client";
-            var shortDir = isClientToServer ? "C->S" : "S->C";
+            var dirStr = isBotSent ? "Bot -> Server" : (destination == PacketDestination.Server ? "Client -> Server" : "Server -> Client");
+            var shortDir = isBotSent ? "Bot->S" : (destination == PacketDestination.Server ? "C->S" : "S->C");
             var hexBytes = BitConverter.ToString(bytes).Replace("-", " ");
             var timeStr = DateTime.Now.ToString("HH:mm:ss.fff");
 
@@ -256,18 +321,11 @@ public static class PacketLogger
             lock (_fileLock)
             {
                 try { File.AppendAllText(LocalLogPath, logEntry, Encoding.UTF8); } catch { }
-                try
-                {
-                    if (Directory.Exists(@"E:\WolvesBot") && !string.Equals(LocalLogPath, _sharedLogPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        File.AppendAllText(_sharedLogPath, logEntry, Encoding.UTF8);
-                    }
-                }
-                catch { }
             }
 
-            // Output clean highlight in UI log - suppressed completely as requested by user
-            // Log.Warn($"[ضغط] [{shortDir}] 0x{packet.Opcode:X4} ({desc}) | Len: {bytes.Length} | Hex: {hexBytes}");
+            // Output clean highlight in UI log
+            var displayHex = hexBytes.Length > 90 ? hexBytes.Substring(0, 90) + "..." : hexBytes;
+            Log.Warn($"[Packet] [{shortDir}] 0x{packet.Opcode:X4} ({desc}) | Hex: {displayHex}");
         }
         catch { }
     }

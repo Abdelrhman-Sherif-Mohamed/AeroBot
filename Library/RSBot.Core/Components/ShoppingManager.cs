@@ -359,89 +359,53 @@ public static class ShoppingManager
 
         MarkTradeOperation();
 
-        bool SendBuyPacket(uint cosId)
+        // Standard Silkroad Online specialty goods purchase:
+        // Opcode: 0x7034, Operation: 0x13 (SP_BUY_ITEM_COS), cosId, tab, slot, amount, npcId
+        // The cos id is 0 here exactly like sro_client sends it (the server resolves
+        // the transport of the trade itself). The server rejects the request with
+        // result=0x02 / error 0x1C0D when the player is not riding the transport,
+        // so callers have to make sure the player is mounted before buying.
+        var packet = new Packet(0x7034);
+        packet.WriteByte(InventoryOperation.SP_BUY_ITEM_COS);
+        packet.WriteUInt(0);
+        packet.WriteByte((byte)tab);
+        packet.WriteByte((byte)slot);
+        packet.WriteUShort(amount);
+        packet.WriteUInt(shopEntity.UniqueId);
+
+        var awaitResult = new AwaitCallback(response =>
         {
-            var packet = new Packet(0x7034);
-            packet.WriteByte(InventoryOperation.SP_BUY_ITEM_COS);
-            packet.WriteUInt(cosId);
-            packet.WriteByte(tab);
-            packet.WriteByte(slot);
-            packet.WriteUShort(amount);
-            packet.WriteUInt(shopEntity.UniqueId);
-
-            var awaitResult = new AwaitCallback(response =>
+            var res = response.ReadByte();
+            if (res != 0x01)
             {
-                var res = response.ReadByte();
-                if (res != 0x01)
-                {
-                    var errCode = response.Remaining >= 2 ? response.ReadUShort() : (response.Remaining > 0 ? (ushort)response.ReadByte() : (ushort)0);
-                    Log.Debug($"[Trade Purchase] 0xB034 rejected (cosId={cosId}): result=0x{res:X2}, errorCode=0x{errCode:X2}");
-                    return AwaitCallbackResult.Fail;
-                }
+                // The failure packet is: result, error code (2 bytes).
+                var errCode = response.Remaining >= 2
+                    ? response.ReadUShort()
+                    : (response.Remaining > 0 ? (ushort)response.ReadByte() : (ushort)0);
 
-                var operation = (InventoryOperation)response.ReadByte();
-                if (operation == InventoryOperation.SP_BUY_ITEM ||
-                    operation == InventoryOperation.SP_BUY_ITEM_COS)
-                    return AwaitCallbackResult.Success;
+                if (errCode == 0x1C0D)
+                    Log.Warn("[Trade Purchase] 0xB034 rejected (0x1C0D): the player is not " +
+                             "riding the job transport or the transport is too far away.");
+                else
+                    Log.Warn($"[Trade Purchase] 0xB034 rejected: result=0x{res:X2}, " +
+                             $"errorCode=0x{errCode:X4}");
 
-                return AwaitCallbackResult.ConditionFailed;
-            }, 0xB034);
+                return AwaitCallbackResult.Fail;
+            }
 
-            Log.Debug($"[Trade Purchase] Sending 0x7034 SP_BUY_ITEM_COS: cosId={cosId}, tab={tab}, slot={slot}, amount={amount}, npcId={shopEntity.UniqueId}");
-            PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
-            awaitResult.AwaitResponse(1500);
+            var op = (InventoryOperation)response.ReadByte();
+            if (op == InventoryOperation.SP_BUY_ITEM_COS ||
+                op == InventoryOperation.SP_BUY_ITEM)
+                return AwaitCallbackResult.Success;
 
-            return awaitResult.IsCompleted;
-        }
+            return AwaitCallbackResult.ConditionFailed;
+        }, 0xB034);
 
-        // 1. Try cosId = 0 FIRST (standard vSRO trade goods purchase, exactly as vBot sends 0x7034 with 0)
-        if (SendBuyPacket(0))
-            return true;
+        Log.Debug($"[Trade Purchase] Sending 0x7034 SP_BUY_ITEM_COS: cosId=0, tab={tab}, slot={slot}, amount={amount}, npcId={shopEntity.UniqueId}");
+        PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
+        awaitResult.AwaitResponse(4000);
 
-        // 2. Fallback: try transport.UniqueId if cosId = 0 was rejected
-        var cosId = transport.UniqueId != 0 ? transport.UniqueId : (Game.Player?.JobTransport?.UniqueId ?? 0);
-        if (cosId != 0 && SendBuyPacket(cosId))
-            return true;
-
-        // 3. Fallback: try standard SP_BUY_ITEM (0x08) used by some private servers
-        bool SendStandardBuyPacket()
-        {
-            var packet = new Packet(0x7034);
-            packet.WriteByte(InventoryOperation.SP_BUY_ITEM);
-            packet.WriteByte(tab);
-            packet.WriteByte(slot);
-            packet.WriteUShort(amount);
-            packet.WriteUInt(shopEntity.UniqueId);
-
-            var awaitResult = new AwaitCallback(response =>
-            {
-                var res = response.ReadByte();
-                if (res != 0x01)
-                {
-                    var errCode = response.Remaining >= 2 ? response.ReadUShort() : (response.Remaining > 0 ? (ushort)response.ReadByte() : (ushort)0);
-                    Log.Debug($"[Trade Purchase] 0xB034 rejected (SP_BUY_ITEM): result=0x{res:X2}, errorCode=0x{errCode:X2}");
-                    return AwaitCallbackResult.Fail;
-                }
-
-                var operation = (InventoryOperation)response.ReadByte();
-                if (operation == InventoryOperation.SP_BUY_ITEM ||
-                    operation == InventoryOperation.SP_BUY_ITEM_COS)
-                    return AwaitCallbackResult.Success;
-
-                return AwaitCallbackResult.ConditionFailed;
-            }, 0xB034);
-
-            Log.Debug($"[Trade Purchase] Fallback sending 0x7034 SP_BUY_ITEM: tab={tab}, slot={slot}, amount={amount}, npcId={shopEntity.UniqueId}");
-            PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
-            awaitResult.AwaitResponse(1500);
-
-            return awaitResult.IsCompleted;
-        }
-
-        if (SendStandardBuyPacket())
-            return true;
-
-        return false;
+        return awaitResult.IsCompleted;
     }
 
     /// <summary>
@@ -693,10 +657,18 @@ public static class ShoppingManager
             }
         }
 
-        // Make sure the NPC selection was acknowledged by the server before
-        // sending the talk option. Sending 0x7046 too early makes the server
-        // drop the connection.
-        if (Game.SelectedEntity?.UniqueId != entity.UniqueId || SelectedEntity?.UniqueId != entity.UniqueId)
+        // The official game client ALWAYS selects the NPC first (0x7045) and waits
+        // for the server acknowledgement (0xB045) before it closes the menu (0x704B)
+        // and sends the talk option (0x7046).
+        //
+        // Skipping the select (because Game.SelectedEntity was set locally) makes the
+        // server open a half-initialized dialog: the talk option is still answered
+        // with 0xB046 "success", but the shop is not really open for the server, and
+        // every following specialty goods purchase (0x7034 / SP_BUY_ITEM_COS) is
+        // rejected with result=0x02, error=0x1C0D. That is exactly why buying goods
+        // from the trade merchant kept failing while selling kept working.
+        var selectAcknowledged = false;
+        for (var selectAttempt = 1; selectAttempt <= 3 && !selectAcknowledged; selectAttempt++)
         {
             PacketManager.ClearCallbacks(0xB045);
 
@@ -708,17 +680,22 @@ public static class ShoppingManager
                     ? AwaitCallbackResult.Success
                     : AwaitCallbackResult.Fail, 0xB045);
 
-            Game.SelectedEntity = entity;
-            SelectedEntity = entity;
             PacketManager.SendPacket(selectPacket, PacketDestination.Server, selectAwait);
-            selectAwait.AwaitResponse(1000);
+            selectAwait.AwaitResponse(1500);
 
-            if (!selectAwait.IsCompleted)
+            selectAcknowledged = selectAwait.IsCompleted;
+
+            if (!selectAcknowledged)
             {
-                Log.Debug($"[Shopping manager] NPC [{npcCodeName}] selection was not acknowledged, continuing anyway.");
-                Thread.Sleep(150);
+                Log.Debug($"[Shopping manager] NPC [{npcCodeName}] selection was not acknowledged " +
+                          $"(attempt {selectAttempt}/3).");
+                Thread.Sleep(250);
             }
         }
+
+        if (!selectAcknowledged)
+            Log.Warn($"[Shopping manager] NPC [{npcCodeName}] did not confirm the selection (0xB045). " +
+                     "The shop may reject item transactions.");
 
         // From this point on the dialog was opened by the bot, the game client has
         // no idea about it. See BotOpenedDialog for details.
@@ -735,6 +712,11 @@ public static class ShoppingManager
                 Npc = entity
             };
         }
+
+        // Close previous selection menu first (matching official game client: 0x704B then 0x7046)
+        var closeMenuPacket = new Packet(0x704B);
+        closeMenuPacket.WriteUInt(entity.UniqueId);
+        PacketManager.SendPacket(closeMenuPacket, PacketDestination.Server);
 
         var packet = new Packet(0x7046);
         packet.WriteUInt(entity.UniqueId);

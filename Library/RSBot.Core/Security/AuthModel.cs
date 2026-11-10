@@ -80,8 +80,14 @@ public class UserAccount
     {
         get
         {
-            // Subscription expiration disabled per admin request - all accounts work normally
-            return false;
+            if (IsLifetime || IsAdmin || IsFreeTier)
+                return false;
+
+            var exp = ExpirationDate;
+            if (!exp.HasValue)
+                return true;
+
+            return DateTime.UtcNow >= exp.Value;
         }
     }
 
@@ -113,6 +119,9 @@ public class UserAccount
         if (IsAdmin)
             return "حساب مسؤول (Admin)";
 
+        if (IsExpired)
+            return "منتهي الصلاحية (Expired)";
+
         var exp = ExpirationDate;
         if (exp.HasValue && DateTime.UtcNow < exp.Value)
         {
@@ -133,7 +142,7 @@ public class UserAccount
             return $"{mins} دقيقة";
         }
 
-        return "حساب نشط (Active)";
+        return "غير مفعل (Inactive)";
     }
 }
 

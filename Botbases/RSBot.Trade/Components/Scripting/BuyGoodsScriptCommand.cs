@@ -141,13 +141,14 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             }
 
             // 2. Approach NPC until within interactive talk range (<= 2.5 meters)
-            if (npc.DistanceToPlayer > 2.5f)
+            var liveDistance = npc.Position.DistanceToPlayer();
+            if (liveDistance > 2.5f)
             {
-                Log.Notify($"[Trade] الاقتراب من تاجر البضائع [{npc.Record.GetRealName()}] (المسافة: {Math.Round(npc.DistanceToPlayer, 1)}م)...");
+                Log.Notify($"[Trade] الاقتراب من تاجر البضائع [{npc.Record.GetRealName()}] (المسافة: {Math.Round(liveDistance, 1)}م)...");
                 Game.Player?.MoveTo(npc.Position, sleep: false);
                 for (var w = 0; w < 40; w++)
                 {
-                    if (npc.DistanceToPlayer <= 2.5f)
+                    if (npc.Position.DistanceToPlayer() <= 2.5f)
                         break;
                     Thread.Sleep(200);
                 }
@@ -177,29 +178,19 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                 }
             }
 
-            // 5. Must dismount from vehicle/job transport before interacting with shop!
-            // In Silkroad / vSRO, buying or trading while mounted triggers server error 0x0D.
-            if (Game.Player != null && Game.Player.HasActiveVehicle)
-            {
-                Log.Notify("[Trade] الترجل من وسيلة النقل قبل فتح متجر البضائع...");
-                Game.Player.JobTransport?.Dismount();
-                Game.Player.Vehicle?.Dismount();
-                for (var d = 0; d < 25; d++)
-                {
-                    if (!Game.Player.HasActiveVehicle)
-                        break;
-                    Thread.Sleep(100);
-                }
-                Thread.Sleep(300);
-            }
+            // In Silkroad Online / vSRO, players MUST REMAIN MOUNTED on their trade transport (Camel)
+            // to purchase specialty trade goods. Dismounting separates the player and triggers error 0x1C0D.
+            if (!EnsureMountedOnTransport())
+                Log.Warn("[Trade] تعذر امتطاء الجمل قبل الشراء! الشراء قد يرفضه السيرفر (0x1C0D).");
+
             Thread.Sleep(300);
 
             ShoppingManager.Running = true;
             ShoppingManager.BotOpenedDialog = true;
-            ShoppingManager.SelectedEntity = npc;
-            Game.SelectedEntity = npc;
 
-            // Open shop dialog with verification & retries
+            // Open shop dialog with verification & retries. ChooseTalkOption always
+            // performs the full client sequence (0x7045 select -> 0xB045 -> 0x704B
+            // -> 0x7046), so do not pre-set the selected entity here.
             var dialogOpened = false;
             for (var dAttempt = 1; dAttempt <= 3; dAttempt++)
             {
@@ -211,12 +202,13 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                     break;
                 }
 
-                if (npc.DistanceToPlayer > 2.5f)
+                var retryDist = npc.Position.DistanceToPlayer();
+                if (retryDist > 2.5f)
                 {
                     Game.Player?.MoveTo(npc.Position, sleep: false);
                     for (var w = 0; w < 20; w++)
                     {
-                        if (npc.DistanceToPlayer <= 2.5f)
+                        if (npc.Position.DistanceToPlayer() <= 2.5f)
                             break;
                         Thread.Sleep(150);
                     }
@@ -346,12 +338,12 @@ internal class BuyGoodsScriptCommand : IScriptCommand
         { "NPC_WC_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_WC_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_WC_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Leather" } },
         { "NPC_KT_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_KT_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_KT_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Nephrite" } },
         { "NPC_CH_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_CH_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_CH_01", TabIndex = 0, SlotIndex = 0, EnglishName = "White Silk" } },
-        { "NPC_EU_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_EU_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_EU_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Linen" } },
-        { "NPC_CA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_CA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_CA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Carpet" } },
+        { "NPC_EU_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_EU_CA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_EU_CA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Linen" } },
+        { "NPC_CA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_EU_SA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_EU_SA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Wool" } },
+        { "NPC_OA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_OA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_OA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Incense" } },
+        { "NPC_SD_M_AREA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_OA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_OA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Incense" } },
+        { "NPC_SD_M_AREA_SPECIAL_2", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_OA_02", PackageCode = "PACKAGE_ITEM_ETC_TRADE_OA_02", TabIndex = 0, SlotIndex = 1, EnglishName = "Marble" } },
         { "NPC_TK_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_TK_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_TK_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Red Sand" } },
-        { "NPC_SD_M_AREA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_SD_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_SD_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Alexandria Goods 1" } },
-        { "NPC_SD_M_AREA_SPECIAL_2", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_VE_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_VE_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Alexandria Goods 2" } },
-        { "NPC_SD_M_AREA_SPECIAL_3", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_DE_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_DE_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Alexandria Goods 3" } },
     };
 
     private static int CountTradeGoodsInTransport(Cos transport, string specificCode = null)
@@ -364,6 +356,46 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                          (!string.IsNullOrEmpty(specificCode) && string.Equals(i.Record.CodeName, specificCode, StringComparison.OrdinalIgnoreCase))))
             .Sum(i => (int)i.Amount);
     }
+
+    /// <summary>
+    ///     Makes sure the player is actually riding the job transport. The server
+    ///     rejects specialty goods purchases (result 0x02 / error 0x1C0D) while the
+    ///     player is on foot, so this has to be verified before every purchase.
+    /// </summary>
+    private static bool EnsureMountedOnTransport(int timeoutMs = 5000)
+    {
+        var transport = Game.Player?.JobTransport;
+        if (transport == null || Game.Player == null)
+            return false;
+
+        if (IsMountedOn(transport))
+            return true;
+
+        var deadline = Environment.TickCount64 + timeoutMs;
+
+        while (Environment.TickCount64 < deadline)
+        {
+            if (Game.Player.InAction || Game.Player.State?.BattleState == BattleState.InBattle)
+            {
+                Thread.Sleep(250);
+                continue;
+            }
+
+            transport.Mount(1500);
+
+            if (IsMountedOn(transport))
+            {
+                Log.Debug("[Trade] Player mounted on the job transport.");
+                return true;
+            }
+        }
+
+        return IsMountedOn(transport);
+    }
+
+    private static bool IsMountedOn(Cos transport) =>
+        Game.Player != null && Game.Player.HasActiveVehicle &&
+        Game.Player.Vehicle != null && Game.Player.Vehicle.UniqueId == transport.UniqueId;
 
     #endregion
 
@@ -525,17 +557,37 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
             Log.Notify($"[Trade] إرسال طلب شراء {buyNextQty} وحدة (الإجمالي الحالي: {currentQuantity}/{targetQuantity})...");
 
+            // The server only accepts the purchase while the player is riding the
+            // transport (otherwise it answers 0x02 / error 0x1C0D and nothing is
+            // bought). The player can get dismounted by a thief fight or a stuck
+            // mount, so this is verified before every single stack.
+            if (!EnsureMountedOnTransport(3000))
+                Log.Warn("[Trade] تحذير: الجمل غير مُمتطى الآن! قد يرفض السيرفر عملية الشراء (0x1C0D).");
+
+            var prevCount = CountTradeGoodsInTransport(Game.Player?.JobTransport ?? transport, itemCodeName);
             var confirmed = ShoppingManager.PurchaseItem(transport, (int)tabIndex, (int)slotIndex, buyNextQty);
 
-            Thread.Sleep(600); // Wait for server confirmation and inventory update
+            // Await inventory count increase from server up to 3 seconds (matching vBot)
+            var bought = false;
+            for (var w = 0; w < 30; w++)
+            {
+                Thread.Sleep(100);
+                var nowCount = CountTradeGoodsInTransport(Game.Player?.JobTransport ?? transport, itemCodeName);
+                if (nowCount > prevCount)
+                {
+                    bought = true;
+                    break;
+                }
+            }
 
             var newQuantity = CountTradeGoodsInTransport(Game.Player?.JobTransport ?? transport, itemCodeName);
 
-            if (newQuantity > currentQuantity || confirmed)
+            if (bought || newQuantity > prevCount || confirmed)
             {
                 failedAttempts = 0;
-                var boughtUnits = (newQuantity > currentQuantity) ? (newQuantity - currentQuantity) : (int)buyNextQty;
+                var boughtUnits = (newQuantity > prevCount) ? (newQuantity - prevCount) : (int)buyNextQty;
                 Log.Notify($"[Trade] تم شراء {boughtUnits} وحدة بنجاح (الإجمالي الحالي: {newQuantity}/{targetQuantity})");
+                currentQuantity = newQuantity;
 
                 if (transport.Inventory != null && transport.Inventory.Full)
                 {
@@ -548,19 +600,36 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                     Log.Notify($"[Trade] تم اكتمال شراء بضاعة التجارة بنجاح ({newQuantity}/{targetQuantity} وحدة)! الحمولة 5 نجوم جاهزة.");
                     break;
                 }
+
+                Thread.Sleep(300); // polite pause between stacks
             }
             else
             {
                 failedAttempts++;
-                Log.Warn($"[Trade] لم يتم تأكيد شراء البضاعة من السيرفر (محاولة {failedAttempts}/4، الإجمالي الحالي: {newQuantity}).");
+                Log.Warn($"[Trade] لم يتم تأكيد شراء البضاعة من السيرفر (محاولة {failedAttempts}/3، الإجمالي الحالي: {newQuantity}).");
 
-                if (failedAttempts >= 4)
+                var camelDistance = transport != null ? transport.Position.DistanceTo(npc.Position) : -1f;
+                Log.Debug($"[Trade] تشخيص فشل الشراء: mounted={IsMountedOn(transport)}, " +
+                          $"InAction={Game.Player?.InAction}, BattleState={Game.Player?.State?.BattleState}, " +
+                          $"camelDistance={camelDistance:F1}, dialogNpc={Game.Player?.State?.DialogState?.Npc?.UniqueId}, " +
+                          $"shopNpc={ShoppingManager.SelectedEntity?.UniqueId}");
+
+                if (failedAttempts >= 3)
                 {
-                    Log.Warn("[Trade] تم إيقاف الشراء بعد 4 محاولات غير مؤكدة لتجنب انقطاع الاتصال بالسيرفر.");
+                    Log.Warn("[Trade] تم إيقاف الشراء بعد 3 محاولات غير مؤكدة لتجنب انقطاع الاتصال بالسيرفر.");
                     break;
                 }
 
-                Thread.Sleep(1000);
+                // The server silently closes the shop session when a transaction is
+                // rejected or when the player gets separated from the transport.
+                // Re-open the dialog exactly like the game client does before retrying,
+                // otherwise every new attempt keeps failing with 0x1C0D.
+                EnsureMountedOnTransport(2000);
+
+                if (!ShoppingManager.ChooseTalkOption(npc.Record.CodeName, TalkOption.Trade))
+                    Log.Debug("[Trade] تعذر إعادة فتح نافذة المتجر قبل إعادة المحاولة.");
+
+                Thread.Sleep(800);
             }
         }
 
