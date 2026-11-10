@@ -387,18 +387,20 @@ public static class ShoppingManager
                 return AwaitCallbackResult.ConditionFailed;
             }, 0xB034);
 
+            Log.Debug($"[Trade Purchase] Sending 0x7034 SP_BUY_ITEM_COS: cosId={cosId}, tab={tab}, slot={slot}, amount={amount}, npcId={shopEntity.UniqueId}");
             PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
             awaitResult.AwaitResponse(1500);
 
             return awaitResult.IsCompleted;
         }
 
-        // Try standard Silkroad client payload first (cosId = 0)
-        if (SendBuyPacket(0))
+        // 1. Try transport.UniqueId first (confirmed by packet dump: 13 [transportUniqueId] [tab] [slot] [amount] [npcUniqueId])
+        var cosId = transport.UniqueId != 0 ? transport.UniqueId : (Game.Player?.JobTransport?.UniqueId ?? 0);
+        if (cosId != 0 && SendBuyPacket(cosId))
             return true;
 
-        // Fallback: try with transport.UniqueId if cosId=0 was rejected
-        if (transport.UniqueId != 0 && SendBuyPacket(transport.UniqueId))
+        // 2. Fallback: try cosId = 0 only if transportId was 0 or failed
+        if (SendBuyPacket(0))
             return true;
 
         return false;

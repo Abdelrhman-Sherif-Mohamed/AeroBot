@@ -29,7 +29,8 @@ internal class BuyGoodsScriptCommand : IScriptCommand
     /// </summary>
     public Dictionary<string, string> Arguments => new()
     {
-        { "Codename", "The code name of the NPC" }
+        { "Codename", "The code name of the NPC (e.g. NPC_WC_SPECIAL, NPC_KT_SPECIAL, or 'Full' to auto-detect)" },
+        { "QuantityOrMode", "The quantity or 'Full' for maximum 5-star capacity (optional)" }
     };
 
     #endregion Properties
@@ -43,32 +44,65 @@ internal class BuyGoodsScriptCommand : IScriptCommand
     /// <returns></returns>
     public bool Execute(string[] arguments = null)
     {
-        if (arguments == null || arguments.Length < Arguments.Count)
-        {
-            Log.Warn("[Script] Invalid buy command: NPC code name information missing.");
+        string codeName = null;
+        var isFull = true;
+        var targetQuantity = 0;
 
+        if (arguments != null && arguments.Length > 0)
+        {
+            var first = arguments[0]?.Trim();
+            if (!string.IsNullOrEmpty(first))
+            {
+                if (first.Equals("Full", StringComparison.OrdinalIgnoreCase) ||
+                    first.Equals("All", StringComparison.OrdinalIgnoreCase) ||
+                    first.Equals("Max", StringComparison.OrdinalIgnoreCase))
+                {
+                    isFull = true;
+                }
+                else if (int.TryParse(first, out var q1))
+                {
+                    targetQuantity = q1;
+                    isFull = (targetQuantity <= 0);
+                }
+                else
+                {
+                    codeName = first;
+                }
+            }
+
+            if (arguments.Length > 1)
+            {
+                var second = arguments[1]?.Trim();
+                if (!string.IsNullOrEmpty(second))
+                {
+                    if (second.Equals("Full", StringComparison.OrdinalIgnoreCase) ||
+                        second.Equals("All", StringComparison.OrdinalIgnoreCase) ||
+                        second.Equals("Max", StringComparison.OrdinalIgnoreCase))
+                    {
+                        isFull = true;
+                    }
+                    else if (int.TryParse(second, out var q2))
+                    {
+                        targetQuantity = q2;
+                        isFull = (targetQuantity <= 0);
+                    }
+                }
+            }
+        }
+
+        var transport = Game.Player?.JobTransport;
+        if (transport == null)
+        {
+            Log.Warn("[Trade] تعذر الشراء: لا توجد وسيلة نقل تجارة (جمل/حصان) مستدعاة.");
             return false;
         }
 
-        if (Game.Player.JobTransport == null)
+        // Check if transport is ALREADY full
+        if (transport.Inventory != null && transport.Inventory.Full && !TradeConfig.SellGoods)
         {
-            Log.Warn("[Script] Can not buy items: No active job transport.");
-
-            return false;
-        }
-
-        // Check if transport already has specialty goods loaded
-        var transportHasGoods = Game.Player.JobTransport.Inventory != null &&
-                                Game.Player.JobTransport.Inventory.Any(i => i != null && i.Record != null && i.Amount > 0);
-
-        if (transportHasGoods && !TradeConfig.SellGoods)
-        {
-            Log.Notify("[Trade] الجمل يحتوي بالفعل على بضاعة تجارة! تم تخطي الشراء والمتابعة فوراً نحو الوجهة.");
+            Log.Notify("[Trade] حقيبة الجمل ممتلئة بالكامل بجميع خانات البضاعة! تخطي الشراء والمتابعة فوراً نحو الوجهة.");
             return true;
         }
-
-        if (!TradeConfig.SellGoods && !TradeConfig.BuyGoods)
-            return true;
 
         if (IsBusy || ShoppingManager.Running)
             return false;
@@ -76,23 +110,31 @@ internal class BuyGoodsScriptCommand : IScriptCommand
         try
         {
             IsBusy = true;
-            var codeName = arguments[0];
 
             // 1. Locate NPC in range, or wait/retry if nearby
             SpawnedNpcNpc npc = null;
-            for (var attempt = 0; attempt < 6; attempt++)
+            for (var attempt = 0; attempt < 8; attempt++)
             {
-                if (SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, codeName, StringComparison.OrdinalIgnoreCase), out npc) ||
-                    SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && (p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) || p.Record.CodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase)), out npc))
+                if (!string.IsNullOrEmpty(codeName))
+                {
+                    if (SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, codeName, StringComparison.OrdinalIgnoreCase), out npc))
+                        break;
+                }
+
+                if (SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null &&
+                    (p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) ||
+                     p.Record.CodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase) ||
+                     (p.Record.GetRealName() != null && (p.Record.GetRealName().Contains("Specialty", StringComparison.OrdinalIgnoreCase) || p.Record.GetRealName().Contains("Trader", StringComparison.OrdinalIgnoreCase)))), out npc))
                 {
                     break;
                 }
-                Thread.Sleep(300);
+
+                Thread.Sleep(250);
             }
 
             if (npc == null)
             {
-                Log.Warn($"[Trade] تعذر العثور على تاجر البضائع [{codeName}] بالقرب من اللاعب.");
+                Log.Warn($"[Trade] تعذر العثور على تاجر البضائع [{(string.IsNullOrEmpty(codeName) ? "Specialty Trader" : codeName)}] بالقرب من اللاعب.");
                 return false;
             }
 
@@ -121,7 +163,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                 }
             }
 
-            // Ensure job transport (camel/horse) has arrived near the NPC before trade
+            // 4. Ensure job transport (camel/horse) has arrived near the NPC before trade
             if (Game.Player?.JobTransport != null)
             {
                 for (var w = 0; w < 30; w++)
@@ -139,7 +181,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             ShoppingManager.SelectedEntity = npc;
             Game.SelectedEntity = npc;
 
-            // 4. Open shop dialog with verification & retries
+            // Open shop dialog with verification & retries
             var dialogOpened = false;
             for (var dAttempt = 1; dAttempt <= 3; dAttempt++)
             {
@@ -185,11 +227,9 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                 Thread.Sleep(400);
             }
 
-            if (TradeConfig.BuyGoods)
-            {
-                Log.Notify($"[Trade] جاري شراء بضاعة التجارة من [{activeEntity.Record.GetRealName()}]...");
-                BuyGoods();
-            }
+            // Always execute purchase because buy-goods was explicitly invoked in script
+            Log.Notify($"[Trade] جاري شراء بضاعة التجارة من [{activeEntity.Record.GetRealName()}] (الوضع: {(isFull ? "Full - حمولة كاملة 5 نجوم" : $"{targetQuantity} وحدة")})...");
+            BuyGoods(targetQuantity, isFull);
 
             // Settle transaction before closing dialog
             Thread.Sleep(500);
@@ -201,13 +241,14 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             var nowHasGoods = Game.Player?.JobTransport?.Inventory != null &&
                               Game.Player.JobTransport.Inventory.Any(i => i != null && i.Record != null && i.Amount > 0);
 
-            if (!nowHasGoods && TradeConfig.BuyGoods)
+            if (!nowHasGoods)
             {
                 Log.Warn("[Trade] تحذير: حقيبة الجمل لا تزال فارغة بعد محاولة الشراء!");
             }
-            else if (nowHasGoods)
+            else
             {
-                Log.Notify("[Trade] تم تأكيد شحن البضاعة في الجمل بنجاح، جاهز للتحرك نحو وجهة البيع!");
+                var totalUnits = Game.Player.JobTransport.Inventory.Sum(i => i?.Amount ?? 0);
+                Log.Notify($"[Trade] تم تأكيد شحن البضاعة في الجمل بنجاح ({totalUnits} وحدة)، جاهز للتحرك نحو وجهة البيع!");
             }
 
             return true;
@@ -265,11 +306,8 @@ internal class BuyGoodsScriptCommand : IScriptCommand
     /// <summary>
     ///     Buys specialty goods from the selected merchant.
     /// </summary>
-    private void BuyGoods()
+    private void BuyGoods(int targetQuantity, bool isFull)
     {
-        if (!TradeConfig.BuyGoods)
-            return;
-
         var npc = (Game.SelectedEntity as SpawnedNpcNpc)
                ?? (ShoppingManager.SelectedEntity as SpawnedNpcNpc)
                ?? (Game.Player?.State?.DialogState?.Npc as SpawnedNpcNpc);
@@ -311,13 +349,21 @@ internal class BuyGoodsScriptCommand : IScriptCommand
         }
 
         var maxStack = packageItem.RefItem.MaxStack > 0 ? packageItem.RefItem.MaxStack : 1000;
-        // If BuyGoodsQuantity is 0, target is at least 5 slots (5-star trade cargo: 5000 units) or full inventory capacity
-        var targetQuantity = TradeConfig.BuyGoodsQuantity > 0
-            ? TradeConfig.BuyGoodsQuantity
-            : Math.Max(5000, (Game.Player.JobTransport?.Inventory?.Capacity ?? 5) * maxStack);
+        var transport = Game.Player.JobTransport;
+        if (transport == null)
+        {
+            Log.Warn("[Trade] تعذر الشراء: وسيلة النقل غير متوفرة.");
+            return;
+        }
+
+        if (isFull || targetQuantity <= 0)
+        {
+            targetQuantity = Math.Max(5000, (transport.Inventory?.Capacity ?? 5) * maxStack);
+        }
 
         var playerGold = Game.Player?.Gold ?? 0;
-        Log.Notify($"[Trade] بدء شراء السلعة [{packageItem.RefItem.GetRealName()}] - الكمية المستهدفة: {targetQuantity} وحدة (رصيد الذهب: {playerGold:N0})...");
+        Log.Notify($"[Trade] بدء شراء السلعة [{packageItem.RefItem.GetRealName()}] - الكمية المستهدفة: {targetQuantity} وحدة (الوضع: {(isFull ? "Full - حمولة كاملة" : "محدد")}، رصيد الذهب: {playerGold:N0})...");
+        Log.Debug($"[Trade] بيانات المتجر: NPC={npc.Record.CodeName}, Tab={tabIndex}, Slot={item.SlotIndex}, TransportUniqueId={transport.UniqueId}");
 
         var safetyLimit = 35;
         var failedAttempts = 0;
@@ -325,7 +371,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
         while (safetyLimit-- > 0)
         {
-            var transport = Game.Player.JobTransport;
+            transport = Game.Player.JobTransport;
             if (transport?.Inventory == null)
                 break;
 
@@ -336,31 +382,41 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             }
 
             var currentQuantity = transport.Inventory.GetSumAmount(packageItem.RefItemCodeName);
-            if (currentQuantity >= targetQuantity)
+            if (!isFull && currentQuantity >= targetQuantity)
             {
-                Log.Notify($"[Trade] تم شراء كامل بضاعة التجارة بنجاح ({currentQuantity} وحدة - حمولة كاملة)! الحمولة 5 نجوم جاهزة.");
+                Log.Notify($"[Trade] تم شراء كامل بضاعة التجارة بنجاح ({currentQuantity} وحدة)! الحمولة 5 نجوم جاهزة.");
                 break;
             }
 
-            var buyNextQty = Math.Min(requestedBatch, targetQuantity - currentQuantity);
+            var buyNextQty = Math.Min(requestedBatch, Math.Max(1, targetQuantity - currentQuantity));
 
             Log.Notify($"[Trade] إرسال طلب شراء {buyNextQty} وحدة (الإجمالي الحالي: {currentQuantity}/{targetQuantity})...");
 
             var confirmed = ShoppingManager.PurchaseItem(transport, tabIndex, item.SlotIndex, (ushort)buyNextQty);
 
-            System.Threading.Thread.Sleep(400); // Wait for server confirmation and inventory update
+            Thread.Sleep(400); // Wait for server confirmation and inventory update
 
             var newQuantity = transport.Inventory?.GetSumAmount(packageItem.RefItemCodeName) ?? currentQuantity;
 
-            if (newQuantity >= targetQuantity)
+            if (newQuantity > currentQuantity)
             {
-                Log.Notify($"[Trade] تم اكتمال شراء بضاعة التجارة بنجاح ({newQuantity}/{targetQuantity} وحدة)! الحمولة 5 نجوم جاهزة.");
-                break;
-            }
+                failedAttempts = 0;
+                requestedBatch = maxStack; // Restore batch size upon successful purchase
+                Log.Notify($"[Trade] تم شراء {newQuantity - currentQuantity} وحدة بنجاح (الإجمالي الحالي: {newQuantity}/{targetQuantity})");
 
-            // If the server did not confirm the purchase or the transport
-            // inventory did not change, adapt batch size and avoid spamming
-            if (!confirmed || newQuantity <= currentQuantity)
+                if (transport.Inventory != null && transport.Inventory.Full)
+                {
+                    Log.Notify("[Trade] حقيبة الجمل ممتلئة بالكامل بجميع خانات البضاعة!");
+                    break;
+                }
+
+                if (!isFull && newQuantity >= targetQuantity)
+                {
+                    Log.Notify($"[Trade] تم اكتمال شراء بضاعة التجارة بنجاح ({newQuantity}/{targetQuantity} وحدة)! الحمولة 5 نجوم جاهزة.");
+                    break;
+                }
+            }
+            else if (!confirmed || newQuantity <= currentQuantity)
             {
                 failedAttempts++;
 
@@ -380,14 +436,10 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                     break;
                 }
             }
-            else
-            {
-                failedAttempts = 0;
-                requestedBatch = maxStack; // Restore batch size upon successful purchase
-            }
         }
 
-        Log.Notify($"[Trade] اكتمال عملية الشراء. إجمالي البضاعة المحمّلة بالجمل: {Game.Player.JobTransport?.Inventory?.GetSumAmount(packageItem.RefItemCodeName)} وحدة (5 نجوم كاملة).");
+        var finalLoaded = Game.Player.JobTransport?.Inventory?.GetSumAmount(packageItem.RefItemCodeName) ?? 0;
+        Log.Notify($"[Trade] اكتمال عملية الشراء. إجمالي البضاعة المحمّلة بالجمل: {finalLoaded} وحدة (5 نجوم كاملة).");
     }
 
     /// <summary>
