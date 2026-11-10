@@ -45,6 +45,50 @@ public class TabControl : System.Windows.Forms.TabControl
 
         Padding = new Point(14, 5);
         Alignment = TabAlignment.Top;
+
+        UpdatePageVisibility();
+    }
+
+    protected override void OnControlAdded(ControlEventArgs e)
+    {
+        base.OnControlAdded(e);
+        UpdatePageVisibility();
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        UpdatePageVisibility();
+    }
+
+    protected override void OnSelectedIndexChanged(EventArgs e)
+    {
+        base.OnSelectedIndexChanged(e);
+        UpdatePageVisibility();
+        Invalidate();
+    }
+
+    private void UpdatePageVisibility()
+    {
+        if (TabCount <= 0)
+            return;
+
+        var displayRect = DisplayRectangle;
+        for (int i = 0; i < TabCount; i++)
+        {
+            var page = TabPages[i];
+            if (i == SelectedIndex)
+            {
+                page.Bounds = displayRect;
+                page.Visible = true;
+                page.BringToFront();
+                page.Invalidate(true);
+            }
+            else
+            {
+                page.Visible = false;
+            }
+        }
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
@@ -66,6 +110,7 @@ public class TabControl : System.Windows.Forms.TabControl
                             SelectedIndex = i;
                             var actionArgs = new TabControlEventArgs(TabPages[i], i, TabControlAction.Selected);
                             OnSelected(actionArgs);
+                            UpdatePageVisibility();
                             Invalidate();
                         }
                     }
@@ -116,18 +161,15 @@ public class TabControl : System.Windows.Forms.TabControl
 
         var graphics = e.Graphics;
 
-        GroupBoxRenderer.DrawParentBackground(graphics, this.ClientRectangle, this);
+        // Clip parent background drawing strictly to the tab header strip
+        // so we never paint over child TabPages or their controls
+        var headerHeight = DisplayRectangle.Top > 0 ? DisplayRectangle.Top : (ItemSize.Height + 4);
+        var headerRect = new Rectangle(0, 0, Width, headerHeight);
+
+        GroupBoxRenderer.DrawParentBackground(graphics, headerRect, this);
 
         graphics.SetHighQuality();
-        using var borderBrush = new Pen(Color.FromArgb(70, 0, 0, 0));
         using var backBrush = new SolidBrush(ColorScheme.BackColor.IsDark() ? Color.FromArgb(10, 255, 255, 255) : Color.FromArgb(50, 0, 0, 0));
-
-        // Draw container rectangle
-        var r = new RectangleF(0, ItemSize.Height, Width - 1, Height - ItemSize.Height - 1);
-        using (var path = r.Radius(SelectedIndex == 0 ? 2 : _borderRadius.Left, _borderRadius.Top, _borderRadius.Right, _borderRadius.Bottom))
-        {
-            graphics.DrawPath(borderBrush, path);
-        }
 
         for (int i = 0; i <= TabCount - 1; i++)
         {
@@ -168,7 +210,8 @@ public class TabControl : System.Windows.Forms.TabControl
         get
         {
             var parms = base.CreateParams;
-            parms.Style &= ~0x02000000;  // Turn off WS_CLIPCHILDREN
+            // Retain WS_CLIPCHILDREN so parent never paints over child controls
+            parms.Style |= 0x02000000;
             return parms;
         }
     }

@@ -251,7 +251,7 @@ namespace RSBot.Map.Views
             // 
             // panelWorldMapTop
             // 
-            panelWorldMapTop.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
+            panelWorldMapTop.BackColor = System.Drawing.Color.Transparent;
             panelWorldMapTop.Controls.Add(btnWorldMapCenterPlayer);
             panelWorldMapTop.Controls.Add(chkWorldMapAutoTrack);
             panelWorldMapTop.Controls.Add(btnWorldMapReload);
@@ -269,7 +269,7 @@ namespace RSBot.Map.Views
             btnWorldMapCenterPlayer.Name = "btnWorldMapCenterPlayer";
             btnWorldMapCenterPlayer.Radius = 4;
             btnWorldMapCenterPlayer.ShadowDepth = 2F;
-            btnWorldMapCenterPlayer.Size = new System.Drawing.Size(85, 24);
+            btnWorldMapCenterPlayer.Size = new System.Drawing.Size(95, 24);
             btnWorldMapCenterPlayer.TabIndex = 0;
             btnWorldMapCenterPlayer.Text = "توسيط اللاعب";
             btnWorldMapCenterPlayer.UseVisualStyleBackColor = true;
@@ -281,12 +281,12 @@ namespace RSBot.Map.Views
             chkWorldMapAutoTrack.Checked = true;
             chkWorldMapAutoTrack.CheckState = System.Windows.Forms.CheckState.Checked;
             chkWorldMapAutoTrack.Depth = 0;
-            chkWorldMapAutoTrack.Location = new System.Drawing.Point(92, 5);
+            chkWorldMapAutoTrack.Location = new System.Drawing.Point(103, 5);
             chkWorldMapAutoTrack.Margin = new System.Windows.Forms.Padding(0);
             chkWorldMapAutoTrack.MouseLocation = new System.Drawing.Point(-1, -1);
             chkWorldMapAutoTrack.Name = "chkWorldMapAutoTrack";
             chkWorldMapAutoTrack.Ripple = true;
-            chkWorldMapAutoTrack.Size = new System.Drawing.Size(75, 24);
+            chkWorldMapAutoTrack.Size = new System.Drawing.Size(85, 24);
             chkWorldMapAutoTrack.TabIndex = 1;
             chkWorldMapAutoTrack.Text = "تتبع مباشر";
             chkWorldMapAutoTrack.UseVisualStyleBackColor = true;
@@ -294,7 +294,7 @@ namespace RSBot.Map.Views
             // btnWorldMapReload
             // 
             btnWorldMapReload.Color = System.Drawing.Color.Transparent;
-            btnWorldMapReload.Location = new System.Drawing.Point(170, 5);
+            btnWorldMapReload.Location = new System.Drawing.Point(192, 5);
             btnWorldMapReload.Name = "btnWorldMapReload";
             btnWorldMapReload.Radius = 4;
             btnWorldMapReload.ShadowDepth = 2F;
@@ -307,7 +307,7 @@ namespace RSBot.Map.Views
             // btnWorldMapOpenExternal
             // 
             btnWorldMapOpenExternal.Color = System.Drawing.Color.Transparent;
-            btnWorldMapOpenExternal.Location = new System.Drawing.Point(230, 5);
+            btnWorldMapOpenExternal.Location = new System.Drawing.Point(251, 5);
             btnWorldMapOpenExternal.Name = "btnWorldMapOpenExternal";
             btnWorldMapOpenExternal.Radius = 4;
             btnWorldMapOpenExternal.ShadowDepth = 2F;

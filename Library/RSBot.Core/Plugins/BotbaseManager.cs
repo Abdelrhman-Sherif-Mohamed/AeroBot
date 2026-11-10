@@ -45,13 +45,27 @@ public class BotbaseManager
                      from extension in loadedExtensions
                      select extension)
             {
-                Bots.Add(extension.Key, extension.Value);
-                extension.Value.Register();
+                Bots[extension.Key] = extension.Value;
+                try
+                {
+                    extension.Value.Register();
+                }
+                catch (Exception regEx)
+                {
+                    Log.Error($"Error registering botbase [{extension.Value.Name}]: {regEx.Message}");
+                }
 
                 Log.Debug($"Loaded botbase [{extension.Value.Name}]");
             }
 
-            EventManager.FireEvent("OnLoadBotbases");
+            try
+            {
+                EventManager.FireEvent("OnLoadBotbases");
+            }
+            catch (Exception evEx)
+            {
+                Log.Error($"OnLoadBotbases event handler error: {evEx.Message}");
+            }
 
             return true;
         }

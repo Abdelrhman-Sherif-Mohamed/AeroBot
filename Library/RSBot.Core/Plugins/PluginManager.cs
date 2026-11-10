@@ -45,7 +45,7 @@ public class PluginManager
                      from extension in loadedExtensions
                      select extension)
             {
-                Extensions.Add(extension.Key, extension.Value);
+                Extensions[extension.Key] = extension.Value;
                 Log.Debug($"Loaded plugin [{extension.Value.InternalName}]");
             }
 
@@ -53,7 +53,14 @@ public class PluginManager
             Extensions = Extensions.OrderBy(entry => entry.Value.Index)
                 .ToDictionary(x => x.Key, x => x.Value);
 
-            EventManager.FireEvent("OnLoadPlugins");
+            try
+            {
+                EventManager.FireEvent("OnLoadPlugins");
+            }
+            catch (Exception evEx)
+            {
+                Log.Error($"OnLoadPlugins event handler error: {evEx.Message}");
+            }
 
             return true;
         }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Windows.Forms;
 using RSBot.Core;
@@ -17,6 +17,32 @@ public partial class Main : DoubleBufferedControl
         InitializeComponent();
 
         SubscribeEvents();
+        ApplyTheme();
+    }
+
+    public void ApplyTheme()
+    {
+        var cardColor = SDUI.ColorScheme.CardColor;
+        var textColor = SDUI.ColorScheme.ForeColor;
+
+        var rtbList = new[]
+        {
+            txtAll, txtPrivate, txtParty, txtGuild, txtUnion, txtAcademy, txtGlobal, txtStall, UniqueText
+        };
+
+        foreach (var rtb in rtbList)
+        {
+            if (rtb == null) continue;
+            rtb.BackColor = cardColor;
+            rtb.ForeColor = textColor;
+        }
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+        if (Visible)
+            ApplyTheme();
     }
 
     /// <summary>

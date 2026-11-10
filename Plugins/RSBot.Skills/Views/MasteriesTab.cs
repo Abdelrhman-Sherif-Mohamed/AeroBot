@@ -21,14 +21,17 @@ internal class MasteriesTab : UserControl
     private readonly ToolStripMenuItem _levelOneItem;
     private readonly ToolStripMenuItem _autoItem;
     private readonly Font _boldFont;
+    private readonly Label _hint;
 
     public MasteriesTab()
     {
-        BackColor = Color.White;
+        var isDark = SDUI.ColorScheme.BackColor.IsDark();
+        BackColor = SDUI.ColorScheme.BackColor;
 
         _tree = new TreeView
         {
-            BackColor = Color.White,
+            BackColor = isDark ? SDUI.ColorScheme.CardColor : Color.White,
+            ForeColor = isDark ? SDUI.ColorScheme.ForeColor : Color.Black,
             BorderStyle = BorderStyle.None,
             Dock = DockStyle.Fill,
             FullRowSelect = true,
@@ -64,15 +67,16 @@ internal class MasteriesTab : UserControl
         _tree.ContextMenuStrip = _contextMenu;
         Controls.Add(_tree);
 
-        var hint = new Label
+        _hint = new Label
         {
             Dock = DockStyle.Bottom,
             Height = 30,
             Padding = new Padding(6, 0, 6, 0),
             Text = "Right-click a mastery to level it up or start auto upgrade.",
-            TextAlign = ContentAlignment.MiddleLeft
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = isDark ? SDUI.ColorScheme.SecondaryForeColor : Color.Gray
         };
-        Controls.Add(hint);
+        Controls.Add(_hint);
 
         EventManager.SubscribeEvent("OnLoadCharacter", new Action(OnRefreshRequested));
         EventManager.SubscribeEvent("OnExpSpUpdate", new Action(OnRefreshRequested));
@@ -84,6 +88,30 @@ internal class MasteriesTab : UserControl
 
         SkillUpgradeManager.EnsureSettingsLoaded();
         RefreshTree();
+    }
+
+    public void ApplyTheme()
+    {
+        var isDark = SDUI.ColorScheme.BackColor.IsDark();
+        BackColor = SDUI.ColorScheme.BackColor;
+        if (_tree != null)
+        {
+            _tree.BackColor = isDark ? SDUI.ColorScheme.CardColor : Color.White;
+            _tree.ForeColor = isDark ? SDUI.ColorScheme.ForeColor : Color.Black;
+        }
+
+        if (_hint != null)
+            _hint.ForeColor = isDark ? SDUI.ColorScheme.SecondaryForeColor : Color.Gray;
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+        if (Visible)
+        {
+            ApplyTheme();
+            RefreshTree();
+        }
     }
 
     protected override void Dispose(bool disposing)

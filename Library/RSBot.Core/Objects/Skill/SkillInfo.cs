@@ -79,7 +79,11 @@ public class SkillInfo
     /// <value>
     ///     <c>true</c> if attack; otherwise, <c>false</c>.
     /// </value>
-    public bool IsAttack => Record != null && Record.Params != null && Record.Params.Contains(6386804);
+    public bool IsAttack => Record != null && (
+        (Record.Params != null && Record.Params.Contains(6386804)) ||
+        Record.TargetGroup_Enemy_M ||
+        Record.TargetGroup_Enemy_P ||
+        (Record.Basic_Activity == 1 && Record.Action_AutoAttackType > 0));
 
     /// <summary>
     ///     Gets a value indicating whether this <see cref="SkillInfo" /> is a DoT.

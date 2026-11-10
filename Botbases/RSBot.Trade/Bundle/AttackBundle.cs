@@ -388,27 +388,6 @@ internal class AttackBundle
         IsAttacking = true;
         EnsureScriptPaused();
 
-        // If target is very far away (> 25m), step closer towards it, stopping before its position to avoid collision
-        if (target.DistanceToPlayer > 25.0)
-        {
-            if (DateTime.UtcNow - _lastMove >= TimeSpan.FromSeconds(1))
-            {
-                _lastMove = DateTime.UtcNow;
-                var dirX = target.Position.X - player.Position.X;
-                var dirY = target.Position.Y - player.Position.Y;
-                var dist = Math.Sqrt(dirX * dirX + dirY * dirY);
-                if (dist > 5)
-                {
-                    var ratio = (dist - 4.0) / dist;
-                    var targetX = player.Position.X + dirX * ratio;
-                    var targetY = player.Position.Y + dirY * ratio;
-                    player.MoveTo(new Position((float)targetX, (float)targetY, target.Position.Region), sleep: false);
-                }
-            }
-
-            return;
-        }
-
         if (TradeConfig.CastBuffs)
             EventManager.FireEvent("Bundle.Buff.Invoke");
 
@@ -424,6 +403,8 @@ internal class AttackBundle
         AttackTarget(target);
     }
 
+    private static DateTime _lastAttackTick = DateTime.MinValue;
+
     /// <summary>
     ///     Gets the effective combat range for the given skill or equipped weapon.
     /// </summary>
@@ -436,22 +417,30 @@ internal class AttackBundle
         if (weapon?.Record != null)
         {
             var type4 = weapon.Record.TypeID4;
-            if (type4 == 6 || type4 == 12 || type4 == 10 || type4 == 11)
-                return 16.0;
+            if (type4 == 6 || type4 == 12) // Bow / Crossbow
+                return 15.0;
+            if (type4 == 10 || type4 == 11) // Staff / Warlock Rod
+                return 14.0;
         }
 
         return 3.5;
     }
 
     /// <summary>
-    ///     Attacks the given thief target directly with configured or learned skills,
-    ///     falling back to auto attack.
+    ///     Attacks the given thief target directly with configured or learned skills.
+    ///     Never walks into the thief's hitbox.
     /// </summary>
-    private static void AttackTarget(SpawnedBionic target)
+    private void AttackTarget(SpawnedBionic target)
     {
         var player = Game.Player;
         if (player == null || !player.CanAttack)
             return;
+
+        // Rate-limit attack commands to avoid flooding the server
+        if (DateTime.UtcNow - _lastAttackTick < TimeSpan.FromMilliseconds(150))
+            return;
+
+        _lastAttackTick = DateTime.UtcNow;
 
         if (player.InAction)
         {
@@ -461,36 +450,56 @@ internal class AttackBundle
             return;
         }
 
-        // Make sure the auto attack packet is sent at the right entity.
         if (Game.SelectedEntity?.UniqueId != target.UniqueId)
             Game.SelectedEntity = target;
 
         try
         {
             var skill = SkillManager.GetNextSkill();
+            var effectiveRange = GetSkillRange(skill);
+
+            // If target is beyond skill range, navigate towards it but STOP safely before reaching its hitbox
+            if (target.DistanceToPlayer > effectiveRange)
+            {
+                if (DateTime.UtcNow - _lastMove >= TimeSpan.FromMilliseconds(400))
+                {
+                    _lastMove = DateTime.UtcNow;
+                    var dirX = target.Position.X - player.Position.X;
+                    var dirY = target.Position.Y - player.Position.Y;
+                    var dist = Math.Sqrt(dirX * dirX + dirY * dirY);
+                    if (dist > 2.0)
+                    {
+                        var desiredDist = Math.Max(2.0, effectiveRange - 2.0);
+                        var ratio = (dist - desiredDist) / dist;
+                        var targetX = player.Position.X + dirX * ratio;
+                        var targetY = player.Position.Y + dirY * ratio;
+                        player.MoveTo(new Position((float)targetX, (float)targetY, target.Position.Region), sleep: false);
+                    }
+                }
+                return;
+            }
+
+            // Target is within range: stop moving and cast skill
+            player.StopMoving();
+
             if (skill != null)
             {
-                var skillRange = GetSkillRange(skill);
-                if (target.DistanceToPlayer <= skillRange)
-                {
-                    if (SkillManager.CastSkill(skill, target.UniqueId))
-                        return;
-                }
-                else
-                {
-                    // Target is beyond skill cast range - auto attack closes the gap smoothly
-                    SkillManager.CastAutoAttack(target.UniqueId);
+                if (SkillManager.CastSkill(skill, target.UniqueId))
                     return;
-                }
+            }
+
+            // Fallback: only if melee weapon and within melee range (<= 3.5m)
+            var weapon = player.Weapon;
+            var isMelee = weapon?.Record != null && weapon.Record.TypeID4 != 6 && weapon.Record.TypeID4 != 12;
+            if (isMelee && target.DistanceToPlayer <= 3.5)
+            {
+                SkillManager.CastAutoAttack(target.UniqueId);
             }
         }
         catch (Exception ex)
         {
             Log.Debug($"[Trade] Skill cast failed: {ex.Message}");
         }
-
-        // Always fall back to the basic attack if no skill was casted
-        SkillManager.CastAutoAttack(target.UniqueId);
     }
 
     /// <summary>
