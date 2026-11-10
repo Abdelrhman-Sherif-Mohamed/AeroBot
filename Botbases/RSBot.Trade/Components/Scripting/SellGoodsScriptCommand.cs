@@ -49,13 +49,28 @@ internal class SellGoodsScriptCommand : IScriptCommand
             IsBusy = true;
             var codeName = arguments[0];
 
+            // Dismount transport before opening dialog/selling
+            if (Game.Player != null && Game.Player.HasActiveVehicle)
+            {
+                Log.Notify("[Trade] الترجل من وسيلة النقل قبل بيع البضاعة...");
+                Game.Player.JobTransport?.Dismount();
+                Game.Player.Vehicle?.Dismount();
+                for (var d = 0; d < 20; d++)
+                {
+                    if (!Game.Player.HasActiveVehicle)
+                        break;
+                    Thread.Sleep(100);
+                }
+                Thread.Sleep(300);
+            }
+
             ShoppingManager.Running = true;
             ShoppingManager.BotOpenedDialog = true;
 
             // Select the NPC, wait for the selection acknowledgement and open
             // the trade dialog before sending any sell operation.
             var talked = ShoppingManager.ChooseTalkOption(codeName, TalkOption.Trade);
-            Thread.Sleep(300);
+            Thread.Sleep(500);
 
             if (!talked && Game.SelectedEntity == null)
             {
@@ -66,7 +81,7 @@ internal class SellGoodsScriptCommand : IScriptCommand
                     npc.TrySelect();
                     Thread.Sleep(300);
                     ShoppingManager.ChooseTalkOption(npc.Record.CodeName, TalkOption.Trade);
-                    Thread.Sleep(300);
+                    Thread.Sleep(500);
                 }
             }
 
@@ -81,9 +96,16 @@ internal class SellGoodsScriptCommand : IScriptCommand
 
             // Let the last transaction settle before closing the dialog,
             // otherwise the server may consider it a protocol violation.
-            Thread.Sleep(400);
+            Thread.Sleep(500);
             ShoppingManager.CloseShop();
-            Thread.Sleep(200);
+            Thread.Sleep(300);
+
+            // Remount if MountTransport is enabled
+            if (TradeConfig.MountTransport && Game.Player?.JobTransport != null && !Game.Player.HasActiveVehicle)
+            {
+                Game.Player.JobTransport.Mount();
+                Thread.Sleep(500);
+            }
 
             if (!sold)
             {

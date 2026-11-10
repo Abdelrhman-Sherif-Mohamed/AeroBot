@@ -62,10 +62,21 @@ public class PluginManager
 
             // Order by index safely without throwing on duplicates
             var ordered = new Dictionary<string, IPlugin>();
-            foreach (var ext in Extensions.Values.OrderBy(entry => entry.Index))
+            try
             {
-                if (!string.IsNullOrWhiteSpace(ext.InternalName))
-                    ordered[ext.InternalName] = ext;
+                foreach (var ext in Extensions.Values.OrderBy(entry =>
+                {
+                    try { return entry?.Index ?? 999; } catch { return 999; }
+                }))
+                {
+                    if (ext != null && !string.IsNullOrWhiteSpace(ext.InternalName))
+                        ordered[ext.InternalName] = ext;
+                }
+            }
+            catch (Exception sortEx)
+            {
+                Log.Error($"Plugin ordering error: {sortEx.Message}");
+                ordered = new Dictionary<string, IPlugin>(Extensions);
             }
             Extensions = ordered;
 

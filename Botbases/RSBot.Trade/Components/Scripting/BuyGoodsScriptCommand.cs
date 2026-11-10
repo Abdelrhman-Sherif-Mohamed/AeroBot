@@ -176,7 +176,23 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                     Thread.Sleep(200);
                 }
             }
-            Thread.Sleep(400);
+
+            // 5. Must dismount from vehicle/job transport before interacting with shop!
+            // In Silkroad / vSRO, buying or trading while mounted triggers server error 0x0D.
+            if (Game.Player != null && Game.Player.HasActiveVehicle)
+            {
+                Log.Notify("[Trade] الترجل من وسيلة النقل قبل فتح متجر البضائع...");
+                Game.Player.JobTransport?.Dismount();
+                Game.Player.Vehicle?.Dismount();
+                for (var d = 0; d < 25; d++)
+                {
+                    if (!Game.Player.HasActiveVehicle)
+                        break;
+                    Thread.Sleep(100);
+                }
+                Thread.Sleep(300);
+            }
+            Thread.Sleep(300);
 
             ShoppingManager.Running = true;
             ShoppingManager.BotOpenedDialog = true;
@@ -216,7 +232,8 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                 return false;
             }
 
-            Thread.Sleep(300);
+            // Settle shop window state before item transactions
+            Thread.Sleep(600);
 
             var activeEntity = (Game.SelectedEntity as SpawnedNpcNpc) ?? (ShoppingManager.SelectedEntity as SpawnedNpcNpc) ?? npc;
             Game.SelectedEntity = activeEntity;
@@ -226,7 +243,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             {
                 Log.Notify($"[Trade] جاري فحص وبيع بضائع التجارة القديمة لدى [{activeEntity.Record.GetRealName()}]...");
                 SellGoods();
-                Thread.Sleep(400);
+                Thread.Sleep(500);
             }
 
             // Always execute purchase because buy-goods was explicitly invoked in script
@@ -234,7 +251,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             BuyGoods(targetQuantity, isFull);
 
             // Settle transaction before closing dialog
-            Thread.Sleep(500);
+            Thread.Sleep(600);
 
             ShoppingManager.CloseShop();
             Thread.Sleep(400);
@@ -251,6 +268,14 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             {
                 var totalUnits = Game.Player.JobTransport.Inventory.Sum(i => i?.Amount ?? 0);
                 Log.Notify($"[Trade] تم تأكيد شحن البضاعة في الجمل بنجاح ({totalUnits} وحدة)، جاهز للتحرك نحو وجهة البيع!");
+            }
+
+            // Remount job transport if MountTransport option is enabled
+            if (TradeConfig.MountTransport && Game.Player?.JobTransport != null && !Game.Player.HasActiveVehicle)
+            {
+                Log.Notify("[Trade] ركوب وسيلة النقل بعد اكتمال الشراء لمتابعة مسار التجارة...");
+                Game.Player.JobTransport.Mount();
+                Thread.Sleep(600);
             }
 
             return true;
