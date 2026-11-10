@@ -1,8 +1,8 @@
 {
-  "version": "2.9.41",
-  "release_date": "2026-11-09",
-  "download_url": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.41.zip",
+  "version": "2.9.44",
+  "release_date": "2026-11-10",
+  "download_url": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.44.zip",
   "github_url": "https://github.com/Abdelrhman-Sherif-Mohamed/AeroBot",
-  "changelog": "Release v2.9.41: Comprehensive update with Target Support, Trivia, Mob Selector, full automated login, and 100% clean package",
+  "changelog": "Release v2.9.44: Trade fixed end-to-end (buying goods without disconnects, no more getting stuck at the NPC after buying, Jangan specialty trader route updated), packet logs removed, and minimap flicker fixed",
   "required": true
 }

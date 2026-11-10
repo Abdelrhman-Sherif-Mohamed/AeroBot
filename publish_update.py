@@ -1,20 +1,29 @@
+# -*- coding: utf-8 -*-
 import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """⚔️ إصلاح قتال الثيف في التريدة ومسافة الاشتباك (Trade Combat Fix):
-  - إصلاح مشكلة عدم ضرب الثيف وتخطي شرط فحص الـ Health الخاطئ للأهداف المستهدفة.
-  - ضبط مسافة القتال ديناميكياً حسب نوع السلاح (الأسلحة بعيدة المدى كالقوس والعصا تضرب من مسافة 14 متراً دون الدخول داخل الثيف).
-  - تفعيل استخدام مهارات الدامج والإمبيو (Imbue) تلقائياً ضد الثيف."""
+changelog_ar = """• إصلاح مشكلة فصل اللعبة (Disconnect) عند شراء بضائع التجارة من تاجر البضائع — الشراء بقى شغال وبيتم تحميل البضاعة على الجمل لحد 5000 وحدة بدون كراش.
+• إصلاح مشكلة "البوت بيلزق في التاجر" بعد الشراء: البوت بقى يقفل نافذة المتجر صح ويبدأ يتحرك فوراً بدون ما يفضل واقف عند الـNPC.
+• إصلاح مسار تاجر البضائع في جانجان (Specialty Trader Seopok) — مسار جديد أسهل وبيوصل للتاجر بالظبط.
+• إزالة سجلات الباكيتات (Packet Logs) من صندوق اللوج نهائياً — مبقاش بيظهر للمستخدم أي تفاصيل باكيتات ولا بيتم إنشاء ملف packets.log.
+• إصلاح رعشة ورفريش الخريطة الصغيرة (Minimap) — الخريطة بقت تترسم بس لما اللاعب يتحرك فعلاً، وبدون فلاش أو اهتزاز.
+• إصلاح هجمات قطاع الطرق (Thieves) أثناء التجارة: البوت بقى يهاجم من مسافة السلاح بدل ما يمشي جوه الهدف.
+• دعم مساعد الاستهداف (Target Support) على اللاعبين مش الوحوش بس.
+• تحسين تثبيت سعر وكمية الشراء واختيار البضاعة المفضلة أثناء شراء بضائع التجارة."""
 
-changelog_en = """⚔️ Trade Thief Combat & Weapon Range Fix:
-  - Fixed combat bug where bot would walk inside thief without attacking due to uninitialized health check.
-  - Dynamic weapon range calculation (bow/staff/crossbow engages at 14m instead of walking into target).
-  - Enabled automatic weapon imbue and skill casting against thieves."""
+changelog_en = """• Fixed the game client disconnect (DC) when buying trade goods — purchasing now works and loads up to 5000 units onto the transport without crashing.
+• Fixed the "bot stuck at the NPC" bug after buying: the bot now closes the shop dialog correctly and starts moving immediately.
+• Fixed the Jangan Specialty Trader (Seopok) route — new cleaner path that ends exactly on the trader.
+• Removed packet logs from the log window completely — no packet dumps are shown to users and packets.log is no longer created.
+• Fixed the minimap flicker / constant refresh — the map now repaints only when the player actually moves, with no flicker or shaking.
+• Fixed trade thief combat: the bot now engages from weapon range instead of walking inside the target.
+• Target Support now works on players as well as monsters.
+• Improved trade purchase stability, quantity handling and preferred goods selection."""
 
 data = {
-    "version": "2.9.43",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.43.zip",
+    "version": "2.9.44",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.44.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -31,4 +40,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.43 update to Firebase! Status:', res.status)
+    print('Published 2.9.44 update to Firebase! Status:', res.status)
