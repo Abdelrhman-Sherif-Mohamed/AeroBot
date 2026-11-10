@@ -221,6 +221,7 @@ public class ScriptManager
                 return;
 
             var error = false;
+            var consecutiveFailures = 0;
             var commandList = Commands;
             if (commandList == null)
                 return;
@@ -274,16 +275,36 @@ public class ScriptManager
 
                 if (executionResult == false)
                 {
+                    LogScriptMessage("The execution of the script command failed.", CurrentLineIndex, LogLevel.Warning,
+                        commandName);
+
                     if (!Running || Paused || (!Kernel.Bot.Running && !ignoreBotRunning))
                     {
                         error = true;
                         break;
                     }
 
-                    LogScriptMessage("The execution of the script command failed.", CurrentLineIndex, LogLevel.Warning,
-                        commandName);
+                    // Critical commands can never be skipped (teleporting, buying, selling, mounting, etc.)
+                    var isCritical = commandName is "teleport" or "buy" or "sell" or "dismount" or "mount" or "repair";
+                    if (isCritical)
+                    {
+                        Log.Warn($"[Script] Critical command [{commandName}] failed at line #{CurrentLineIndex}. Aborting script execution!");
+                        error = true;
+                        break;
+                    }
+
+                    consecutiveFailures++;
+                    if (consecutiveFailures >= 3)
+                    {
+                        Log.Warn($"[Script] Multiple consecutive commands failed ({consecutiveFailures}) at line #{CurrentLineIndex}. Aborting script execution!");
+                        error = true;
+                        break;
+                    }
+
                     continue;
                 }
+
+                consecutiveFailures = 0;
             }
 
             if (!Paused)

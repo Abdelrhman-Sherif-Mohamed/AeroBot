@@ -80,7 +80,9 @@ internal class TransportBundle
         //Summon new transport?
         if (Game.Player.JobTransport == null)
         {
-            if (Game.Player.State.BattleState == BattleState.InBattle || Game.Player.InAction)
+            // Do not attempt to summon transport if dead or in combat/action
+            if (Game.Player?.State?.LifeState != LifeState.Alive || Game.Player?.Health == 0 ||
+                Game.Player?.State?.BattleState == BattleState.InBattle || Game.Player?.InAction == true)
                 return;
 
             // Manual transport mode: the player is responsible for summoning

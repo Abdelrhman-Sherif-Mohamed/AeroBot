@@ -1,8 +1,8 @@
 {
-  "version": "2.9.45",
-  "release_date": "2026-11-10",
-  "download_url": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.45.zip",
+  "version": "2.9.46",
+  "release_date": "2026-11-11",
+  "download_url": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.46.zip",
   "github_url": "https://github.com/Abdelrhman-Sherif-Mohamed/AeroBot",
-  "changelog": "Release v2.9.45: Trade system fully resolved (buying goods up to 5000 units without DC, fixed getting stuck at NPC, updated Jangan specialty trader route, thief combat range fix), packet logs removed, and minimap flicker fixed",
+  "changelog": "Release v2.9.46: Fixed ferry & tunnel teleportation during trade routes (dismount before teleport, NPC interactive approach, completion verification), hardened script engine against runaway waypoint skipping, fixed dead player transport summon loop and safe trade death recovery",
   "required": true
 }

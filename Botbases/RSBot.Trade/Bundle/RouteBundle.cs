@@ -189,39 +189,43 @@ internal class RouteBundle
     {
 
         // Error during script execution or bot stopped -> Do not advance trade loops!
-
         if (error || !TradeBotbase.IsActive || Kernel.Bot == null || !Kernel.Bot.Running || !Game.Ready)
+        {
+            if (error)
+                Log.Warn($"[CityTrade] OnFinishScript received error=true. Trade round execution was aborted/failed.");
 
+            TownscriptRunning = false;
             return;
-
-
+        }
 
         TownscriptRunning = false;
 
-
-
         // ONLY advance loop and clear CurrentRouteFile if the script ACTUALLY reached the destination end!
-
         // Never advance mid-route when paused, cancelled, or interrupted!
-
         var reachedDestination = !ScriptManager.Paused && 
-
                                   ScriptManager.Commands != null && 
-
                                   ScriptManager.Commands.Length > 0 && 
-
                                   ScriptManager.CurrentLineIndex >= ScriptManager.Commands.Length - 3;
 
-
+        // Extra safeguard: verify that the player is actually within 150m of the final script waypoint
+        if (reachedDestination)
+        {
+            var positions = ScriptManager.GetWalkScript();
+            if (positions != null && positions.Count > 0)
+            {
+                var lastPos = positions[positions.Count - 1];
+                if (lastPos.DistanceToPlayer() > 150.0f)
+                {
+                    Log.Warn($"[CityTrade] OnFinishScript reached end of lines, but player is {Math.Round(lastPos.DistanceToPlayer(), 1)}m away from final waypoint! Rejecting false completion.");
+                    reachedDestination = false;
+                }
+            }
+        }
 
         if (!reachedDestination)
-
         {
-
             Log.Debug($"[CityTrade] OnFinishScript fired at line #{ScriptManager.CurrentLineIndex} without reaching destination. Loop will not advance.");
-
             return;
-
         }
 
 
@@ -493,23 +497,20 @@ internal class RouteBundle
 
 
         //Wait for player to revive
-
-        if (Game.Player.State.LifeState == LifeState.Dead)
-
+        if (Game.Player?.State?.LifeState == LifeState.Dead || Game.Player?.Health == 0)
         {
-
             Log.Status("Waiting for resurrection");
 
-
-
-            if (ScriptManager.Running && !ScriptManager.Paused)
-
-                ScriptManager.Pause();
-
-
+            if (ScriptManager.Running || ScriptManager.Paused)
+            {
+                Log.Warn("[CityTrade] اللاعب مات أثناء نقل البضائع! إيقاف مسار السير الحالي والانتظار للإنعاش في المدينة...");
+                ScriptManager.Stop(true);
+                CurrentRouteFile = null;
+                _checkForTownScript = true;
+                _lastScriptIsTownScript = false;
+            }
 
             return;
-
         }
 
 
@@ -754,7 +755,7 @@ internal class RouteBundle
 
         {
 
-            if (ScriptManager.Paused || (!ScriptManager.Running && CurrentRouteFile != null))
+            if (ScriptManager.Paused && ScriptManager.Running && CurrentRouteFile != null)
 
             {
 

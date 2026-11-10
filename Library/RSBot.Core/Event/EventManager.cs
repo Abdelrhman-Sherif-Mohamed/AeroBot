@@ -19,7 +19,10 @@ public class EventManager
     {
         if (handler == null) return;
 
-        _listeners.Add((name, handler));
+        lock (_listeners)
+        {
+            _listeners.Add((name, handler));
+        }
     }
 
     /// <summary>
@@ -31,7 +34,40 @@ public class EventManager
     {
         if (handler == null) return;
 
-        _listeners.Add((name, handler));
+        lock (_listeners)
+        {
+            _listeners.Add((name, handler));
+        }
+    }
+
+    /// <summary>
+    ///     Unregisters the event.
+    /// </summary>
+    /// <param name="name">The name.</param>
+    /// <param name="handler">The handler.</param>
+    public static void UnsubscribeEvent(string name, Delegate handler)
+    {
+        if (handler == null) return;
+
+        lock (_listeners)
+        {
+            _listeners.RemoveAll(l => l.name == name && Equals(l.handler, handler));
+        }
+    }
+
+    /// <summary>
+    ///     Unregisters the event.
+    /// </summary>
+    /// <param name="name">The name.</param>
+    /// <param name="handler">The handler.</param>
+    public static void UnsubscribeEvent(string name, Action handler)
+    {
+        if (handler == null) return;
+
+        lock (_listeners)
+        {
+            _listeners.RemoveAll(l => l.name == name && Equals(l.handler, handler));
+        }
     }
 
     /// <summary>
@@ -43,9 +79,13 @@ public class EventManager
     {
         try
         {
-            var targets = (from o in _listeners
-                where o.name == name && o.handler.Method.GetParameters().Length == parameters.Length
-                select o.handler).ToArray();
+            Delegate[] targets;
+            lock (_listeners)
+            {
+                targets = (from o in _listeners
+                    where o.name == name && o.handler.Method.GetParameters().Length == parameters.Length
+                    select o.handler).ToArray();
+            }
 
             foreach (var target in targets)
                 if (Thread.CurrentThread.Name == "Network.PacketProcessor")

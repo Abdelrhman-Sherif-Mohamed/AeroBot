@@ -73,15 +73,22 @@ internal class MoveScriptCommand : IScriptCommand
 
             const int retryAttempts = 2;
             var stepRetryCounter = 0;
+            Position? targetPos = null;
 
-            while (!ExecuteMove(arguments))
+            while (!ExecuteMove(arguments, out targetPos))
             {
                 if (!IsBusy || !ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
                     return false;
 
+                // If target could not be parsed, or player is far (> 35m), movement failure is fatal and cannot be skipped
+                if (!targetPos.HasValue || targetPos.Value.DistanceToPlayer() > 35.0f)
+                {
+                    return false;
+                }
+
                 if (stepRetryCounter++ >= retryAttempts)
                 {
-                    // Proceed to maintain continuous march without stopping
+                    // Minor waypoint within 35m can proceed to maintain continuous march
                     return true;
                 }
 
@@ -100,9 +107,10 @@ internal class MoveScriptCommand : IScriptCommand
     ///     Executes the movement with smart collision detection and obstacle evasion.
     /// </summary>
     /// <param name="arguments">The arguments.</param>
-    private bool ExecuteMove(IReadOnlyList<string> arguments)
+    /// <param name="pos">The resolved target position.</param>
+    private bool ExecuteMove(IReadOnlyList<string> arguments, out Position? pos)
     {
-        Position pos;
+        pos = null;
 
         if (arguments.Count == 3)
         {
@@ -111,7 +119,6 @@ internal class MoveScriptCommand : IScriptCommand
                 || !float.TryParse(arguments[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var worldY)
                 || !float.TryParse(arguments[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var worldZ))
             {
-                IsBusy = false;
                 return false;
             }
 
@@ -126,7 +133,6 @@ internal class MoveScriptCommand : IScriptCommand
                 || !byte.TryParse(arguments[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out var xSector)
                 || !byte.TryParse(arguments[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out var ySector))
             {
-                IsBusy = false;
                 return false;
             }
 
@@ -134,7 +140,6 @@ internal class MoveScriptCommand : IScriptCommand
         }
         else
         {
-            IsBusy = false;
             return false;
         }
 
@@ -142,12 +147,10 @@ internal class MoveScriptCommand : IScriptCommand
             if (!Game.Player.HasActiveVehicle && !Game.Player.IsInDungeon && !Game.Player.InAction)
                 Game.Player.SummonVehicle();
 
-        var distance = pos.DistanceTo(Game.Player.Position);
+        var distance = pos.Value.DistanceTo(Game.Player.Position);
         if (distance > 350)
         {
             Log.Warn($"[Script] Target position too far away ({Math.Round(distance, 1)}m), bot logic aborted!");
-
-            IsBusy = false;
             return false;
         }
 
@@ -166,8 +169,8 @@ internal class MoveScriptCommand : IScriptCommand
                 var ratio = (float)s / steps;
                 var currentWorldX = Game.Player.Position.X;
                 var currentWorldY = Game.Player.Position.Y;
-                var targetWorldX = pos.X;
-                var targetWorldY = pos.Y;
+                var targetWorldX = pos.Value.X;
+                var targetWorldY = pos.Value.Y;
 
                 var stepWorldX = currentWorldX + (targetWorldX - currentWorldX) * ratio;
                 var stepWorldY = currentWorldY + (targetWorldY - currentWorldY) * ratio;
@@ -177,15 +180,15 @@ internal class MoveScriptCommand : IScriptCommand
                 var stepXOffset = (float)((stepWorldX - (stepXSector - 135) * 192.0) * 10.0);
                 var stepYOffset = (float)((stepWorldY - (stepYSector - 92) * 192.0) * 10.0);
 
-                var intermediatePos = new Position(stepXSector, stepYSector, stepXOffset, stepYOffset, pos.ZOffset);
+                var intermediatePos = new Position(stepXSector, stepYSector, stepXOffset, stepYOffset, pos.Value.ZOffset);
                 if (!MoveWithObstacleEvasion(intermediatePos))
                     break;
             }
         }
 
-        Log.Debug($"[Script] Move to position {pos.Region}({pos.Region.X},{pos.Region.Y}) X={pos.X}, Y={pos.Y}");
+        Log.Debug($"[Script] Move to position {pos.Value.Region}({pos.Value.Region.X},{pos.Value.Region.Y}) X={pos.Value.X}, Y={pos.Value.Y}");
 
-        return MoveWithObstacleEvasion(pos);
+        return MoveWithObstacleEvasion(pos.Value);
     }
 
     /// <summary>
