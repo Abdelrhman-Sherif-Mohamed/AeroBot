@@ -31,7 +31,7 @@ public class BotbaseManager
     public bool LoadAssemblies()
     {
         if (Bots != null)
-            return false;
+            return true;
 
         try
         {

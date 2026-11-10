@@ -16,11 +16,17 @@ public class InventoryItemCollection : ICollection<InventoryItem>
     protected List<InventoryItem> _collection;
 
     /// <summary>
+    ///     Dedicated capacity backing field to prevent corruption from List<T> buffer doubling.
+    /// </summary>
+    protected byte _capacity;
+
+    /// <summary>
     ///     The constructor.
     /// </summary>
     /// <param name="size">The size.</param>
     public InventoryItemCollection(byte size)
     {
+        _capacity = size;
         _collection = new List<InventoryItem>(size + 1);
     }
 
@@ -47,8 +53,19 @@ public class InventoryItemCollection : ICollection<InventoryItem>
     /// </value>
     public byte Capacity
     {
-        get => (byte)(_collection.Capacity - 1);
-        set => _collection.Capacity = value + 1;
+        get
+        {
+            if (_capacity > 0) return _capacity;
+            if (_collection != null && _collection.Any())
+                return (byte)(Math.Max(30, ((_collection.Max(i => (int)i.Slot) / 30) + 1) * 30));
+            return 30;
+        }
+        set
+        {
+            _capacity = value;
+            if (_collection != null && _collection.Capacity < value + 1)
+                _collection.Capacity = value + 1;
+        }
     }
 
     /// <summary>

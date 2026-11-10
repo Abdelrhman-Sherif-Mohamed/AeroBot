@@ -6,6 +6,7 @@ using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Components.Scripting;
 using RSBot.Core.Objects;
+using RSBot.Core.Objects.Cos;
 using RSBot.Core.Objects.Spawn;
 
 namespace RSBot.Trade.Components.Scripting;
@@ -303,6 +304,43 @@ internal class BuyGoodsScriptCommand : IScriptCommand
         }
     }
 
+    #region Specialty Goods Reference Fallback
+
+    private class SpecialtyGoodsInfo
+    {
+        public string ItemCode { get; set; }
+        public string PackageCode { get; set; }
+        public byte TabIndex { get; set; }
+        public byte SlotIndex { get; set; }
+        public string EnglishName { get; set; }
+    }
+
+    private static readonly Dictionary<string, SpecialtyGoodsInfo> SpecialtyGoodsMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "NPC_WC_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_WC_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_WC_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Leather" } },
+        { "NPC_KT_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_KT_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_KT_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Nephrite" } },
+        { "NPC_CH_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_CH_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_CH_01", TabIndex = 0, SlotIndex = 0, EnglishName = "White Silk" } },
+        { "NPC_EU_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_EU_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_EU_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Linen" } },
+        { "NPC_CA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_CA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_CA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Carpet" } },
+        { "NPC_TK_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_TK_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_TK_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Red Sand" } },
+        { "NPC_SD_M_AREA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_SD_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_SD_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Alexandria Goods 1" } },
+        { "NPC_SD_M_AREA_SPECIAL_2", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_VE_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_VE_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Alexandria Goods 2" } },
+        { "NPC_SD_M_AREA_SPECIAL_3", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_DE_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_DE_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Alexandria Goods 3" } },
+    };
+
+    private static int CountTradeGoodsInTransport(Cos transport, string specificCode = null)
+    {
+        if (transport?.Inventory == null) return 0;
+        return transport.Inventory
+            .Where(i => i != null && i.Record != null &&
+                        (i.Record.CodeName.StartsWith("ITEM_ETC_TRADE_", StringComparison.OrdinalIgnoreCase) ||
+                         (i.Record.TypeID1 == 3 && i.Record.TypeID2 == 3 && i.Record.TypeID3 == 8) ||
+                         (!string.IsNullOrEmpty(specificCode) && string.Equals(i.Record.CodeName, specificCode, StringComparison.OrdinalIgnoreCase))))
+            .Sum(i => (int)i.Amount);
+    }
+
+    #endregion
+
     /// <summary>
     ///     Buys specialty goods from the selected merchant.
     /// </summary>
@@ -318,37 +356,57 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             return;
         }
 
-        var shopGroup = Game.ReferenceManager.GetRefShopGroup(npc.Record.CodeName);
-        if (shopGroup == null)
+        var npcCode = npc.Record.CodeName ?? string.Empty;
+        SpecialtyGoodsMap.TryGetValue(npcCode, out var fallbackGoods);
+
+        int tabIndex = 0xFF;
+        byte slotIndex = 0;
+        string itemCodeName = fallbackGoods?.ItemCode ?? "ITEM_ETC_TRADE_WC_01";
+        string packageCodeName = fallbackGoods?.PackageCode ?? "PACKAGE_ITEM_ETC_TRADE_WC_01";
+        string displayName = fallbackGoods?.EnglishName ?? "Specialty Goods";
+
+        var shopGroup = Game.ReferenceManager.GetRefShopGroup(npcCode);
+        if (shopGroup != null)
         {
-            Log.Warn($"[Trade] تعذر الشراء: لم يتم العثور على معلومات المتجر للتاجر [{npc.Record.CodeName}].");
-            return;
+            var shopGoods = Game.ReferenceManager.GetRefShopGoods(shopGroup);
+            var firstGood = shopGoods?.FirstOrDefault();
+            if (firstGood != null)
+            {
+                var dynamicTab = Game.ReferenceManager.GetRefShopGoodTabIndex(npcCode, firstGood);
+                if (dynamicTab != 0xFF)
+                {
+                    tabIndex = dynamicTab;
+                    slotIndex = firstGood.SlotIndex;
+                    packageCodeName = firstGood.RefPackageItemCodeName;
+
+                    var pkg = Game.ReferenceManager.GetRefPackageItem(packageCodeName);
+                    if (pkg?.RefItem != null)
+                    {
+                        itemCodeName = pkg.RefItem.CodeName;
+                        displayName = pkg.RefItem.GetRealName() ?? pkg.RefItem.CodeName;
+                    }
+                }
+            }
         }
 
-        var shopGoods = Game.ReferenceManager.GetRefShopGoods(shopGroup);
-        var item = shopGoods?.FirstOrDefault();
-
-        if (item == null)
+        if (tabIndex == 0xFF)
         {
-            Log.Warn($"[Trade] تعذر الشراء: لا توجد بضائع متوفرة في متجر [{npc.Record.CodeName}].");
-            return;
+            if (fallbackGoods != null)
+            {
+                tabIndex = fallbackGoods.TabIndex;
+                slotIndex = fallbackGoods.SlotIndex;
+                itemCodeName = fallbackGoods.ItemCode;
+                packageCodeName = fallbackGoods.PackageCode;
+                displayName = fallbackGoods.EnglishName;
+                Log.Notify($"[Trade] استخدام الإعداد المرجعي الافتراضي للتاجر [{npcCode}]: سلعة [{displayName}] (تبويب {tabIndex}، خانة {slotIndex}).");
+            }
+            else
+            {
+                Log.Warn($"[Trade] تعذر الشراء: لم يتم العثور على تبويب السلعة في متجر [{npcCode}].");
+                return;
+            }
         }
 
-        var tabIndex = Game.ReferenceManager.GetRefShopGoodTabIndex(npc.Record.CodeName, item);
-        if (tabIndex == 0xFF) //Specified item not available in this shop!
-        {
-            Log.Warn($"[Trade] تعذر الشراء: لم يتم العثور على تبويب السلعة في متجر [{npc.Record.CodeName}].");
-            return;
-        }
-
-        var packageItem = Game.ReferenceManager.GetRefPackageItem(item.RefPackageItemCodeName);
-        if (packageItem?.RefItem == null)
-        {
-            Log.Warn($"[Trade] تعذر الشراء: تعذر قراءة بيانات السلعة [{item.RefPackageItemCodeName}].");
-            return;
-        }
-
-        var maxStack = packageItem.RefItem.MaxStack > 0 ? packageItem.RefItem.MaxStack : 1000;
         var transport = Game.Player.JobTransport;
         if (transport == null)
         {
@@ -356,18 +414,29 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             return;
         }
 
+        const ushort MaxStack = 1000;
+        const long PricePerUnit = 10000; // 10,000 Gold per unit across all towns
+
         if (isFull || targetQuantity <= 0)
         {
-            targetQuantity = Math.Max(5000, (transport.Inventory?.Capacity ?? 5) * maxStack);
+            targetQuantity = Math.Max(5000, (transport.Inventory?.Capacity ?? 5) * MaxStack);
         }
 
         var playerGold = Game.Player?.Gold ?? 0;
-        Log.Notify($"[Trade] بدء شراء السلعة [{packageItem.RefItem.GetRealName()}] - الكمية المستهدفة: {targetQuantity} وحدة (الوضع: {(isFull ? "Full - حمولة كاملة" : "محدد")}، رصيد الذهب: {playerGold:N0})...");
-        Log.Debug($"[Trade] بيانات المتجر: NPC={npc.Record.CodeName}, Tab={tabIndex}, Slot={item.SlotIndex}, TransportUniqueId={transport.UniqueId}");
+        var maxAffordable = (int)(playerGold / PricePerUnit);
+
+        Log.Notify($"[Trade] بدء شراء السلعة [{displayName}] - الكمية المستهدفة: {targetQuantity} وحدة (الرصيد: {playerGold:N0} ذهبة، أقصى كمية يمكن شراؤها بالرصيد: {maxAffordable:N0} وحدة)...");
+        Log.Debug($"[Trade] بيانات المتجر: NPC={npcCode}, Tab={tabIndex}, Slot={slotIndex}, Item={itemCodeName}, TransportUniqueId={transport.UniqueId}");
+
+        if (maxAffordable <= 0)
+        {
+            Log.Warn($"[Trade] تحذير: رصيد الذهب لدى اللاعب ({playerGold:N0} ذهبة) لا يكفي لشراء وحدة واحدة من بضاعة التجارة (سعر الوحدة 10,000 ذهبة)!");
+            return;
+        }
 
         var safetyLimit = 35;
         var failedAttempts = 0;
-        var requestedBatch = maxStack;
+        var requestedBatch = Math.Min(100, Math.Min(MaxStack, maxAffordable)); // Start with safe batch <= 100 to avoid server rejection
 
         while (safetyLimit-- > 0)
         {
@@ -381,27 +450,37 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                 break;
             }
 
-            var currentQuantity = transport.Inventory.GetSumAmount(packageItem.RefItemCodeName);
+            var currentQuantity = CountTradeGoodsInTransport(transport, itemCodeName);
             if (!isFull && currentQuantity >= targetQuantity)
             {
                 Log.Notify($"[Trade] تم شراء كامل بضاعة التجارة بنجاح ({currentQuantity} وحدة)! الحمولة 5 نجوم جاهزة.");
                 break;
             }
 
-            var buyNextQty = Math.Min(requestedBatch, Math.Max(1, targetQuantity - currentQuantity));
+            playerGold = Game.Player?.Gold ?? 0;
+            maxAffordable = (int)(playerGold / PricePerUnit);
+            if (maxAffordable <= 0)
+            {
+                Log.Warn($"[Trade] نفد الذهب الكافي للاستمرار في الشراء (الرصيد الحالي: {playerGold:N0} ذهبة).");
+                break;
+            }
+
+            var needed = Math.Max(1, targetQuantity - currentQuantity);
+            var buyNextQty = Math.Min(requestedBatch, Math.Min(maxAffordable, needed));
 
             Log.Notify($"[Trade] إرسال طلب شراء {buyNextQty} وحدة (الإجمالي الحالي: {currentQuantity}/{targetQuantity})...");
 
-            var confirmed = ShoppingManager.PurchaseItem(transport, tabIndex, item.SlotIndex, (ushort)buyNextQty);
+            var confirmed = ShoppingManager.PurchaseItem(transport, (int)tabIndex, (int)slotIndex, (ushort)buyNextQty);
 
-            Thread.Sleep(400); // Wait for server confirmation and inventory update
+            Thread.Sleep(450); // Wait for server confirmation and inventory update
 
-            var newQuantity = transport.Inventory?.GetSumAmount(packageItem.RefItemCodeName) ?? currentQuantity;
+            var newQuantity = CountTradeGoodsInTransport(Game.Player?.JobTransport ?? transport, itemCodeName);
 
             if (newQuantity > currentQuantity)
             {
                 failedAttempts = 0;
-                requestedBatch = maxStack; // Restore batch size upon successful purchase
+                // If 100 succeeded, we can try larger batch up to 500
+                requestedBatch = Math.Min(500, Math.Min(MaxStack, maxAffordable));
                 Log.Notify($"[Trade] تم شراء {newQuantity - currentQuantity} وحدة بنجاح (الإجمالي الحالي: {newQuantity}/{targetQuantity})");
 
                 if (transport.Inventory != null && transport.Inventory.Full)
@@ -416,30 +495,33 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                     break;
                 }
             }
-            else if (!confirmed || newQuantity <= currentQuantity)
+            else
             {
                 failedAttempts++;
+                Log.Warn($"[Trade] لم يتم تأكيد شراء البضاعة من السيرفر (محاولة {failedAttempts}/4، الإجمالي الحالي: {newQuantity}).");
 
-                Log.Warn($"[Trade] لم يتم تأكيد شراء البضاعة من السيرفر (محاولة {failedAttempts}/3، الإجمالي الحالي: {newQuantity}).");
-
-                // If failed at 1000, adaptively try smaller batch (500 -> 100 -> 1) in case server or gold limits batch size
-                if (requestedBatch > 500)
-                    requestedBatch = 500;
-                else if (requestedBatch > 100)
+                // Adaptive step down: 100 -> 50 -> 20 -> 10 -> 1
+                if (requestedBatch > 100)
                     requestedBatch = 100;
+                else if (requestedBatch > 50)
+                    requestedBatch = 50;
+                else if (requestedBatch > 20)
+                    requestedBatch = 20;
+                else if (requestedBatch > 10)
+                    requestedBatch = 10;
                 else if (requestedBatch > 1)
                     requestedBatch = 1;
 
-                if (failedAttempts >= 3)
+                if (failedAttempts >= 4)
                 {
-                    Log.Warn("[Trade] تم إيقاف الشراء بعد 3 محاولات غير مؤكدة لتجنب قطع الاتصال.");
+                    Log.Warn("[Trade] تم إيقاف الشراء بعد 4 محاولات غير مؤكدة لتجنب انقطاع الاتصال بالسيرفر.");
                     break;
                 }
             }
         }
 
-        var finalLoaded = Game.Player.JobTransport?.Inventory?.GetSumAmount(packageItem.RefItemCodeName) ?? 0;
-        Log.Notify($"[Trade] اكتمال عملية الشراء. إجمالي البضاعة المحمّلة بالجمل: {finalLoaded} وحدة (5 نجوم كاملة).");
+        var finalLoaded = CountTradeGoodsInTransport(Game.Player?.JobTransport, itemCodeName);
+        Log.Notify($"[Trade] اكتمال عملية الشراء. إجمالي البضاعة المحمّلة بالجمل: {finalLoaded} وحدة.");
     }
 
     /// <summary>

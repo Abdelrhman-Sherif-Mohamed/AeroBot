@@ -992,7 +992,10 @@ public partial class Main : DoubleBufferedControl
             }
             else if (_worldMapInitialized)
             {
-                _ = webViewWorldMap.ExecuteScriptAsync("window.dispatchEvent(new Event('resize'));");
+                _ = webViewWorldMap.ExecuteScriptAsync(@"
+                    if (window.xSROMap && window.xSROMap.InvalidateSize) window.xSROMap.InvalidateSize();
+                    window.dispatchEvent(new Event('resize'));
+                ");
                 if (Game.Player != null)
                 {
                     var pos = Game.Player.Position;
@@ -1100,12 +1103,19 @@ public partial class Main : DoubleBufferedControl
                 mapFolder,
                 CoreWebView2HostResourceAccessKind.Allow);
 
+            var triedDirectFallback = false;
             webViewWorldMap.CoreWebView2.NavigationCompleted += (s, args) =>
             {
                 if (args.IsSuccess)
                 {
                     _worldMapInitialized = true;
                     Log.Notify("[WorldMap] تم تحميل خريطة العالم بنجاح.");
+                    _ = webViewWorldMap.ExecuteScriptAsync(@"
+                        setTimeout(function() {
+                            if (window.xSROMap && window.xSROMap.InvalidateSize) window.xSROMap.InvalidateSize();
+                            window.dispatchEvent(new Event('resize'));
+                        }, 250);
+                    ");
                     if (Game.Player != null)
                     {
                         var p = Game.Player.Position;
@@ -1113,9 +1123,10 @@ public partial class Main : DoubleBufferedControl
                         _ = webViewWorldMap.ExecuteScriptAsync($"if (window.aerobotUpdatePlayer) {{ window.aerobotUpdatePlayer('{pName}', {p.X}, {p.Y}, {p.Z}, {p.Region}); if (window.aerobotCenterPlayer) window.aerobotCenterPlayer('{pName}'); }}");
                     }
                 }
-                else
+                else if (!triedDirectFallback)
                 {
-                    Log.Notify($"[WorldMap] فشل تحميل صفحة الخريطة عبر النطاق الافتراضي: {args.WebErrorStatus}. جاري المحاولة المباشرة...");
+                    triedDirectFallback = true;
+                    Log.Notify($"[WorldMap] فشل تحميل صفحة الخريطة عبر النطاق الافتراضي: {args.WebErrorStatus}. جاري المحاولة المباشرة عبر مسار الملف...");
                     try
                     {
                         var fileUri = new Uri(htmlPath).AbsoluteUri;
@@ -1125,6 +1136,10 @@ public partial class Main : DoubleBufferedControl
                     {
                         Log.Notify($"[WorldMap] تعذر تحميل مسار الملف المباشر: {navEx.Message}");
                     }
+                }
+                else
+                {
+                    Log.Notify($"[WorldMap] تعذر تحميل الخريطة: {args.WebErrorStatus}");
                 }
             };
 

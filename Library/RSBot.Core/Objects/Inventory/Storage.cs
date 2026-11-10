@@ -163,7 +163,7 @@ public class Storage : InventoryItemCollection
 
         if (asyncResult.IsCompleted)
         {
-            Thread.Sleep(120);
+            Thread.Sleep(isGuildStorage ? 250 : 150);
             return true;
         }
 

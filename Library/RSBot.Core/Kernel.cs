@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using RSBot.Core.Components;
@@ -86,11 +88,48 @@ public static class Kernel
         set => GlobalConfig.Set("RSBot.DebugEnvironments", value);
     }
 
+    private static bool _assemblyResolverRegistered;
+
     /// <summary>
     ///     Initializes this instance.
     /// </summary>
     public static void Initialize()
     {
+        if (!_assemblyResolverRegistered)
+        {
+            _assemblyResolverRegistered = true;
+            AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
+            {
+                try
+                {
+                    var assemblyName = new AssemblyName(args.Name).Name;
+                    if (string.IsNullOrWhiteSpace(assemblyName)) return null;
+
+                    var candidateDirs = new[]
+                    {
+                        BasePath,
+                        Path.Combine(BasePath, "Data", "Plugins"),
+                        Path.Combine(BasePath, "Data", "Bots"),
+                        Path.Combine(BasePath, "runtimes", "win-x86", "native"),
+                        Path.Combine(BasePath, "Data", "Plugins", "runtimes", "win-x86", "native")
+                    };
+
+                    foreach (var dir in candidateDirs)
+                    {
+                        if (!Directory.Exists(dir)) continue;
+                        var path = Path.Combine(dir, assemblyName + ".dll");
+                        if (File.Exists(path))
+                        {
+                            return Assembly.LoadFrom(path);
+                        }
+                    }
+                }
+                catch { }
+
+                return null;
+            };
+        }
+
         Bot = new Bot();
         BotbaseManager = new BotbaseManager();
         PluginManager = new PluginManager();

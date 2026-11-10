@@ -240,8 +240,8 @@ namespace RSBot.Map.Views
             // tabWorldMap
             // 
             tabWorldMap.BackColor = System.Drawing.Color.White;
-            tabWorldMap.Controls.Add(webViewWorldMap);
             tabWorldMap.Controls.Add(panelWorldMapTop);
+            tabWorldMap.Controls.Add(webViewWorldMap);
             tabWorldMap.Location = new System.Drawing.Point(4, 28);
             tabWorldMap.Name = "tabWorldMap";
             tabWorldMap.Padding = new System.Windows.Forms.Padding(0);

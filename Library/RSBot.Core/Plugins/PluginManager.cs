@@ -31,7 +31,7 @@ public class PluginManager
     /// </summary>
     public bool LoadAssemblies()
     {
-        if (Extensions != null) return false;
+        if (Extensions != null) return true;
 
         Extensions = new Dictionary<string, IPlugin>();
 
@@ -60,10 +60,14 @@ public class PluginManager
                 }
             }
 
-            // Order by index
-            Extensions = Extensions.Values
-                .OrderBy(entry => entry.Index)
-                .ToDictionary(x => x.InternalName, x => x);
+            // Order by index safely without throwing on duplicates
+            var ordered = new Dictionary<string, IPlugin>();
+            foreach (var ext in Extensions.Values.OrderBy(entry => entry.Index))
+            {
+                if (!string.IsNullOrWhiteSpace(ext.InternalName))
+                    ordered[ext.InternalName] = ext;
+            }
+            Extensions = ordered;
 
             try
             {

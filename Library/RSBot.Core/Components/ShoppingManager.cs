@@ -403,6 +403,44 @@ public static class ShoppingManager
         if (SendBuyPacket(0))
             return true;
 
+        // 3. Fallback: try standard SP_BUY_ITEM (0x08) used by some private servers
+        bool SendStandardBuyPacket()
+        {
+            var packet = new Packet(0x7034);
+            packet.WriteByte(InventoryOperation.SP_BUY_ITEM);
+            packet.WriteByte(tab);
+            packet.WriteByte(slot);
+            packet.WriteUShort(amount);
+            packet.WriteUInt(shopEntity.UniqueId);
+
+            var awaitResult = new AwaitCallback(response =>
+            {
+                var res = response.ReadByte();
+                if (res != 0x01)
+                {
+                    var errCode = response.Remaining > 0 ? response.ReadByte() : (byte)0;
+                    Log.Debug($"[Trade Purchase] 0xB034 rejected (SP_BUY_ITEM): result=0x{res:X2}, errorCode=0x{errCode:X2}");
+                    return AwaitCallbackResult.Fail;
+                }
+
+                var operation = (InventoryOperation)response.ReadByte();
+                if (operation == InventoryOperation.SP_BUY_ITEM ||
+                    operation == InventoryOperation.SP_BUY_ITEM_COS)
+                    return AwaitCallbackResult.Success;
+
+                return AwaitCallbackResult.ConditionFailed;
+            }, 0xB034);
+
+            Log.Debug($"[Trade Purchase] Fallback sending 0x7034 SP_BUY_ITEM: tab={tab}, slot={slot}, amount={amount}, npcId={shopEntity.UniqueId}");
+            PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
+            awaitResult.AwaitResponse(1500);
+
+            return awaitResult.IsCompleted;
+        }
+
+        if (SendStandardBuyPacket())
+            return true;
+
         return false;
     }
 
