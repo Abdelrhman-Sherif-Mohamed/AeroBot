@@ -1226,7 +1226,9 @@ internal class RouteBundle
 
 
 
-        var files = Directory.GetFiles(tradeDir, "*.rbs");
+        var files = Directory.GetFiles(tradeDir, "*.*")
+            .Where(f => f.EndsWith(".rbs", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".vb", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
 
         foreach (var file in files)
 

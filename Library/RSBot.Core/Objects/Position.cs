@@ -106,6 +106,23 @@ public struct Position
     }
 
     /// <summary>
+    ///     Creates a position by using world map coordinates including height (z).
+    /// </summary>
+    public Position(float x, float y, float z, Region region = default)
+        : this(x, y, region)
+    {
+        ZOffset = z;
+    }
+
+    /// <summary>
+    ///     Creates a position from world coordinates (compatible with vBot 3-arg move syntax).
+    /// </summary>
+    public static Position FromWorld(float worldX, float worldY, float worldZ = 0f)
+    {
+        return new Position(worldX, worldY, worldZ);
+    }
+
+    /// <summary>
     ///     Creates a position using sector offsets
     /// </summary>
     /// <param name="region">The region identifier.</param>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using RSBot.Core.Objects;
 
@@ -33,11 +34,7 @@ internal class MoveScriptCommand : IScriptCommand
     /// </value>
     public Dictionary<string, string> Arguments => new()
     {
-        { "XSector", "The X sector of the region" },
-        { "YSector", "The Y sector of the region" },
-        { "XOffset", "The X offset inside the region" },
-        { "YOffset", "The Y offset inside the region" },
-        { "ZOffset", "The Z offset inside the region" }
+        { "Position", "Supports 5 args (XOffset, YOffset, ZOffset, XSector, YSector) or 3 args (WorldX, WorldY, WorldZ)" }
     };
 
     #endregion Properties
@@ -53,9 +50,9 @@ internal class MoveScriptCommand : IScriptCommand
     /// </returns>
     public bool Execute(string[] arguments = null)
     {
-        if (arguments == null || arguments.Length != Arguments.Count)
+        if (arguments == null || (arguments.Length != 3 && arguments.Length != 5))
         {
-            Log.Warn("[Script] Invalid move command: Position information missing / invalid format.");
+            Log.Warn("[Script] Invalid move command: Position information missing / invalid format (expected 3 or 5 arguments).");
 
             return false;
         }
@@ -105,18 +102,41 @@ internal class MoveScriptCommand : IScriptCommand
     /// <param name="arguments">The arguments.</param>
     private bool ExecuteMove(IReadOnlyList<string> arguments)
     {
-        if (!float.TryParse(arguments[0], out var xOffset)
-            || !float.TryParse(arguments[1], out var yOffset)
-            || !float.TryParse(arguments[2], out var zOffset)
-            || !byte.TryParse(arguments[3], out var xSector)
-            || !byte.TryParse(arguments[4], out var ySector))
+        Position pos;
+
+        if (arguments.Count == 3)
+        {
+            // vBot 3-argument syntax: move, WorldX, WorldY, WorldZ
+            if (!float.TryParse(arguments[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var worldX)
+                || !float.TryParse(arguments[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var worldY)
+                || !float.TryParse(arguments[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var worldZ))
+            {
+                IsBusy = false;
+                return false;
+            }
+
+            pos = Position.FromWorld(worldX, worldY, worldZ);
+        }
+        else if (arguments.Count >= 5)
+        {
+            // RSBot native 5-argument syntax: move XOffset YOffset ZOffset XSector YSector
+            if (!float.TryParse(arguments[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var xOffset)
+                || !float.TryParse(arguments[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var yOffset)
+                || !float.TryParse(arguments[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var zOffset)
+                || !byte.TryParse(arguments[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out var xSector)
+                || !byte.TryParse(arguments[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out var ySector))
+            {
+                IsBusy = false;
+                return false;
+            }
+
+            pos = new Position(xSector, ySector, xOffset, yOffset, zOffset);
+        }
+        else
         {
             IsBusy = false;
-
-            return false; //Invalid format
+            return false;
         }
-
-        Position pos = new(xSector, ySector, xOffset, yOffset, zOffset);
 
         if (PlayerConfig.Get("RSBot.Training.checkUseMount", true))
             if (!Game.Player.HasActiveVehicle && !Game.Player.IsInDungeon && !Game.Player.InAction)

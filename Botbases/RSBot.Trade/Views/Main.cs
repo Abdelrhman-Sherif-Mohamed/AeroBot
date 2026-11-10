@@ -1842,7 +1842,10 @@ public partial class Main : DoubleBufferedControl
         string bestFile = null;
         var bestScore = -1;
 
-        foreach (var file in Directory.GetFiles(tradeDirectory, "*.rbs"))
+        var files = Directory.GetFiles(tradeDirectory, "*.*")
+            .Where(f => f.EndsWith(".rbs", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".vb", StringComparison.OrdinalIgnoreCase));
+
+        foreach (var file in files)
         {
             var parts = Path.GetFileNameWithoutExtension(file)
                 .Split(new[] { " to " }, StringSplitOptions.RemoveEmptyEntries);

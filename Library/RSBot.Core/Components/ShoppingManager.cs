@@ -374,7 +374,7 @@ public static class ShoppingManager
                 var res = response.ReadByte();
                 if (res != 0x01)
                 {
-                    var errCode = response.Remaining > 0 ? response.ReadByte() : (byte)0;
+                    var errCode = response.Remaining >= 2 ? response.ReadUShort() : (response.Remaining > 0 ? (ushort)response.ReadByte() : (ushort)0);
                     Log.Debug($"[Trade Purchase] 0xB034 rejected (cosId={cosId}): result=0x{res:X2}, errorCode=0x{errCode:X2}");
                     return AwaitCallbackResult.Fail;
                 }
@@ -418,7 +418,7 @@ public static class ShoppingManager
                 var res = response.ReadByte();
                 if (res != 0x01)
                 {
-                    var errCode = response.Remaining > 0 ? response.ReadByte() : (byte)0;
+                    var errCode = response.Remaining >= 2 ? response.ReadUShort() : (response.Remaining > 0 ? (ushort)response.ReadByte() : (ushort)0);
                     Log.Debug($"[Trade Purchase] 0xB034 rejected (SP_BUY_ITEM): result=0x{res:X2}, errorCode=0x{errCode:X2}");
                     return AwaitCallbackResult.Fail;
                 }

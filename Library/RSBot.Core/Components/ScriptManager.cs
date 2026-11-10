@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -62,6 +63,11 @@ public class ScriptManager
     ///     The argument separator.
     /// </value>
     public static char ArgumentSeparator { get; set; } = ' ';
+
+    /// <summary>
+    ///     Separators supported across scripts (supports space, comma, and tab for .rbs and .vb).
+    /// </summary>
+    public static readonly char[] CommandSeparators = { ' ', ',', '\t' };
 
     public static bool Paused { get; private set; }
 
@@ -236,12 +242,15 @@ public class ScriptManager
                 Log.Debug($"[Script] Executing line #{CurrentLineIndex}");
                 Log.Status("Running walk script");
 
-                var arguments = scriptLine.Split(' ');
-                var commandName = arguments.Length == 0 ? scriptLine : arguments[0];
+                var arguments = scriptLine.Split(CommandSeparators, StringSplitOptions.RemoveEmptyEntries);
+                if (arguments.Length == 0)
+                    continue;
+
+                var commandName = arguments[0].Trim();
 
                 if (string.IsNullOrEmpty(commandName)
-                    || commandName.Trim().StartsWith("//")
-                    || commandName.Trim().StartsWith("#"))
+                    || commandName.StartsWith("//")
+                    || commandName.StartsWith("#"))
                     continue;
 
                 var handler = CommandHandlers.FirstOrDefault(h => h.Name == commandName);
@@ -308,35 +317,59 @@ public class ScriptManager
 
     /// <summary>
     ///     A convenience function that returns all positions in the walk script.
-    ///     Warning: This method is not extendable at the moment, that means that there can not be
-    ///     a custom implementation of the "move" command. The move command currently always needs to have the arguments
-    ///     XOffset, YOffset, ZOffset, XSector, YSector.
+    ///     Supports both .rbs (5 args) and .vb (3 args: worldX, worldY, worldZ) formats.
     /// </summary>
     /// <returns></returns>
     public static List<Position> GetWalkScript()
     {
-        var walkCommands = Commands.Where(c => c.Trim().StartsWith("move"));
+        var walkCommands = Commands.Where(c => c.Trim().StartsWith("move", StringComparison.OrdinalIgnoreCase));
 
-        return walkCommands.Select(command => command.Split(ArgumentSeparator).Skip(1).ToArray()).Select(ParsePosition)
+        return walkCommands.Select(command => command.Split(CommandSeparators, StringSplitOptions.RemoveEmptyEntries).Skip(1).ToArray()).Select(ParsePosition)
             .ToList();
     }
 
     /// <summary>
     ///     Parses the position from the given arguments.
+    ///     Supports both 3-arg vBot syntax (WorldX, WorldY, WorldZ) and 5-arg RSBot syntax.
     /// </summary>
     /// <param name="args">The arguments.</param>
     /// <returns></returns>
     private static Position ParsePosition(string[] args)
     {
-        if (!float.TryParse(args[0], out var xOffset)
-            || !float.TryParse(args[1], out var yOffset)
-            || !float.TryParse(args[2], out var zOffset)
-            || !byte.TryParse(args[3], out var xSector)
-            || !byte.TryParse(args[4], out var ySector)
-           )
-            return default; //Invalid format
+        if (args == null) return default;
 
-        return new Position(xSector, ySector, xOffset, yOffset, zOffset);
+        var tokens = args
+            .Select(a => a?.Trim().TrimEnd(','))
+            .Where(a => !string.IsNullOrEmpty(a))
+            .ToArray();
+
+        // Format 1: 3 arguments -> vBot format (WorldX, WorldY, WorldZ)
+        if (tokens.Length == 3)
+        {
+            if (float.TryParse(tokens[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var wx) &&
+                float.TryParse(tokens[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var wy) &&
+                float.TryParse(tokens[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var wz))
+            {
+                return Position.FromWorld(wx, wy, wz);
+            }
+
+            return default;
+        }
+
+        // Format 2: 5 arguments -> RSBot native format (XOffset, YOffset, ZOffset, XSector, YSector)
+        if (tokens.Length >= 5)
+        {
+            if (!float.TryParse(tokens[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var xOffset)
+                || !float.TryParse(tokens[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var yOffset)
+                || !float.TryParse(tokens[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var zOffset)
+                || !byte.TryParse(tokens[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out var xSector)
+                || !byte.TryParse(tokens[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out var ySector))
+                return default;
+
+            return new Position(xSector, ySector, xOffset, yOffset, zOffset);
+        }
+
+        return default;
     }
 
     /// <summary>
@@ -388,11 +421,11 @@ public class ScriptManager
 
             if (command.Trim().StartsWith("//") ||
                 command.Trim().StartsWith("#") ||
-                !command.Trim().StartsWith("move") ||
+                !command.Trim().StartsWith("move", StringComparison.OrdinalIgnoreCase) ||
                 string.IsNullOrWhiteSpace(command))
                 continue;
 
-            var args = command.Split(ArgumentSeparator, StringSplitOptions.RemoveEmptyEntries).Skip(1).ToArray();
+            var args = command.Split(CommandSeparators, StringSplitOptions.RemoveEmptyEntries).Skip(1).ToArray();
             var curPos = ParsePosition(args);
 
             allMoves[line] = curPos;
@@ -427,11 +460,11 @@ public class ScriptManager
 
             if (command.Trim().StartsWith("//") ||
                 command.Trim().StartsWith("#") ||
-                !command.Trim().StartsWith("move") ||
+                !command.Trim().StartsWith("move", StringComparison.OrdinalIgnoreCase) ||
                 string.IsNullOrWhiteSpace(command))
                 continue;
 
-            var args = command.Split(ArgumentSeparator, StringSplitOptions.RemoveEmptyEntries).Skip(1).ToArray();
+            var args = command.Split(CommandSeparators, StringSplitOptions.RemoveEmptyEntries).Skip(1).ToArray();
             var curPos = ParsePosition(args);
 
             allMoves[line] = curPos;
