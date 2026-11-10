@@ -1973,6 +1973,7 @@ public partial class Main : DoubleBufferedControl
     private void checkStorageSplitPages_CheckedChanged(object sender, EventArgs e)
     {
         PlayerConfig.Set("RSBot.Storage.SplitByPages", checkStorageSplitPages.Checked);
+        PlayerConfig.Set("RSBot.GuildStorage.SplitByPages", checkStorageSplitPages.Checked);
         PlayerConfig.Save();
     }
 

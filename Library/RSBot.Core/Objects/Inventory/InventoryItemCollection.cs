@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Network;
 
@@ -355,22 +356,23 @@ public class InventoryItemCollection : ICollection<InventoryItem>
         // 10. Ammunition (Arrows, Bolts)
         if (record.IsAmmunition) return 100;
 
-        // 11. Alchemy Elixirs
-        if (code.Contains("ARCHEMY_REINFORCE_REC"))
+        // 11. Alchemy Elixirs (Reinforce Recipes)
+        if (code.Contains("ARCHEMY_REINFORCE_REC") || code.Contains("ARCHEMY_MAGICSTONE_REC"))
         {
             if (code.Contains("WEAPON")) return 110;
             if (code.Contains("SHIELD")) return 111;
-            if (code.Contains("ARMOR")) return 112;
-            if (code.Contains("ACCESSARY")) return 113;
+            if (code.Contains("ARMOR") || code.Contains("PROT") || code.Contains("GARMENT")) return 112;
+            if (code.Contains("ACCESSARY") || code.Contains("ACCESSORY")) return 113;
             return 114;
         }
 
-        // 12. Alchemy Magic & Attribute Stones, Tablets, Elements
+        // 12. Alchemy Magic & Attribute Stones, Tablets, Elements, Powder
         if (code.Contains("ARCHEMY_MAGICSTONE")) return 120;
         if (code.Contains("ARCHEMY_ATTRSTONE")) return 121;
         if (code.Contains("ARCHEMY_TABLET")) return 122;
-        if (code.Contains("ARCHEMY_MATERIAL") || code.Contains("ELEMENT")) return 123;
-        if (code.Contains("ARCHEMY")) return 124;
+        if (code.Contains("MAGIC_POWDER") || code.Contains("LUCKY_POWDER") || code.Contains("STEADY_POWDER")) return 123;
+        if (code.Contains("ARCHEMY_MATERIAL") || code.Contains("ELEMENT")) return 124;
+        if (code.Contains("ARCHEMY")) return 125;
 
         // 13. Pet Items & Transports
         if (record.IsPet || record.IsGrabPet || record.IsGrowthPet || record.IsFellowPet) return 130;
@@ -393,11 +395,11 @@ public class InventoryItemCollection : ICollection<InventoryItem>
 
     /// <summary>
     ///     Gets the storage page category index (0..4) for an item:
-    ///     Page 0 (0..29): Equipment, Weapons, Shields, Armor, Accessories, Avatars, Job/Fellow Equip
-    ///     Page 1 (30..59): Alchemy Elixirs (Reinforce Recipes)
-    ///     Page 2 (60..89): Magic & Attribute Stones, Tablets, Elements, Materials
-    ///     Page 3 (90..119): Recovery Potions, Pills, Scrolls, Silk & Mall Items
-    ///     Page 4 (120..149): Pet items, Trade Goods, Quests, Ammunition, Misc
+    ///     Category 0: Equipment, Weapons, Shields, Armor, Accessories, Avatars, Job/Fellow Equip
+    ///     Category 1: Alchemy Elixirs (Reinforce Recipes)
+    ///     Category 2: Magic & Attribute Stones, Tablets, Elements, Powder, Materials
+    ///     Category 3: Recovery Potions, Pills, Scrolls, Silk & Mall Items
+    ///     Category 4: Pet items, Trade Goods, Quests, Ammunition, Misc
     /// </summary>
     public static int GetStoragePageCategory(RefObjItem record)
     {
@@ -406,66 +408,54 @@ public class InventoryItemCollection : ICollection<InventoryItem>
 
         var cat = GetItemCategory(record);
 
-        // Page 0 (0..29): Equipment, weapons, shields, armor, accessories, avatars, job & fellow equipment
+        // Category 0: Equipment
         if (cat < 90)
             return 0;
 
-        // Page 1 (30..59): Elixirs
-        if (cat >= 110 && cat <= 114)
+        // Category 1: Elixirs
+        if (cat >= 110 && cat <= 119)
             return 1;
 
-        // Page 2 (60..89): Alchemy stones, tablets, elements, materials
+        // Category 2: Alchemy stones, tablets, elements, powder, materials
         if (cat >= 120 && cat <= 129)
             return 2;
 
-        // Page 3 (90..119): Recovery Potions, Pills, Speed Potions, Scrolls, Silk & Mall items, Globals
+        // Category 3: Recovery Potions, Pills, Speed Potions, Scrolls, Silk & Mall items, Globals
         if ((cat >= 90 && cat <= 99) || (cat >= 140 && cat <= 149))
             return 3;
 
-        // Page 4 (120..149): Ammunition (100), Pet Items (130, 131), Trade goods (150), Quests (160), Fallbacks
+        // Category 4: Ammunition (100), Pet Items (130, 131), Trade goods (150), Quests (160), Fallbacks
         return 4;
     }
 
     /// <summary>
-    ///     Orders the storage items, optionally separating categories across the 5 storage pages (30 slots each).
+    ///     Orders the storage items, optionally separating categories across storage pages (30 slots each).
     /// </summary>
     /// <param name="moveItem">Callback used to move an amount from source to destination slot.</param>
-    /// <param name="splitByPages">Whether to separate categories by page (Page 1: Equipment, Page 2: Elixirs, Page 3: Alchemy, Page 4: Potions/Scrolls, Page 5: Misc).</param>
+    /// <param name="splitByPages">Whether to separate categories by page.</param>
     /// <param name="maxIterations">Safety limit on movement operations.</param>
     /// <returns>The number of movement operations performed.</returns>
     public int OrderStorageItems(Func<byte, byte, ushort, bool> moveItem, bool splitByPages = true, int maxIterations = 300)
     {
-        // Step 1: Merge partial stacks first (exhaustively, not just one group)
-        SortStackableItems(moveItem, 0, 500);
+        // Step 1: Merge partial stacks first
+        SortStackableItems(moveItem, 0, 100);
 
-        // Step 2: Collect all eligible items
-        var items = this.ToList();
-        if (items.Count == 0)
+        // Step 2: Collect all movable items
+        var items = this.Where(i => i != null && i.Record != null && IsMovable(i)).ToList();
+        if (items.Count == 0 || Capacity <= 0)
             return 0;
 
         const int pageSize = 30;
-        const int pageCount = 5;
+        var totalPages = Math.Max(1, (int)Capacity / pageSize);
 
-        if (!splitByPages || Capacity <= pageSize)
-            return OrderItems(moveItem, 0, maxIterations);
+        var desiredSlotAtSlot = new byte[Capacity];
+        for (var i = 0; i < Capacity; i++)
+            desiredSlotAtSlot[i] = 0xFF;
 
-        // Group and sort items within each category
-        var categoryBuckets = new List<InventoryItem>[pageCount];
-        for (var i = 0; i < pageCount; i++)
-            categoryBuckets[i] = new List<InventoryItem>();
-
-        foreach (var item in items)
+        if (!splitByPages || totalPages <= 1)
         {
-            var cat = GetStoragePageCategory(item.Record);
-            if (cat < 0 || cat >= pageCount)
-                cat = pageCount - 1;
-            categoryBuckets[cat].Add(item);
-        }
-
-        // Sort items inside each category bucket
-        for (var i = 0; i < pageCount; i++)
-        {
-            categoryBuckets[i] = categoryBuckets[i]
+            // Sequential Sort: group items strictly by category without empty gaps
+            var sorted = items
                 .OrderBy(it => GetItemCategory(it.Record))
                 .ThenByDescending(it => it.Record?.Degree ?? 0)
                 .ThenByDescending(it => it.Record?.ReqLevel1 ?? 0)
@@ -474,171 +464,136 @@ public class InventoryItemCollection : ICollection<InventoryItem>
                 .ThenBy(it => it.Record?.GetRealName() ?? it.Record?.CodeName ?? string.Empty)
                 .ThenByDescending(it => it.Amount)
                 .ToList();
-        }
 
-        // Plan target slots for every item
-        var desiredSlots = new Dictionary<InventoryItem, byte>();
-        var reservedSlots = new HashSet<byte>();
-        var overflowItems = new List<InventoryItem>();
-
-        // Phase A: Assign items to their native page (up to 30 slots per page or Capacity limit)
-        for (var page = 0; page < pageCount; page++)
-        {
-            var pageBaseSlot = page * pageSize;
-            var pageMaxSlot = Math.Min((page + 1) * pageSize, (int)Capacity) - 1;
-            var bucket = categoryBuckets[page];
-
-            var slot = pageBaseSlot;
-            var itemIndex = 0;
-
-            while (itemIndex < bucket.Count && slot <= pageMaxSlot)
+            for (var idx = 0; idx < sorted.Count && idx < Capacity; idx++)
             {
-                var item = bucket[itemIndex];
-                desiredSlots[item] = (byte)slot;
-                reservedSlots.Add((byte)slot);
-                slot++;
-                itemIndex++;
-            }
-
-            // Any remaining items that don't fit in the 30 page slots become overflow
-            while (itemIndex < bucket.Count)
-            {
-                overflowItems.Add(bucket[itemIndex]);
-                itemIndex++;
+                var it = sorted[idx];
+                desiredSlotAtSlot[it.Slot] = (byte)idx;
             }
         }
-
-        // Phase B: Assign overflow items to remaining unreserved slots
-        var overflowSlot = 0;
-        foreach (var item in overflowItems)
+        else
         {
-            while (overflowSlot < Capacity && reservedSlots.Contains((byte)overflowSlot))
-                overflowSlot++;
+            // Page-Split Sort: distribute 5 categories across totalPages
+            var buckets = new List<InventoryItem>[5];
+            for (var b = 0; b < 5; b++)
+                buckets[b] = new List<InventoryItem>();
 
-            if (overflowSlot >= Capacity)
-                break; // No more capacity in storage
-
-            desiredSlots[item] = (byte)overflowSlot;
-            reservedSlots.Add((byte)overflowSlot);
-            overflowSlot++;
-        }
-
-        // Step 3: Execute moves to place items into their target slots
-        var moves = 0;
-        var blacklistedSlots = new HashSet<byte>();
-
-        for (var iter = 0; iter < maxIterations; iter++)
-        {
-            // Find an item not at its desired slot
-            InventoryItem mislocatedItem = null;
-            byte targetSlot = 0;
-
-            foreach (var kvp in desiredSlots)
+            foreach (var item in items)
             {
-                if (kvp.Key.Slot != kvp.Value && !blacklistedSlots.Contains(kvp.Key.Slot))
-                {
-                    mislocatedItem = kvp.Key;
-                    targetSlot = kvp.Value;
+                var cat = GetStoragePageCategory(item.Record);
+                if (cat < 0 || cat >= 5) cat = 4;
+                buckets[cat].Add(item);
+            }
+
+            // Sort within each bucket
+            for (var b = 0; b < 5; b++)
+            {
+                buckets[b] = buckets[b]
+                    .OrderBy(it => GetItemCategory(it.Record))
+                    .ThenByDescending(it => it.Record?.Degree ?? 0)
+                    .ThenByDescending(it => it.Record?.ReqLevel1 ?? 0)
+                    .ThenByDescending(it => it.Record?.Rarity ?? 0)
+                    .ThenByDescending(it => it.OptLevel)
+                    .ThenBy(it => it.Record?.GetRealName() ?? it.Record?.CodeName ?? string.Empty)
+                    .ThenByDescending(it => it.Amount)
+                    .ToList();
+            }
+
+            // Map categories to pages based on available page count
+            var pageCategories = new List<int>[totalPages];
+            for (var p = 0; p < totalPages; p++)
+                pageCategories[p] = new List<int>();
+
+            switch (totalPages)
+            {
+                case 2:
+                    pageCategories[0].AddRange(new[] { 0, 1 });       // Page 1: Equipment + Elixirs
+                    pageCategories[1].AddRange(new[] { 2, 3, 4 });    // Page 2: Stones + Potions + Misc
                     break;
+                case 3:
+                    pageCategories[0].AddRange(new[] { 0 });          // Page 1: Equipment
+                    pageCategories[1].AddRange(new[] { 1, 2 });       // Page 2: Elixirs + Stones
+                    pageCategories[2].AddRange(new[] { 3, 4 });       // Page 3: Potions + Misc
+                    break;
+                case 4:
+                    pageCategories[0].AddRange(new[] { 0 });          // Page 1: Equipment
+                    pageCategories[1].AddRange(new[] { 1 });          // Page 2: Elixirs
+                    pageCategories[2].AddRange(new[] { 2 });          // Page 3: Stones
+                    pageCategories[3].AddRange(new[] { 3, 4 });       // Page 4: Potions + Misc
+                    break;
+                default: // 5+ pages
+                    pageCategories[0].AddRange(new[] { 0 });          // Page 1: Equipment
+                    pageCategories[1].AddRange(new[] { 1 });          // Page 2: Elixirs
+                    pageCategories[2].AddRange(new[] { 2 });          // Page 3: Stones
+                    pageCategories[3].AddRange(new[] { 3 });          // Page 4: Potions / Scrolls / Mall
+                    pageCategories[4].AddRange(new[] { 4 });          // Page 5: Pet / Trade / Misc
+                    break;
+            }
+
+            var reservedSlots = new HashSet<byte>();
+            var overflowItems = new List<InventoryItem>();
+
+            for (var p = 0; p < totalPages; p++)
+            {
+                var pageItems = new List<InventoryItem>();
+                foreach (var cat in pageCategories[p])
+                    pageItems.AddRange(buckets[cat]);
+
+                var pageBaseSlot = p * pageSize;
+                var pageMaxSlot = Math.Min((p + 1) * pageSize, (int)Capacity) - 1;
+
+                var currentSlot = pageBaseSlot;
+                var itemIdx = 0;
+
+                while (itemIdx < pageItems.Count && currentSlot <= pageMaxSlot)
+                {
+                    var it = pageItems[itemIdx];
+                    desiredSlotAtSlot[it.Slot] = (byte)currentSlot;
+                    reservedSlots.Add((byte)currentSlot);
+                    currentSlot++;
+                    itemIdx++;
+                }
+
+                while (itemIdx < pageItems.Count)
+                {
+                    overflowItems.Add(pageItems[itemIdx]);
+                    itemIdx++;
                 }
             }
 
-            if (mislocatedItem == null)
-                break; // All movable items are in position!
-
-            var currentSlot = mislocatedItem.Slot;
-            var itemAtTarget = GetItemAt(targetSlot);
-
-            // Case A: The item currently at targetSlot is identical to mislocatedItem (stackable/clone)
-            if (itemAtTarget != null &&
-                itemAtTarget.ItemId == mislocatedItem.ItemId &&
-                itemAtTarget.Amount == mislocatedItem.Amount &&
-                itemAtTarget.OptLevel == mislocatedItem.OptLevel)
+            // Assign overflow items to remaining unreserved slots starting from the last page
+            if (overflowItems.Count > 0)
             {
-                // Swap assignments in desiredSlots since they are indistinguishable
-                if (desiredSlots.ContainsKey(itemAtTarget))
+                var unreservedSlots = new List<byte>();
+                for (var p = totalPages - 1; p >= 0; p--)
                 {
-                    desiredSlots[itemAtTarget] = currentSlot;
-                    desiredSlots[mislocatedItem] = targetSlot;
-                }
-                continue;
-            }
-
-            // Case B: Target slot is empty
-            if (itemAtTarget == null)
-            {
-                if (moveItem(currentSlot, targetSlot, mislocatedItem.Amount))
-                {
-                    moves++;
-                    mislocatedItem.Slot = targetSlot;
-                }
-                else
-                {
-                    blacklistedSlots.Add(currentSlot);
-                }
-                continue;
-            }
-
-            // Case C: Target slot is occupied. Try direct swap first if items are different or unstackable
-            var swapSucceeded = false;
-            if (mislocatedItem.ItemId != itemAtTarget.ItemId || !mislocatedItem.Record.IsStackable)
-            {
-                if (moveItem(currentSlot, targetSlot, mislocatedItem.Amount))
-                {
-                    moves++;
-                    mislocatedItem.Slot = targetSlot;
-                    itemAtTarget.Slot = currentSlot;
-                    swapSucceeded = true;
-                }
-            }
-
-            // Case D: If direct swap wasn't possible or failed, use a temporary free buffer slot
-            if (!swapSucceeded)
-            {
-                byte freeSlot = 0xFF;
-                for (byte s = 0; s < Capacity; s++)
-                {
-                    if (s != targetSlot && s != currentSlot && GetItemAt(s) == null && !blacklistedSlots.Contains(s))
+                    var pageBaseSlot = p * pageSize;
+                    var pageMaxSlot = Math.Min((p + 1) * pageSize, (int)Capacity) - 1;
+                    for (var s = pageBaseSlot; s <= pageMaxSlot; s++)
                     {
-                        freeSlot = s;
+                        if (!reservedSlots.Contains((byte)s))
+                            unreservedSlots.Add((byte)s);
+                    }
+                }
+
+                var ovIdx = 0;
+                foreach (var ovItem in overflowItems)
+                {
+                    if (ovIdx >= unreservedSlots.Count)
                         break;
-                    }
-                }
 
-                if (freeSlot != 0xFF)
-                {
-                    if (moveItem(targetSlot, freeSlot, itemAtTarget.Amount))
-                    {
-                        moves++;
-                        itemAtTarget.Slot = freeSlot;
-
-                        if (moveItem(currentSlot, targetSlot, mislocatedItem.Amount))
-                        {
-                            moves++;
-                            mislocatedItem.Slot = targetSlot;
-                        }
-                        else
-                        {
-                            blacklistedSlots.Add(currentSlot);
-                        }
-                    }
-                    else
-                    {
-                        blacklistedSlots.Add(targetSlot);
-                    }
-                }
-                else
-                {
-                    blacklistedSlots.Add(currentSlot);
+                    var slot = unreservedSlots[ovIdx++];
+                    desiredSlotAtSlot[ovItem.Slot] = slot;
+                    reservedSlots.Add(slot);
                 }
             }
         }
 
-        return moves;
+        return ExecutePermutation(moveItem, desiredSlotAtSlot, 0, (byte)(Capacity - 1), maxIterations);
     }
 
     /// <summary>
-    ///     Orders the items starting from <paramref name="minimumSlot"/> by consolidating
+    ///     Orders items starting from <paramref name="minimumSlot"/> by consolidating
     ///     partial stacks first, then grouping items by category and placing them into
     ///     sequential slots without gaps.
     /// </summary>
@@ -648,12 +603,12 @@ public class InventoryItemCollection : ICollection<InventoryItem>
     /// <returns>The number of movement operations performed.</returns>
     protected int OrderItems(Func<byte, byte, ushort, bool> moveItem, byte minimumSlot = 0, int maxIterations = 200)
     {
-        // Step 1: Merge partial stacks first (exhaustively, not just one group)
-        SortStackableItems(moveItem, minimumSlot, 500);
+        // Step 1: Merge partial stacks first
+        SortStackableItems(moveItem, minimumSlot, 100);
 
-        // Step 2: Collect all eligible items
-        var eligibleItems = this.Where(i => i.Slot >= minimumSlot && IsMovable(i)).ToList();
-        if (eligibleItems.Count == 0)
+        // Step 2: Collect all eligible movable items
+        var eligibleItems = this.Where(i => i.Slot >= minimumSlot && i.Record != null && IsMovable(i)).ToList();
+        if (eligibleItems.Count == 0 || Capacity <= minimumSlot)
             return 0;
 
         // Step 3: Establish the desired sequential order
@@ -667,115 +622,145 @@ public class InventoryItemCollection : ICollection<InventoryItem>
             .ThenByDescending(i => i.Amount)
             .ToList();
 
-        var moves = 0;
-        var blacklistedSlots = new HashSet<byte>();
+        var desiredSlotAtSlot = new byte[Capacity];
+        for (var i = 0; i < Capacity; i++)
+            desiredSlotAtSlot[i] = 0xFF;
 
-        // Step 4: Move items to their target slots
-        for (var index = 0; index < desiredOrder.Count && moves < maxIterations; index++)
+        for (var idx = 0; idx < desiredOrder.Count && (minimumSlot + idx) < Capacity; idx++)
         {
-            var targetSlot = (byte)(minimumSlot + index);
-            var desiredItem = desiredOrder[index];
+            var item = desiredOrder[idx];
+            desiredSlotAtSlot[item.Slot] = (byte)(minimumSlot + idx);
+        }
 
-            if (desiredItem.Slot == targetSlot)
-                continue;
+        return ExecutePermutation(moveItem, desiredSlotAtSlot, minimumSlot, (byte)(Capacity - 1), maxIterations);
+    }
 
-            var currentSlot = desiredItem.Slot;
-            var itemAtTarget = GetItemAt(targetSlot);
-
-            // Case A: The item currently at targetSlot is identical to desiredItem
-            if (itemAtTarget != null &&
-                itemAtTarget.ItemId == desiredItem.ItemId &&
-                itemAtTarget.Amount == desiredItem.Amount &&
-                itemAtTarget.OptLevel == desiredItem.OptLevel)
+    /// <summary>
+    ///     Executes item moves using the Hole-based Empty-Slot Permutation Algorithm.
+    ///     In Silkroad storage/inventory, moves to occupied slots are rejected by the server;
+    ///     all moves are executed into empty slots, guaranteeing 100% server acceptance and preventing deadlocks.
+    /// </summary>
+    private int ExecutePermutation(Func<byte, byte, ushort, bool> moveItem, byte[] desiredSlotAtSlot, byte minSlot, byte maxSlot, int maxIterations)
+    {
+        // 1. Optimize: identical items at reciprocal or matching positions
+        for (var s = minSlot; s <= maxSlot; s++)
+        {
+            var target = desiredSlotAtSlot[s];
+            if (target != 0xFF && target != s && target >= minSlot && target <= maxSlot)
             {
-                var existingIndex = desiredOrder.IndexOf(itemAtTarget);
-                if (existingIndex >= 0)
+                var itemCurrent = GetItemAt(s);
+                var itemAtTarget = GetItemAt(target);
+                if (itemCurrent != null && itemAtTarget != null &&
+                    itemCurrent.ItemId == itemAtTarget.ItemId &&
+                    itemCurrent.Amount == itemAtTarget.Amount &&
+                    itemCurrent.OptLevel == itemAtTarget.OptLevel)
                 {
-                    desiredOrder[index] = itemAtTarget;
-                    desiredOrder[existingIndex] = desiredItem;
-                }
-                continue;
-            }
-
-            // Case B: Target slot is empty
-            if (itemAtTarget == null)
-            {
-                if (moveItem(currentSlot, targetSlot, desiredItem.Amount))
-                {
-                    moves++;
-                    desiredItem.Slot = targetSlot;
-                }
-                else
-                {
-                    blacklistedSlots.Add(currentSlot);
-                }
-                continue;
-            }
-
-            // Case C: Target slot is occupied. Try direct swap first
-            var swapSucceeded = false;
-            if (desiredItem.ItemId != itemAtTarget.ItemId || !desiredItem.Record.IsStackable)
-            {
-                if (moveItem(currentSlot, targetSlot, desiredItem.Amount))
-                {
-                    moves++;
-                    desiredItem.Slot = targetSlot;
-                    itemAtTarget.Slot = currentSlot;
-                    swapSucceeded = true;
+                    var targetOfOther = desiredSlotAtSlot[target];
+                    desiredSlotAtSlot[s] = targetOfOther;
+                    desiredSlotAtSlot[target] = target;
                 }
             }
+        }
 
-            // If direct swap failed or not possible, move target item to an empty buffer slot first
-            if (!swapSucceeded)
+        var moves = 0;
+        var maxMoves = Math.Max(maxIterations, (maxSlot - minSlot + 1) * 4);
+
+        while (moves < maxMoves)
+        {
+            // Collect empty slots in the valid range
+            var emptySlots = new List<byte>();
+            for (var s = minSlot; s <= maxSlot; s++)
             {
-                byte freeSlot = 0xFF;
-                // Prefer free slots outside the ordered items range
-                for (var s = (byte)(minimumSlot + desiredOrder.Count); s < Capacity; s++)
+                if (GetItemAt(s) == null)
+                    emptySlots.Add(s);
+            }
+
+            // Check if any item is still mislocated
+            var hasMislocated = false;
+            for (var s = minSlot; s <= maxSlot; s++)
+            {
+                if (desiredSlotAtSlot[s] != 0xFF && desiredSlotAtSlot[s] != s)
                 {
-                    if (GetItemAt(s) == null && !blacklistedSlots.Contains(s))
+                    hasMislocated = true;
+                    break;
+                }
+            }
+
+            if (!hasMislocated)
+                break; // All movable items are at their desired slots!
+
+            if (emptySlots.Count == 0)
+            {
+                Log.Notify("[Inventory/Storage] No empty slot available to rearrange items.");
+                break;
+            }
+
+            byte fromSlot = 0xFF;
+            byte toSlot = 0xFF;
+
+            // Direct placement: find an item whose desired slot is currently an empty slot
+            foreach (var emptySlot in emptySlots)
+            {
+                for (var s = minSlot; s <= maxSlot; s++)
+                {
+                    if (desiredSlotAtSlot[s] == emptySlot && s != emptySlot)
                     {
-                        freeSlot = s;
+                        fromSlot = s;
+                        toSlot = emptySlot;
                         break;
                     }
                 }
+                if (fromSlot != 0xFF)
+                    break;
+            }
 
-                if (freeSlot == 0xFF)
+            // Cycle breaking: if no item directly wants any of the empty slots,
+            // pick any mislocated item and move it to an empty slot to create a hole
+            if (fromSlot == 0xFF)
+            {
+                for (var s = minSlot; s <= maxSlot; s++)
                 {
-                    for (var s = minimumSlot; s < Capacity; s++)
+                    if (desiredSlotAtSlot[s] != 0xFF && desiredSlotAtSlot[s] != s)
                     {
-                        if (s != targetSlot && s != currentSlot && GetItemAt(s) == null && !blacklistedSlots.Contains(s))
-                        {
-                            freeSlot = s;
-                            break;
-                        }
+                        fromSlot = s;
+                        toSlot = emptySlots[0];
+                        break;
                     }
                 }
+            }
 
-                if (freeSlot != 0xFF)
+            if (fromSlot == 0xFF || toSlot == 0xFF)
+                break;
+
+            var itemToMove = GetItemAt(fromSlot);
+            if (itemToMove == null)
+            {
+                desiredSlotAtSlot[fromSlot] = 0xFF;
+                continue;
+            }
+
+            if (moveItem(fromSlot, toSlot, itemToMove.Amount))
+            {
+                moves++;
+                desiredSlotAtSlot[toSlot] = desiredSlotAtSlot[fromSlot];
+                desiredSlotAtSlot[fromSlot] = 0xFF;
+                itemToMove.Slot = toSlot;
+            }
+            else
+            {
+                // Retry once after 200ms
+                Thread.Sleep(200);
+                if (moveItem(fromSlot, toSlot, itemToMove.Amount))
                 {
-                    if (moveItem(targetSlot, freeSlot, itemAtTarget.Amount))
-                    {
-                        moves++;
-                        itemAtTarget.Slot = freeSlot;
-
-                        if (moveItem(currentSlot, targetSlot, desiredItem.Amount))
-                        {
-                            moves++;
-                            desiredItem.Slot = targetSlot;
-                        }
-                        else
-                        {
-                            blacklistedSlots.Add(currentSlot);
-                        }
-                    }
-                    else
-                    {
-                        blacklistedSlots.Add(targetSlot);
-                    }
+                    moves++;
+                    desiredSlotAtSlot[toSlot] = desiredSlotAtSlot[fromSlot];
+                    desiredSlotAtSlot[fromSlot] = 0xFF;
+                    itemToMove.Slot = toSlot;
                 }
                 else
                 {
-                    blacklistedSlots.Add(currentSlot);
+                    Log.Debug($"[Inventory/Storage] Move slot {fromSlot} -> {toSlot} failed twice. Stopping.");
+                    break;
                 }
             }
         }

@@ -1,5 +1,9 @@
+using System;
+using System.Linq;
 using System.Threading;
+using RSBot.Core.Components;
 using RSBot.Core.Network;
+using RSBot.Core.Objects.Spawn;
 
 namespace RSBot.Core.Objects.Inventory;
 
@@ -23,7 +27,7 @@ public class Storage : InventoryItemCollection
     /// <summary>
     ///     Create instance of the <seealso cref="Storage" />
     /// </summary>
-    /// <param name="size">The standart 150(5 page)</param>
+    /// <param name="size">The standard 150 (5 pages)</param>
     public Storage(byte size = 150)
         : base(size)
     {
@@ -47,7 +51,7 @@ public class Storage : InventoryItemCollection
                 MoveItem(sourceSlot, destinationSlot, amount, npcUniqueId, isGuildStorage));
 
         IsSorting = false;
-        Log.Debug($"Sorting finished after {iterations}/10");
+        Log.Debug($"Sorting finished after {iterations} iteration(s).");
     }
 
     /// <summary>
@@ -62,9 +66,11 @@ public class Storage : InventoryItemCollection
             return;
 
         IsOrdering = true;
-        Log.Debug(isGuildStorage ? "Ordering the guild storage..." : "Ordering the storage...");
+        Log.Notify(isGuildStorage ? $"Ordering guild storage ({Count} items, capacity {Capacity})..." : $"Ordering storage ({Count} items, capacity {Capacity})...");
 
-        var splitByPages = isGuildStorage ? PlayerConfig.Get("RSBot.GuildStorage.SplitByPages", true) : PlayerConfig.Get("RSBot.Storage.SplitByPages", true);
+        var splitByPages = isGuildStorage
+            ? PlayerConfig.Get("RSBot.GuildStorage.SplitByPages", PlayerConfig.Get("RSBot.Storage.SplitByPages", true))
+            : PlayerConfig.Get("RSBot.Storage.SplitByPages", true);
 
         var moves = OrderStorageItems(
             (sourceSlot, destinationSlot, amount) =>
@@ -72,7 +78,7 @@ public class Storage : InventoryItemCollection
             splitByPages);
 
         IsOrdering = false;
-        Log.Debug($"Ordering finished after {moves} move operations.");
+        Log.Notify(isGuildStorage ? $"Guild storage ordering finished! Moved {moves} item(s)." : $"Storage ordering finished! Moved {moves} item(s).");
     }
 
     /// <summary>
@@ -93,6 +99,27 @@ public class Storage : InventoryItemCollection
 
         if (amount == 0)
             amount = itemAtSource.Amount;
+
+        // Auto-resolve NPC ID if 0
+        if (npcUniqueId == 0)
+        {
+            if (Game.Player?.State?.DialogState?.RequestedNpcId > 0)
+                npcUniqueId = Game.Player.State.DialogState.RequestedNpcId;
+            else if (Game.Player?.State?.DialogState?.Npc != null)
+                npcUniqueId = Game.Player.State.DialogState.Npc.UniqueId;
+            else if (Game.SelectedEntity != null)
+                npcUniqueId = Game.SelectedEntity.UniqueId;
+            else if (SpawnManager.TryGetEntities<SpawnedNpc>(out var npcs))
+            {
+                var nearestNpc = npcs
+                    .Where(n => n.DistanceToPlayer <= 35f)
+                    .OrderBy(n => n.DistanceToPlayer)
+                    .FirstOrDefault();
+
+                if (nearestNpc != null)
+                    npcUniqueId = nearestNpc.UniqueId;
+            }
+        }
 
         var operation = isGuildStorage
             ? InventoryOperation.SP_GUILD_CHEST_UPDATE_SLOT
@@ -116,8 +143,12 @@ public class Storage : InventoryItemCollection
             }
 
             var op = response.ReadByte();
-            if (op != (byte)operation && !(isGuildStorage && op == (byte)InventoryOperation.SP_UPDATE_SLOTS_CHEST))
+            if (op != (byte)operation &&
+                op != (byte)InventoryOperation.SP_UPDATE_SLOTS_CHEST &&
+                op != (byte)InventoryOperation.SP_GUILD_CHEST_UPDATE_SLOT)
+            {
                 return AwaitCallbackResult.ConditionFailed;
+            }
 
             var source = response.ReadByte();
             var destination = response.ReadByte();
@@ -128,11 +159,11 @@ public class Storage : InventoryItemCollection
         }, 0xB034);
 
         PacketManager.SendPacket(packet, PacketDestination.Server, asyncResult);
-        asyncResult.AwaitResponse(1500);
+        asyncResult.AwaitResponse(2500);
 
         if (asyncResult.IsCompleted)
         {
-            Thread.Sleep(80);
+            Thread.Sleep(120);
             return true;
         }
 
