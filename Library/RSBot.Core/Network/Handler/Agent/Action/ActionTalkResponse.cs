@@ -1,4 +1,4 @@
-﻿using RSBot.Core.Components;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
 using RSBot.Core.Objects.Spawn;
@@ -17,22 +17,37 @@ internal class ActionTalkResponse : IPacketHandler
     {
         var result = packet.ReadByte();
 
-        if (Game.Player.State.DialogState == null || result != 1)
+        if (result != 1)
             return;
+
+        if (Game.Player?.State != null && Game.Player.State.DialogState == null)
+            Game.Player.State.DialogState = new DialogState();
 
         var talkOption = (TalkOption)packet.ReadByte();
 
-        Game.Player.State.DialogState.Npc =
-            SpawnManager.GetEntity<SpawnedNpc>(Game.Player.State.DialogState.RequestedNpcId);
-        Game.Player.State.DialogState.TalkOption = talkOption;
+        var requestedId = Game.Player?.State?.DialogState?.RequestedNpcId ?? 0;
+        var npc = (requestedId > 0 ? SpawnManager.GetEntity<SpawnedNpc>(requestedId) : null)
+               ?? (Game.SelectedEntity as SpawnedNpc)
+               ?? (ShoppingManager.SelectedEntity as SpawnedNpc);
 
-        if (talkOption == TalkOption.Trade)
-            Game.Player.State.DialogState.IsSpecialityTime = packet.ReadBool();
+        if (Game.Player?.State?.DialogState != null)
+        {
+            if (npc != null)
+                Game.Player.State.DialogState.Npc = npc;
+            Game.Player.State.DialogState.TalkOption = talkOption;
 
-        Game.SelectedEntity = Game.Player.State.DialogState.Npc;
+            if (talkOption == TalkOption.Trade)
+                Game.Player.State.DialogState.IsSpecialityTime = packet.ReadBool();
+        }
+
+        if (npc != null)
+        {
+            Game.SelectedEntity = npc;
+            ShoppingManager.SelectedEntity = npc;
+        }
 
         EventManager.FireEvent("OnSelectEntity", Game.SelectedEntity);
-        EventManager.FireEvent("OnTalkToNpc", Game.Player.State.DialogState.RequestedNpcId);
+        EventManager.FireEvent("OnTalkToNpc", requestedId);
     }
 
     #endregion Methods

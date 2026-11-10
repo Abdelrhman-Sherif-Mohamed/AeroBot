@@ -78,46 +78,80 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             IsBusy = true;
             var codeName = arguments[0];
 
-            ShoppingManager.Running = true;
-            ShoppingManager.BotOpenedDialog = true;
-            ShoppingManager.ChooseTalkOption(codeName, TalkOption.Trade);
-            Thread.Sleep(300);
-
-            if (Game.SelectedEntity == null)
+            // 1. Locate NPC in range, or wait/retry if nearby
+            SpawnedNpcNpc npc = null;
+            for (var attempt = 0; attempt < 6; attempt++)
             {
-                // Fallback: search for NPC directly and select
-                if (SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, codeName, StringComparison.OrdinalIgnoreCase), out var npc) ||
+                if (SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, codeName, StringComparison.OrdinalIgnoreCase), out npc) ||
                     SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && (p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) || p.Record.CodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase)), out npc))
                 {
-                    npc.TrySelect();
-                    Thread.Sleep(300);
-                    ShoppingManager.ChooseTalkOption(npc.Record.CodeName, TalkOption.Trade);
-                    Thread.Sleep(300);
+                    break;
                 }
+                Thread.Sleep(300);
             }
 
-            if (Game.SelectedEntity == null)
+            if (npc == null)
             {
-                Log.Warn("[Script] Can not buy items: Not in dialog with an NPC.");
-
+                Log.Warn($"[Trade] تعذر العثور على تاجر البضائع [{codeName}] بالقرب من اللاعب.");
                 return false;
             }
 
-            Log.Notify($"[Script] Selling goods to {Game.SelectedEntity.Record.GetRealName()}...");
+            // 2. Approach NPC if farther than 5 meters
+            if (npc.DistanceToPlayer > 5.0f)
+            {
+                Log.Notify($"[Trade] الاقتراب من تاجر البضائع [{npc.Record.GetRealName()}] (المسافة: {Math.Round(npc.DistanceToPlayer, 1)}م)...");
+                Game.Player?.MoveTo(npc.Position, sleep: false);
+                for (var w = 0; w < 30; w++)
+                {
+                    if (npc.DistanceToPlayer <= 5.0f)
+                        break;
+                    Thread.Sleep(200);
+                }
+            }
 
-            SellGoods();
+            ShoppingManager.Running = true;
+            ShoppingManager.BotOpenedDialog = true;
+            ShoppingManager.SelectedEntity = npc;
+            Game.SelectedEntity = npc;
 
-            Log.Notify($"[Script] Purchasing goods from {Game.SelectedEntity.Record.GetRealName()}...");
+            ShoppingManager.ChooseTalkOption(npc.Record.CodeName, TalkOption.Trade);
+            Thread.Sleep(400);
 
-            BuyGoods();
+            var activeEntity = (Game.SelectedEntity as SpawnedNpcNpc) ?? (ShoppingManager.SelectedEntity as SpawnedNpcNpc) ?? npc;
+            Game.SelectedEntity = activeEntity;
+            ShoppingManager.SelectedEntity = activeEntity;
+
+            if (TradeConfig.SellGoods)
+            {
+                Log.Notify($"[Trade] جاري فحص وبيع بضائع التجارة القديمة لدى [{activeEntity.Record.GetRealName()}]...");
+                SellGoods();
+                Thread.Sleep(400);
+            }
+
+            if (TradeConfig.BuyGoods)
+            {
+                Log.Notify($"[Trade] جاري شراء بضاعة التجارة من [{activeEntity.Record.GetRealName()}]...");
+                BuyGoods();
+            }
 
             // Settle transaction before closing dialog
             Thread.Sleep(500);
 
             ShoppingManager.CloseShop();
+            Thread.Sleep(400);
 
-            // Allow dialog close response (0xB04B) to be processed before resuming movement
-            Thread.Sleep(500);
+            // Verify if transport now has goods
+            var nowHasGoods = Game.Player?.JobTransport?.Inventory != null &&
+                              Game.Player.JobTransport.Inventory.Any(i => i != null && i.Record != null && i.Amount > 0);
+
+            if (!nowHasGoods && TradeConfig.BuyGoods)
+            {
+                Log.Warn("[Trade] تحذير: حقيبة الجمل لا تزال فارغة بعد محاولة الشراء!");
+            }
+            else if (nowHasGoods)
+            {
+                Log.Notify("[Trade] تم تأكيد شحن البضاعة في الجمل بنجاح، جاهز للتحرك نحو وجهة البيع!");
+            }
 
             return true;
         }
@@ -179,11 +213,20 @@ internal class BuyGoodsScriptCommand : IScriptCommand
         if (!TradeConfig.BuyGoods)
             return;
 
-        var shopGroup = Game.ReferenceManager.GetRefShopGroup(Game.SelectedEntity?.Record.CodeName);
+        var npc = (Game.SelectedEntity as SpawnedNpcNpc)
+               ?? (ShoppingManager.SelectedEntity as SpawnedNpcNpc)
+               ?? (Game.Player?.State?.DialogState?.Npc as SpawnedNpcNpc);
+
+        if (npc?.Record == null)
+        {
+            Log.Warn("[Trade] تعذر الشراء: لم يتم العثور على تاجر البضائع المحدد.");
+            return;
+        }
+
+        var shopGroup = Game.ReferenceManager.GetRefShopGroup(npc.Record.CodeName);
         if (shopGroup == null)
         {
-            Log.Warn("[Script] Can not buy items: Can not find the shop info.");
-
+            Log.Warn($"[Trade] تعذر الشراء: لم يتم العثور على معلومات المتجر للتاجر [{npc.Record.CodeName}].");
             return;
         }
 
@@ -192,24 +235,21 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
         if (item == null)
         {
-            Log.Warn("[Script] Can not buy items: Can not find the shop info.");
-
+            Log.Warn($"[Trade] تعذر الشراء: لا توجد بضائع متوفرة في متجر [{npc.Record.CodeName}].");
             return;
         }
 
-        var tabIndex = Game.ReferenceManager.GetRefShopGoodTabIndex(Game.SelectedEntity?.Record.CodeName, item);
+        var tabIndex = Game.ReferenceManager.GetRefShopGoodTabIndex(npc.Record.CodeName, item);
         if (tabIndex == 0xFF) //Specified item not available in this shop!
         {
-            Log.Warn("[Script] Can not buy items: Can not find the item in the shop.");
-
+            Log.Warn($"[Trade] تعذر الشراء: لم يتم العثور على تبويب السلعة في متجر [{npc.Record.CodeName}].");
             return;
         }
 
         var packageItem = Game.ReferenceManager.GetRefPackageItem(item.RefPackageItemCodeName);
         if (packageItem?.RefItem == null)
         {
-            Log.Warn("[Script] Can not buy items: Can not find the referenced item.");
-
+            Log.Warn($"[Trade] تعذر الشراء: تعذر قراءة بيانات السلعة [{item.RefPackageItemCodeName}].");
             return;
         }
 
@@ -219,7 +259,9 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             ? TradeConfig.BuyGoodsQuantity
             : Math.Max(5000, (Game.Player.JobTransport?.Inventory?.Capacity ?? 5) * maxStack);
 
-        var safetyLimit = 25;
+        Log.Notify($"[Trade] بدء شراء السلعة [{packageItem.RefItem.GetRealName()}] - الكمية المستهدفة: {targetQuantity} وحدة...");
+
+        var safetyLimit = 30;
         var failedAttempts = 0;
         while (safetyLimit-- > 0)
         {
@@ -236,7 +278,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             var currentQuantity = transport.Inventory.GetSumAmount(packageItem.RefItemCodeName);
             if (currentQuantity >= targetQuantity)
             {
-                Log.Notify($"[Trade] تم شراء كامل بضاعة التجارة بنجاح ({currentQuantity} وحدة - حمولة كاملة)!");
+                Log.Notify($"[Trade] تم شراء كامل بضاعة التجارة بنجاح ({currentQuantity} وحدة - حمولة كاملة)! الحمولة 5 نجوم جاهزة.");
                 break;
             }
 
@@ -244,7 +286,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             if (currentQuantity + buyNextQty > targetQuantity)
                 buyNextQty = targetQuantity - currentQuantity;
 
-            Log.Notify($"[Trade] شراء بضاعة خاصة: حزمة من {buyNextQty} (الإجمالي الحالي: {currentQuantity}/{targetQuantity})...");
+            Log.Notify($"[Trade] إرسال طلب شراء {buyNextQty} وحدة (الإجمالي الحالي: {currentQuantity}/{targetQuantity})...");
 
             var confirmed = ShoppingManager.PurchaseItem(transport, tabIndex, item.SlotIndex, (ushort)buyNextQty);
 
@@ -254,7 +296,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
             if (newQuantity >= targetQuantity)
             {
-                Log.Notify($"[Trade] تم اكتمال شراء بضاعة التجارة ({newQuantity}/{targetQuantity} وحدة بنجاح)!");
+                Log.Notify($"[Trade] تم اكتمال شراء بضاعة التجارة بنجاح ({newQuantity}/{targetQuantity} وحدة)! الحمولة 5 نجوم جاهزة.");
                 break;
             }
 
@@ -265,11 +307,11 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             {
                 failedAttempts++;
 
-                Log.Warn($"[Trade] لم يتم تأكيد شراء البضاعة (محاولة {failedAttempts}/3، الإجمالي الحالي: {newQuantity}).");
+                Log.Warn($"[Trade] لم يتم تأكيد شراء البضاعة من السيرفر (محاولة {failedAttempts}/3، الإجمالي الحالي: {newQuantity}).");
 
                 if (failedAttempts >= 3)
                 {
-                    Log.Warn("[Trade] تم إيقاف الشراء بعد 3 محاولات فاشلة لتجنب قطع الاتصال.");
+                    Log.Warn("[Trade] تم إيقاف الشراء بعد 3 محاولات غير مؤكدة لتجنب قطع الاتصال.");
                     break;
                 }
             }

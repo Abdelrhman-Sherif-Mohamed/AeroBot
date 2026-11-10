@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using RSBot.Core.Objects;
@@ -123,12 +123,44 @@ internal class MoveScriptCommand : IScriptCommand
                 Game.Player.SummonVehicle();
 
         var distance = pos.DistanceTo(Game.Player.Position);
-        if (distance > 120)
+        if (distance > 350)
         {
-            Log.Warn("[Script] Target position too far away, bot logic aborted!");
+            Log.Warn($"[Script] Target position too far away ({Math.Round(distance, 1)}m), bot logic aborted!");
 
             IsBusy = false;
             return false;
+        }
+
+        if (distance > 100)
+        {
+            Log.Debug($"[Script] Target position is at {Math.Round(distance, 1)}m, approaching in intermediate steps...");
+            var steps = (int)Math.Ceiling(distance / 70.0);
+            for (var s = 1; s < steps; s++)
+            {
+                if (!IsBusy || !ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+                {
+                    IsBusy = false;
+                    return false;
+                }
+
+                var ratio = (float)s / steps;
+                var currentWorldX = Game.Player.Position.X;
+                var currentWorldY = Game.Player.Position.Y;
+                var targetWorldX = pos.X;
+                var targetWorldY = pos.Y;
+
+                var stepWorldX = currentWorldX + (targetWorldX - currentWorldX) * ratio;
+                var stepWorldY = currentWorldY + (targetWorldY - currentWorldY) * ratio;
+
+                var stepXSector = (byte)(Math.Floor(stepWorldX / 192.0) + 135);
+                var stepYSector = (byte)(Math.Floor(stepWorldY / 192.0) + 92);
+                var stepXOffset = (float)((stepWorldX - (stepXSector - 135) * 192.0) * 10.0);
+                var stepYOffset = (float)((stepWorldY - (stepYSector - 92) * 192.0) * 10.0);
+
+                var intermediatePos = new Position(stepXSector, stepYSector, stepXOffset, stepYOffset, pos.ZOffset);
+                if (!MoveWithObstacleEvasion(intermediatePos))
+                    break;
+            }
         }
 
         Log.Debug($"[Script] Move to position {pos.Region}({pos.Region.X},{pos.Region.Y}) X={pos.X}, Y={pos.Y}");

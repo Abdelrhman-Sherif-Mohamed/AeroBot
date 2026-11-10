@@ -698,17 +698,18 @@ internal class RouteBundle
 
             var isPlayerInTown = AttackBundle.IsPlayerInTown();
             var buyGoodsLine = ScriptManager.FindBuyGoodsCommandLine();
-            var transportHasGoods = TransportHasGoods() || TradeConfig.SkipNpcIfHasGoods;
+            var hasActualGoods = TransportHasGoods();
+            var shouldSkipNpc = hasActualGoods && TradeConfig.SkipNpcIfHasGoods;
 
-            if (transportHasGoods || !isPlayerInTown)
+            if (shouldSkipNpc || (!isPlayerInTown && hasActualGoods))
             {
                 var startLine = buyGoodsLine >= 0
                     ? ScriptManager.FindNearestMoveCommandLineAfter(buyGoodsLine + 1)
                     : ScriptManager.FindNearestMoveCommandLine();
 
-                var reason = transportHasGoods
-                    ? "الجمل محمّل بالبضاعة"
-                    : "اللاعب خارج المدينة على مسار التجارة";
+                var reason = shouldSkipNpc
+                    ? "الجمل محمّل بالبضاعة وخيار التخطي مفعّل"
+                    : "اللاعب خارج المدينة ومعه بضاعة على مسار التجارة";
                 Log.Notify($"[Trade] {reason}! التحرك فوراً من أقرب نقطة على المسار: السطر #{startLine} نحو الوجهة دون الرجوع للخلف.");
                 Task.Run(() => ScriptManager.RunScript(startLine));
             }
@@ -718,8 +719,7 @@ internal class RouteBundle
                 if (buyGoodsLine > 0)
                 {
                     var nearestBefore = ScriptManager.FindNearestMoveCommandLineBefore(buyGoodsLine);
-                    if (nearestBefore > 0)
-                        startLine = nearestBefore;
+                    startLine = nearestBefore;
                 }
                 else
                 {

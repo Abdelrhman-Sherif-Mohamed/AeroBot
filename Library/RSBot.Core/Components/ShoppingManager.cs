@@ -70,6 +70,17 @@ public static class ShoppingManager
     /// </value>
     public static bool Running { get; set; }
 
+    private static SpawnedBionic _selectedEntity;
+
+    /// <summary>
+    ///     Gets or sets the currently selected entity/shop for shopping operations.
+    /// </summary>
+    public static SpawnedBionic SelectedEntity
+    {
+        get => _selectedEntity ?? Game.SelectedEntity;
+        set => _selectedEntity = value;
+    }
+
     /// <summary>
     ///     Gets or sets a value indicating whether the NPC dialog was opened by the
     ///     bot (through injected packets) instead of by the game client. The client
@@ -336,9 +347,10 @@ public static class ShoppingManager
     /// <returns><c>true</c> when the server confirmed the purchase.</returns>
     public static bool PurchaseItem(Cos transport, int tab, int slot, ushort amount)
     {
-        if (SelectedEntity == null)
+        var shopEntity = SelectedEntity ?? Game.SelectedEntity ?? Game.Player?.State?.DialogState?.Npc;
+        if (shopEntity == null)
         {
-            Log.Debug("Cannot buy items, because no shop is selected!");
+            Log.Warn("[Shopping manager] Cannot buy items, because no shop is selected!");
             return false;
         }
 
@@ -357,7 +369,7 @@ public static class ShoppingManager
         packet.WriteByte(tab);
         packet.WriteByte(slot);
         packet.WriteUShort(amount);
-        packet.WriteUInt(SelectedEntity.UniqueId);
+        packet.WriteUInt(shopEntity.UniqueId);
 
         var awaitResult = new AwaitCallback(response =>
         {
@@ -473,10 +485,14 @@ public static class ShoppingManager
         try
         {
             if (SelectedEntity != null && SelectedEntity.TryDeselect())
+            {
                 SelectedEntity = null;
+                Game.SelectedEntity = null;
+            }
         }
         finally
         {
+            _selectedEntity = null;
             Running = false;
             BotOpenedDialog = false;
         }
@@ -640,6 +656,7 @@ public static class ShoppingManager
                     : AwaitCallbackResult.Fail, 0xB045);
 
             Game.SelectedEntity = entity;
+            SelectedEntity = entity;
             PacketManager.SendPacket(selectPacket, PacketDestination.Server, selectAwait);
             selectAwait.AwaitResponse(1000);
 
@@ -653,6 +670,18 @@ public static class ShoppingManager
         // From this point on the dialog was opened by the bot, the game client has
         // no idea about it. See BotOpenedDialog for details.
         BotOpenedDialog = true;
+        SelectedEntity = entity;
+        Game.SelectedEntity = entity;
+
+        if (Game.Player?.State != null)
+        {
+            Game.Player.State.DialogState = new DialogState
+            {
+                RequestedNpcId = entity.UniqueId,
+                TalkOption = option,
+                Npc = entity
+            };
+        }
 
         var packet = new Packet(0x7046);
         packet.WriteUInt(entity.UniqueId);

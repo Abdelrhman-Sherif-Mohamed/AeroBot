@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -525,7 +525,18 @@ public class ReferenceManager
 
     public RefShopGroup GetRefShopGroup(string npcCodeName)
     {
-        return ShopGroups.FirstOrDefault(sg => sg.Value.RefNpcCodeName == npcCodeName).Value;
+        if (string.IsNullOrEmpty(npcCodeName)) return null;
+
+        var exact = ShopGroups.FirstOrDefault(sg =>
+            string.Equals(sg.Value.RefNpcCodeName, npcCodeName, StringComparison.OrdinalIgnoreCase)).Value;
+        if (exact != null)
+            return exact;
+
+        return ShopGroups.FirstOrDefault(sg =>
+            sg.Value.RefNpcCodeName != null && (
+                sg.Value.RefNpcCodeName.Contains(npcCodeName, StringComparison.OrdinalIgnoreCase) ||
+                npcCodeName.Contains(sg.Value.RefNpcCodeName, StringComparison.OrdinalIgnoreCase)
+            )).Value;
     }
 
     public RefShopGroup GetRefShopGroupById(ushort id)
