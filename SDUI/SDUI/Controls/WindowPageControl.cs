@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -224,7 +224,8 @@ namespace SDUI.Controls
             get
             {
                 var parms = base.CreateParams;
-                parms.ExStyle |= 0x02000000;
+                // Note: WS_EX_COMPOSITED (0x02000000) intentionally omitted here because it breaks
+                // hardware accelerated / DirectComposition child HWND controls such as WebView2 (rendering black screen).
                 return parms;
             }
         }
