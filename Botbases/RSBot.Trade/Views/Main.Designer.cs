@@ -73,12 +73,15 @@ namespace RSBot.Trade.Views
         private System.Windows.Forms.ToolStripMenuItem menuEditLoops;
         private System.Windows.Forms.ToolStripMenuItem menuRemoveRoute;
 
-        private SDUI.Controls.Label lblGoodsStatus;
         private SDUI.Controls.Button btnRefreshGoods;
-        private SDUI.Controls.ListView lvGoods;
-        private System.Windows.Forms.ColumnHeader colGoodsName;
-        private System.Windows.Forms.ColumnHeader colGoodsAmount;
-        private System.Windows.Forms.ColumnHeader colGoodsMax;
+        private SDUI.Controls.Button btnSelectAllGoods;
+        private SDUI.Controls.Button btnDeselectAllGoods;
+        private System.Windows.Forms.DataGridView dgvGoods;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colGoodId;
+        private System.Windows.Forms.DataGridViewImageColumn colGoodIcon;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colGoodName;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn colGoodBuy;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colGoodQuantity;
         private SDUI.Controls.Label lblGoodsHint;
 
         private SDUI.Controls.GroupBox groupSettings;

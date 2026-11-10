@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using RSBot.Core;
+using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Components;
 using RSBot.Core.Components.Scripting;
 using RSBot.Core.Objects;
@@ -365,25 +366,51 @@ internal class BuyGoodsScriptCommand : IScriptCommand
         string packageCodeName = fallbackGoods?.PackageCode ?? "PACKAGE_ITEM_ETC_TRADE_WC_01";
         string displayName = fallbackGoods?.EnglishName ?? "Specialty Goods";
 
+        var preferredMap = TradeConfig.GetPreferredGoodsDictionary();
         var shopGroup = Game.ReferenceManager.GetRefShopGroup(npcCode);
         if (shopGroup != null)
         {
             var shopGoods = Game.ReferenceManager.GetRefShopGoods(shopGroup);
-            var firstGood = shopGoods?.FirstOrDefault();
-            if (firstGood != null)
+            if (shopGoods != null && shopGoods.Count > 0)
             {
-                var dynamicTab = Game.ReferenceManager.GetRefShopGoodTabIndex(npcCode, firstGood);
-                if (dynamicTab != 0xFF)
-                {
-                    tabIndex = dynamicTab;
-                    slotIndex = firstGood.SlotIndex;
-                    packageCodeName = firstGood.RefPackageItemCodeName;
+                RefShopGood selectedGood = null;
+                int preferredQty = 0;
 
-                    var pkg = Game.ReferenceManager.GetRefPackageItem(packageCodeName);
-                    if (pkg?.RefItem != null)
+                // 1. Look for preferred good selected by the user
+                foreach (var good in shopGoods)
+                {
+                    if (preferredMap.TryGetValue(good.RefPackageItemCodeName, out var pref) && pref.Buy)
                     {
-                        itemCodeName = pkg.RefItem.CodeName;
-                        displayName = pkg.RefItem.GetRealName() ?? pkg.RefItem.CodeName;
+                        selectedGood = good;
+                        preferredQty = pref.Quantity;
+                        break;
+                    }
+                }
+
+                // 2. If none explicitly checked, take the first available specialty good
+                if (selectedGood == null)
+                    selectedGood = shopGoods.FirstOrDefault();
+
+                if (selectedGood != null)
+                {
+                    var dynamicTab = Game.ReferenceManager.GetRefShopGoodTabIndex(npcCode, selectedGood);
+                    if (dynamicTab != 0xFF)
+                    {
+                        tabIndex = dynamicTab;
+                        slotIndex = selectedGood.SlotIndex;
+                        packageCodeName = selectedGood.RefPackageItemCodeName;
+
+                        var pkg = Game.ReferenceManager.GetRefPackageItem(packageCodeName);
+                        if (pkg?.RefItem != null)
+                        {
+                            itemCodeName = pkg.RefItem.CodeName;
+                            displayName = pkg.RefItem.GetRealName() ?? pkg.RefItem.CodeName;
+                        }
+
+                        if (!isFull && preferredQty > 0 && targetQuantity <= 0)
+                        {
+                            targetQuantity = preferredQty;
+                        }
                     }
                 }
             }
@@ -428,15 +455,14 @@ internal class BuyGoodsScriptCommand : IScriptCommand
         Log.Notify($"[Trade] بدء شراء السلعة [{displayName}] - الكمية المستهدفة: {targetQuantity} وحدة (الرصيد: {playerGold:N0} ذهبة، أقصى كمية يمكن شراؤها بالرصيد: {maxAffordable:N0} وحدة)...");
         Log.Debug($"[Trade] بيانات المتجر: NPC={npcCode}, Tab={tabIndex}, Slot={slotIndex}, Item={itemCodeName}, TransportUniqueId={transport.UniqueId}");
 
-        if (maxAffordable <= 0)
+        if (maxAffordable < MaxStack)
         {
-            Log.Warn($"[Trade] تحذير: رصيد الذهب لدى اللاعب ({playerGold:N0} ذهبة) لا يكفي لشراء وحدة واحدة من بضاعة التجارة (سعر الوحدة 10,000 ذهبة)!");
+            Log.Warn($"[Trade] تحذير: رصيد الذهب لدى اللاعب ({playerGold:N0} ذهبة) لا يكفي لشراء رزمة واحدة من بضاعة التجارة (الرزمة 1000 وحدة بسعر 10,000,000 ذهبة)!");
             return;
         }
 
         var safetyLimit = 35;
         var failedAttempts = 0;
-        var requestedBatch = Math.Min(100, Math.Min(MaxStack, maxAffordable)); // Start with safe batch <= 100 to avoid server rejection
 
         while (safetyLimit-- > 0)
         {
@@ -459,29 +485,32 @@ internal class BuyGoodsScriptCommand : IScriptCommand
 
             playerGold = Game.Player?.Gold ?? 0;
             maxAffordable = (int)(playerGold / PricePerUnit);
-            if (maxAffordable <= 0)
+            if (maxAffordable < MaxStack)
             {
                 Log.Warn($"[Trade] نفد الذهب الكافي للاستمرار في الشراء (الرصيد الحالي: {playerGold:N0} ذهبة).");
                 break;
             }
 
-            var needed = Math.Max(1, targetQuantity - currentQuantity);
-            var buyNextQty = Math.Min(requestedBatch, Math.Min(maxAffordable, needed));
+            var needed = targetQuantity - currentQuantity;
+            if (needed <= 0 && !isFull)
+                break;
+
+            // In Silkroad specialty trade, goods MUST be bought in full stack multiples (1000 units per transaction)
+            ushort buyNextQty = MaxStack;
 
             Log.Notify($"[Trade] إرسال طلب شراء {buyNextQty} وحدة (الإجمالي الحالي: {currentQuantity}/{targetQuantity})...");
 
-            var confirmed = ShoppingManager.PurchaseItem(transport, (int)tabIndex, (int)slotIndex, (ushort)buyNextQty);
+            var confirmed = ShoppingManager.PurchaseItem(transport, (int)tabIndex, (int)slotIndex, buyNextQty);
 
-            Thread.Sleep(450); // Wait for server confirmation and inventory update
+            Thread.Sleep(600); // Wait for server confirmation and inventory update
 
             var newQuantity = CountTradeGoodsInTransport(Game.Player?.JobTransport ?? transport, itemCodeName);
 
-            if (newQuantity > currentQuantity)
+            if (newQuantity > currentQuantity || confirmed)
             {
                 failedAttempts = 0;
-                // If 100 succeeded, we can try larger batch up to 500
-                requestedBatch = Math.Min(500, Math.Min(MaxStack, maxAffordable));
-                Log.Notify($"[Trade] تم شراء {newQuantity - currentQuantity} وحدة بنجاح (الإجمالي الحالي: {newQuantity}/{targetQuantity})");
+                var boughtUnits = (newQuantity > currentQuantity) ? (newQuantity - currentQuantity) : (int)buyNextQty;
+                Log.Notify($"[Trade] تم شراء {boughtUnits} وحدة بنجاح (الإجمالي الحالي: {newQuantity}/{targetQuantity})");
 
                 if (transport.Inventory != null && transport.Inventory.Full)
                 {
@@ -500,23 +529,13 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                 failedAttempts++;
                 Log.Warn($"[Trade] لم يتم تأكيد شراء البضاعة من السيرفر (محاولة {failedAttempts}/4، الإجمالي الحالي: {newQuantity}).");
 
-                // Adaptive step down: 100 -> 50 -> 20 -> 10 -> 1
-                if (requestedBatch > 100)
-                    requestedBatch = 100;
-                else if (requestedBatch > 50)
-                    requestedBatch = 50;
-                else if (requestedBatch > 20)
-                    requestedBatch = 20;
-                else if (requestedBatch > 10)
-                    requestedBatch = 10;
-                else if (requestedBatch > 1)
-                    requestedBatch = 1;
-
                 if (failedAttempts >= 4)
                 {
                     Log.Warn("[Trade] تم إيقاف الشراء بعد 4 محاولات غير مؤكدة لتجنب انقطاع الاتصال بالسيرفر.");
                     break;
                 }
+
+                Thread.Sleep(1000);
             }
         }
 

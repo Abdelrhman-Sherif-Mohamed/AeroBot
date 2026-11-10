@@ -326,49 +326,172 @@ public partial class Main : DoubleBufferedControl
         };
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 44F));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
 
-        var top = new TableLayoutPanel
+        var top = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
-            BackColor = Color.Transparent
+            FlowDirection = FlowDirection.RightToLeft,
+            BackColor = Color.Transparent,
+            Margin = new Padding(0)
         };
-        top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100F));
 
-        lblGoodsStatus = MakeLabel("وسيلة النقل: غير متصلة");
-        lblGoodsStatus.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-        btnRefreshGoods = MakeButton("تحديث", 88, 28);
+        btnRefreshGoods = MakeButton("تحديث", 80, 28);
         btnRefreshGoods.Click += (_, _) => RefreshGoods();
 
-        top.Controls.Add(lblGoodsStatus, 0, 0);
-        top.Controls.Add(btnRefreshGoods, 1, 0);
+        btnDeselectAllGoods = MakeButton("إلغاء التحديد", 95, 28);
+        btnDeselectAllGoods.Click += (_, _) =>
+        {
+            if (dgvGoods != null)
+            {
+                foreach (DataGridViewRow row in dgvGoods.Rows)
+                    row.Cells["colGoodBuy"].Value = false;
+                SavePreferredGoodsFromGrid();
+            }
+        };
 
-        lvGoods = new ListView
+        btnSelectAllGoods = MakeButton("تحديد الكل", 85, 28);
+        btnSelectAllGoods.Click += (_, _) =>
+        {
+            if (dgvGoods != null)
+            {
+                foreach (DataGridViewRow row in dgvGoods.Rows)
+                    row.Cells["colGoodBuy"].Value = true;
+                SavePreferredGoodsFromGrid();
+            }
+        };
+
+        top.Controls.Add(btnRefreshGoods);
+        top.Controls.Add(btnDeselectAllGoods);
+        top.Controls.Add(btnSelectAllGoods);
+
+        dgvGoods = new DataGridView
         {
             Dock = DockStyle.Fill,
-            View = System.Windows.Forms.View.Details,
-            FullRowSelect = true,
-            GridLines = true,
-            BorderStyle = BorderStyle.None,
+            AllowUserToAddRows = false,
+            AllowUserToDeleteRows = false,
+            AllowUserToResizeRows = false,
+            RowHeadersVisible = false,
             MultiSelect = false,
-            HideSelection = false,
+            SelectionMode = DataGridViewSelectionMode.CellSelect,
+            EditMode = DataGridViewEditMode.EditOnEnter,
+            BackgroundColor = ColorScheme.CardColor,
+            GridColor = ColorScheme.BorderColor,
+            BorderStyle = BorderStyle.None,
+            CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+            ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single,
+            EnableHeadersVisualStyles = false,
             Margin = new Padding(0, 2, 0, 2)
         };
 
-        colGoodsName = new ColumnHeader { Text = "البضاعة", Width = 360 };
-        colGoodsAmount = new ColumnHeader { Text = "الكمية", Width = 90, TextAlign = HorizontalAlignment.Center };
-        colGoodsMax = new ColumnHeader { Text = "الحد الأقصى", Width = 100, TextAlign = HorizontalAlignment.Center };
-        lvGoods.Columns.AddRange(new[] { colGoodsName, colGoodsAmount, colGoodsMax });
+        dgvGoods.RowTemplate.Height = 32;
 
-        lblGoodsHint = MakeLabel("تُعرض هنا بضائع وسيلة النقل. استخدم زر التحديث لتحديث القائمة. 0 في كمية الشراء يعني شراء الكل.");
+        var headerStyle = new DataGridViewCellStyle
+        {
+            Alignment = DataGridViewContentAlignment.MiddleCenter,
+            BackColor = ColorScheme.CardColor2,
+            ForeColor = ColorScheme.ForeColor,
+            Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+            WrapMode = DataGridViewTriState.False
+        };
+        dgvGoods.ColumnHeadersDefaultCellStyle = headerStyle;
+        dgvGoods.ColumnHeadersHeight = 30;
+
+        var cellStyle = new DataGridViewCellStyle
+        {
+            Alignment = DataGridViewContentAlignment.MiddleLeft,
+            BackColor = ColorScheme.CardColor,
+            ForeColor = ColorScheme.ForeColor,
+            SelectionBackColor = ColorScheme.SelectionColor,
+            SelectionForeColor = ColorScheme.ForeColor,
+            Font = new Font("Segoe UI", 9F, FontStyle.Regular)
+        };
+        dgvGoods.DefaultCellStyle = cellStyle;
+
+        var altStyle = new DataGridViewCellStyle(cellStyle)
+        {
+            BackColor = ColorScheme.CardColor2
+        };
+        dgvGoods.AlternatingRowsDefaultCellStyle = altStyle;
+
+        colGoodId = new DataGridViewTextBoxColumn
+        {
+            HeaderText = "ID",
+            Name = "colGoodId",
+            Width = 65,
+            ReadOnly = true,
+            SortMode = DataGridViewColumnSortMode.NotSortable
+        };
+        colGoodId.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+        colGoodIcon = new DataGridViewImageColumn
+        {
+            HeaderText = "Icon",
+            Name = "colGoodIcon",
+            Width = 50,
+            ImageLayout = DataGridViewImageCellLayout.Zoom,
+            ReadOnly = true,
+            SortMode = DataGridViewColumnSortMode.NotSortable
+        };
+        colGoodIcon.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+        colGoodName = new DataGridViewTextBoxColumn
+        {
+            HeaderText = "Name",
+            Name = "colGoodName",
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            ReadOnly = true,
+            SortMode = DataGridViewColumnSortMode.NotSortable
+        };
+        colGoodName.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+
+        colGoodBuy = new DataGridViewCheckBoxColumn
+        {
+            HeaderText = "Buy",
+            Name = "colGoodBuy",
+            Width = 55,
+            ReadOnly = false,
+            SortMode = DataGridViewColumnSortMode.NotSortable
+        };
+        colGoodBuy.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+        colGoodQuantity = new DataGridViewTextBoxColumn
+        {
+            HeaderText = "Quantity",
+            Name = "colGoodQuantity",
+            Width = 85,
+            ReadOnly = false,
+            SortMode = DataGridViewColumnSortMode.NotSortable
+        };
+        colGoodQuantity.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+        dgvGoods.Columns.AddRange(new DataGridViewColumn[]
+        {
+            colGoodId,
+            colGoodIcon,
+            colGoodName,
+            colGoodBuy,
+            colGoodQuantity
+        });
+
+        dgvGoods.CurrentCellDirtyStateChanged += (s, e) =>
+        {
+            if (dgvGoods.IsCurrentCellDirty)
+                dgvGoods.CommitEdit(DataGridViewDataErrorContexts.Commit);
+        };
+
+        dgvGoods.CellValueChanged += (s, e) =>
+        {
+            if (e.RowIndex >= 0)
+                SavePreferredGoodsFromGrid();
+        };
+
+        lblGoodsHint = MakeLabel("تُعرض هنا قائمة بضائع التجارة. حدد البضاعة المراد شراؤها بالصح، وضع الكمية (0 = شراء حمولة كاملة 5 نجوم تلقائياً).");
         lblGoodsHint.ForeColor = Color.Gray;
         lblGoodsHint.TextAlign = ContentAlignment.TopLeft;
 
         layout.Controls.Add(top, 0, 0);
-        layout.Controls.Add(lvGoods, 0, 1);
+        layout.Controls.Add(dgvGoods, 0, 1);
         layout.Controls.Add(lblGoodsHint, 0, 2);
         tabPageGoods.Controls.Add(layout);
     }
@@ -1862,54 +1985,144 @@ public partial class Main : DoubleBufferedControl
 
     #region Goods
 
+    public record TradeGoodEntry(uint Id, string CodeName, string PackageCode, string EnglishName);
+
+    public static readonly TradeGoodEntry[] TradeGoodsCatalog = new[]
+    {
+        // Jangan
+        new TradeGoodEntry(2147u, "ITEM_ETC_TRADE_CH_01", "PACKAGE_ITEM_ETC_TRADE_CH_01", "White Silk"),
+        new TradeGoodEntry(2148u, "ITEM_ETC_TRADE_CH_02", "PACKAGE_ITEM_ETC_TRADE_CH_02", "Red Silk"),
+        new TradeGoodEntry(2149u, "ITEM_ETC_TRADE_CH_03", "PACKAGE_ITEM_ETC_TRADE_CH_03", "Blue celadon vase"),
+        new TradeGoodEntry(2150u, "ITEM_ETC_TRADE_CH_04", "PACKAGE_ITEM_ETC_TRADE_CH_04", "Wolju celadon vase"),
+
+        // Donwhang
+        new TradeGoodEntry(2151u, "ITEM_ETC_TRADE_WC_01", "PACKAGE_ITEM_ETC_TRADE_WC_01", "Leather"),
+        new TradeGoodEntry(2152u, "ITEM_ETC_TRADE_WC_02", "PACKAGE_ITEM_ETC_TRADE_WC_02", "Footstall"),
+        new TradeGoodEntry(2153u, "ITEM_ETC_TRADE_WC_03", "PACKAGE_ITEM_ETC_TRADE_WC_03", "Saddle"),
+        new TradeGoodEntry(2154u, "ITEM_ETC_TRADE_WC_04", "PACKAGE_ITEM_ETC_TRADE_WC_04", "Horseshoe"),
+
+        // Hotan
+        new TradeGoodEntry(2155u, "ITEM_ETC_TRADE_KT_01", "PACKAGE_ITEM_ETC_TRADE_KT_01", "Nephrite"),
+        new TradeGoodEntry(2156u, "ITEM_ETC_TRADE_KT_02", "PACKAGE_ITEM_ETC_TRADE_KT_02", "Agate"),
+        new TradeGoodEntry(2157u, "ITEM_ETC_TRADE_KT_03", "PACKAGE_ITEM_ETC_TRADE_KT_03", "Crystal"),
+        new TradeGoodEntry(2158u, "ITEM_ETC_TRADE_KT_04", "PACKAGE_ITEM_ETC_TRADE_KT_04", "Jade"),
+
+        // Samarkand
+        new TradeGoodEntry(10398u, "ITEM_ETC_TRADE_EU_SA_01", "PACKAGE_ITEM_ETC_TRADE_EU_SA_01", "Wool"),
+        new TradeGoodEntry(10399u, "ITEM_ETC_TRADE_EU_SA_02", "PACKAGE_ITEM_ETC_TRADE_EU_SA_02", "Azure Stone"),
+        new TradeGoodEntry(10400u, "ITEM_ETC_TRADE_EU_SA_03", "PACKAGE_ITEM_ETC_TRADE_EU_SA_03", "Spice"),
+        new TradeGoodEntry(10401u, "ITEM_ETC_TRADE_EU_SA_04", "PACKAGE_ITEM_ETC_TRADE_EU_SA_04", "Pomegranate"),
+
+        // Constantinople
+        new TradeGoodEntry(10394u, "ITEM_ETC_TRADE_EU_CA_01", "PACKAGE_ITEM_ETC_TRADE_EU_CA_01", "Linen"),
+        new TradeGoodEntry(10395u, "ITEM_ETC_TRADE_EU_CA_02", "PACKAGE_ITEM_ETC_TRADE_EU_CA_02", "Perfume"),
+        new TradeGoodEntry(10396u, "ITEM_ETC_TRADE_EU_CA_03", "PACKAGE_ITEM_ETC_TRADE_EU_CA_03", "Coral"),
+        new TradeGoodEntry(10397u, "ITEM_ETC_TRADE_EU_CA_04", "PACKAGE_ITEM_ETC_TRADE_EU_CA_04", "Pearl"),
+
+        // Alexandria
+        new TradeGoodEntry(24671u, "ITEM_ETC_TRADE_OA_01", "PACKAGE_ITEM_ETC_TRADE_OA_01", "Incense"),
+        new TradeGoodEntry(24672u, "ITEM_ETC_TRADE_OA_02", "PACKAGE_ITEM_ETC_TRADE_OA_02", "Marble"),
+    };
+
     private void RefreshGoods()
     {
-        if (lvGoods == null || IsDisposed)
+        if (dgvGoods == null || IsDisposed)
             return;
 
-        lvGoods.BeginUpdate();
+        if (InvokeRequired)
+        {
+            BeginInvoke(new System.Action(RefreshGoods));
+            return;
+        }
 
+        var preferredMap = TradeConfig.GetPreferredGoodsDictionary();
+
+        dgvGoods.SuspendLayout();
         try
         {
-            lvGoods.Items.Clear();
+            dgvGoods.Rows.Clear();
 
-            var transport = Game.Player?.JobTransport;
-            if (transport == null)
+            foreach (var entry in TradeGoodsCatalog)
             {
-                lblGoodsStatus.Text = "وسيلة النقل: غير مستدعاة";
-                lblGoodsStatus.ForeColor = Color.Gray;
-                return;
+                var refItem = Game.ReferenceManager?.GetRefItem(entry.Id) ??
+                              Game.ReferenceManager?.GetRefItem(entry.CodeName);
+
+                var displayName = refItem?.GetRealName();
+                if (string.IsNullOrWhiteSpace(displayName))
+                    displayName = entry.EnglishName;
+
+                Image iconImage = null;
+                try
+                {
+                    iconImage = refItem?.GetIcon();
+                }
+                catch { }
+
+                if (iconImage == null)
+                    iconImage = new Bitmap(24, 24);
+
+                bool isBuy = false;
+                int quantity = 0;
+
+                if (preferredMap.TryGetValue(entry.PackageCode, out var pref) ||
+                    preferredMap.TryGetValue(entry.CodeName, out pref) ||
+                    preferredMap.TryGetValue(entry.Id.ToString(), out pref))
+                {
+                    isBuy = pref.Buy;
+                    quantity = pref.Quantity;
+                }
+
+                int rowIndex = dgvGoods.Rows.Add(
+                    entry.Id.ToString(),
+                    iconImage,
+                    displayName,
+                    isBuy,
+                    quantity.ToString()
+                );
+
+                dgvGoods.Rows[rowIndex].Tag = entry;
             }
-
-            var items = transport.Inventory?
-                .Where(i => i != null && i.Record != null)
-                .ToList() ?? new List<InventoryItem>();
-
-            foreach (var item in items)
-            {
-                var name = item.Record.GetRealName();
-                if (string.IsNullOrEmpty(name))
-                    name = item.Record.CodeName;
-
-                var listItem = new ListViewItem(name);
-                listItem.SubItems.Add(item.Amount.ToString());
-                listItem.SubItems.Add(item.Record.MaxStack > 0 ? item.Record.MaxStack.ToString() : "-");
-
-                lvGoods.Items.Add(listItem);
-            }
-
-            var loaded = items.Count(i => i.Amount > 0);
-            lblGoodsStatus.Text = loaded > 0
-                ? $"وسيلة النقل: محمّلة ({loaded} نوع)"
-                : "وسيلة النقل: فارغة";
-            lblGoodsStatus.ForeColor = loaded > 0
-                ? Color.FromArgb(74, 222, 128)
-                : Color.Gray;
         }
         finally
         {
-            lvGoods.EndUpdate();
+            dgvGoods.ResumeLayout();
         }
+    }
+
+    private void SavePreferredGoodsFromGrid()
+    {
+        if (dgvGoods == null || IsDisposed || dgvGoods.Rows.Count == 0)
+            return;
+
+        var items = new List<TradeConfig.PreferredGoodItem>();
+
+        foreach (DataGridViewRow row in dgvGoods.Rows)
+        {
+            if (row.Tag is TradeGoodEntry entry)
+            {
+                bool buy = false;
+                if (row.Cells["colGoodBuy"].Value is bool b)
+                    buy = b;
+                else if (row.Cells["colGoodBuy"].Value != null &&
+                         bool.TryParse(row.Cells["colGoodBuy"].Value.ToString(), out var parsedB))
+                    buy = parsedB;
+
+                int qty = 0;
+                if (row.Cells["colGoodQuantity"].Value != null)
+                {
+                    int.TryParse(row.Cells["colGoodQuantity"].Value.ToString(), out qty);
+                }
+
+                items.Add(new TradeConfig.PreferredGoodItem
+                {
+                    PackageCode = entry.PackageCode,
+                    Buy = buy,
+                    Quantity = Math.Max(0, qty)
+                });
+            }
+        }
+
+        TradeConfig.SavePreferredGoodsDictionary(items);
     }
 
     #endregion
@@ -2362,9 +2575,14 @@ public partial class Main : DoubleBufferedControl
         lblGoods.Text = ar ? "الكمية:" : "Qty:";
         lblNumGoodsDesc.Text = ar ? "0 = أقصى حد ممكن" : "0 = max. possible";
 
-        colGoodsName.Text = ar ? "اسم البضاعة" : "Goods Name";
-        colGoodsAmount.Text = ar ? "الكمية" : "Qty";
-        colGoodsMax.Text = ar ? "أقصى كمية" : "Max Qty";
+        if (colGoodId != null) colGoodId.HeaderText = "ID";
+        if (colGoodIcon != null) colGoodIcon.HeaderText = "Icon";
+        if (colGoodName != null) colGoodName.HeaderText = ar ? "اسم البضاعة" : "Name";
+        if (colGoodBuy != null) colGoodBuy.HeaderText = ar ? "شراء" : "Buy";
+        if (colGoodQuantity != null) colGoodQuantity.HeaderText = ar ? "الكمية" : "Quantity";
+        if (btnSelectAllGoods != null) btnSelectAllGoods.Text = ar ? "تحديد الكل" : "Select All";
+        if (btnDeselectAllGoods != null) btnDeselectAllGoods.Text = ar ? "إلغاء التحديد" : "Deselect All";
+        if (btnRefreshGoods != null) btnRefreshGoods.Text = ar ? "تحديث" : "Refresh";
 
         btnStartBot.Text = ar ? "شغل البوت" : "Start Bot";
         btnStopBot.Text = ar ? "وقف البوت" : "Stop Bot";

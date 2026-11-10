@@ -311,6 +311,59 @@ internal static class TradeConfig
         set => PlayerConfig.Set("RSBot.Trade.BuyGoodsQuantity", value);
     }
 
+    /// <summary>
+    ///     Preferred goods string in format: PACKAGE_CODE:BUY_FLAG:QUANTITY,...
+    ///     Compatible with vBot's PreferredGoods config.
+    /// </summary>
+    public static string PreferredGoods
+    {
+        get => PlayerConfig.Get("RSBot.Trade.PreferredGoods", "");
+        set => PlayerConfig.Set("RSBot.Trade.PreferredGoods", value);
+    }
+
+    public class PreferredGoodItem
+    {
+        public string PackageCode { get; set; }
+        public bool Buy { get; set; }
+        public int Quantity { get; set; }
+    }
+
+    public static Dictionary<string, PreferredGoodItem> GetPreferredGoodsDictionary()
+    {
+        var dict = new Dictionary<string, PreferredGoodItem>(StringComparer.OrdinalIgnoreCase);
+        var raw = PreferredGoods;
+        if (string.IsNullOrWhiteSpace(raw)) return dict;
+
+        var entries = raw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var entry in entries)
+        {
+            var parts = entry.Split(':');
+            if (parts.Length >= 1)
+            {
+                var pkg = parts[0].Trim();
+                var buy = parts.Length > 1 && (parts[1].Trim() == "1" || parts[1].Trim().Equals("true", StringComparison.OrdinalIgnoreCase));
+                var qty = parts.Length > 2 && int.TryParse(parts[2].Trim(), out var q) ? q : 0;
+                dict[pkg] = new PreferredGoodItem { PackageCode = pkg, Buy = buy, Quantity = qty };
+            }
+        }
+        return dict;
+    }
+
+    public static void SavePreferredGoodsDictionary(IEnumerable<PreferredGoodItem> items)
+    {
+        if (items == null)
+        {
+            PreferredGoods = "";
+            return;
+        }
+
+        var parts = items
+            .Where(i => i != null && !string.IsNullOrWhiteSpace(i.PackageCode))
+            .Select(i => $"{i.PackageCode}:{(i.Buy ? 1 : 0)}:{i.Quantity}");
+
+        PreferredGoods = string.Join(",", parts);
+    }
+
     public static int MaxTransportDistance
     {
         get => PlayerConfig.Get("RSBot.Trade.MaxTransportDistance", 15);

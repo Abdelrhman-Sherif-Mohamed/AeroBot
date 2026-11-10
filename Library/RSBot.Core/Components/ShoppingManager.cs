@@ -394,13 +394,13 @@ public static class ShoppingManager
             return awaitResult.IsCompleted;
         }
 
-        // 1. Try transport.UniqueId first (confirmed by packet dump: 13 [transportUniqueId] [tab] [slot] [amount] [npcUniqueId])
-        var cosId = transport.UniqueId != 0 ? transport.UniqueId : (Game.Player?.JobTransport?.UniqueId ?? 0);
-        if (cosId != 0 && SendBuyPacket(cosId))
+        // 1. Try cosId = 0 FIRST (standard vSRO trade goods purchase, exactly as vBot sends 0x7034 with 0)
+        if (SendBuyPacket(0))
             return true;
 
-        // 2. Fallback: try cosId = 0 only if transportId was 0 or failed
-        if (SendBuyPacket(0))
+        // 2. Fallback: try transport.UniqueId if cosId = 0 was rejected
+        var cosId = transport.UniqueId != 0 ? transport.UniqueId : (Game.Player?.JobTransport?.UniqueId ?? 0);
+        if (cosId != 0 && SendBuyPacket(cosId))
             return true;
 
         // 3. Fallback: try standard SP_BUY_ITEM (0x08) used by some private servers
