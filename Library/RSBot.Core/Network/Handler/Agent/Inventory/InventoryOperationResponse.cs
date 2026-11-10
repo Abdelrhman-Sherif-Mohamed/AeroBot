@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
@@ -319,27 +320,45 @@ internal class InventoryOperationResponse : IPacketHandler
             amount = packet.ReadUShort();
         }
 
+        if (destinationSlots == null || destinationSlots.Length == 0)
+        {
+            Log.Debug("[Npc->Inventory] The buy response did not contain any destination slot.");
+            return;
+        }
+
         var npc = Game.SelectedEntity;
-        if (npc == null)
+        if (npc?.Record == null)
         {
             Log.Debug("Could not determine which item was bought, since currently no entity is selected.");
             return;
         }
 
-        var refShopGoodObj = Game.ReferenceManager.GetRefPackageItem(npc.Record.CodeName, tabIndex, tabSlot);
-        var item = Game.ReferenceManager.GetRefItem(refShopGoodObj.RefItemCodeName);
+        // Resolve the bought item from the shop reference data. The item is not
+        // sent inside the response packet, so this lookup is required. It must
+        // never throw: an exception here would abort the packet handling loop
+        // and leave the bot inventory desynchronized from the server.
+        var refShopGoodObj = FindRefPackageItem(npc.Record.CodeName, tabIndex, tabSlot);
+        var item = refShopGoodObj?.RefItem;
+
+        if (item == null)
+        {
+            Log.Warn(
+                $"[Npc->Inventory] Could not resolve the bought item from [{npc.Record.CodeName}] (tab={tabIndex}, slot={tabSlot}). " +
+                "The inventory will be synced by the server update packet.");
+
+            return;
+        }
 
         if (item.IsStackable && refShopGoodObj.Data > 0)
             amount = (ushort)refShopGoodObj.Data;
 
         Log.Notify($"Bought [{item.GetRealName(true)}] x {amount} from [{npc.Record.GetRealName()}]");
 
-        //_ETC_
-        if (itemAmount != destinationSlots.Length)
+        foreach (var slot in destinationSlots)
         {
             inventory.Add(new InventoryItem
             {
-                Slot = destinationSlots[0],
+                Slot = slot,
                 Amount = amount,
                 ItemId = item.ID,
                 Durability = (uint)refShopGoodObj.Data,
@@ -347,25 +366,53 @@ internal class InventoryOperationResponse : IPacketHandler
                 OptLevel = refShopGoodObj.OptLevel
             });
 
-            EventManager.FireEvent("OnBuyItem", destinationSlots[0], entityUniqueId);
+            EventManager.FireEvent("OnBuyItem", slot, entityUniqueId);
         }
-        else
-        {
-            foreach (var slot in destinationSlots)
-            {
-                inventory.Add(new InventoryItem
-                {
-                    Slot = slot,
-                    Amount = amount,
-                    ItemId = item.ID,
-                    Durability = (uint)refShopGoodObj.Data,
-                    Attributes = new ItemAttributesInfo((ulong)refShopGoodObj.Variance),
-                    OptLevel = refShopGoodObj.OptLevel
-                });
+    }
 
-                EventManager.FireEvent("OnBuyItem", slot, entityUniqueId);
+    /// <summary>
+    ///     Finds the package item for the given shop tab/slot. Unlike the helper
+    ///     in <see cref="Client.ReferenceManager" /> this checks every shop group
+    ///     and never throws when the NPC/shop/tab is unknown.
+    /// </summary>
+    private static RefPackageItemScrap FindRefPackageItem(string npcCodeName, byte tabIndex, byte slotIndex)
+    {
+        if (string.IsNullOrEmpty(npcCodeName))
+            return null;
+
+        var shopGroup = Game.ReferenceManager.GetRefShopGroup(npcCodeName);
+        if (shopGroup == null)
+            return null;
+
+        foreach (var shop in shopGroup.GetShops())
+        {
+            if (shop == null)
+                continue;
+
+            var tabs = shop.GetTabs();
+            if (tabs == null || tabIndex >= tabs.Count)
+                continue;
+
+            var tab = tabs[tabIndex];
+            if (tab == null)
+                continue;
+
+            var goods = tab.GetGoods();
+            if (goods == null)
+                continue;
+
+            foreach (var good in goods)
+            {
+                if (good == null || good.SlotIndex != slotIndex)
+                    continue;
+
+                var packageItem = Game.ReferenceManager.GetRefPackageItem(good.RefPackageItemCodeName);
+                if (packageItem != null)
+                    return packageItem;
             }
         }
+
+        return null;
     }
 
     /// <summary>
@@ -584,7 +631,7 @@ internal class InventoryOperationResponse : IPacketHandler
     }
 
     /// <summary>
-    ///     Parses the NPC to pet.
+    ///     Parses the NPC to pet / transport.
     /// </summary>
     /// <param name="packet">The packet.</param>
     private static void ParseNpcToCos(Packet packet)
@@ -595,7 +642,9 @@ internal class InventoryOperationResponse : IPacketHandler
 
         if (uniqueId == Game.Player.AbilityPet?.UniqueId)
             cos = Game.Player.AbilityPet;
-        else if (uniqueId == Game.Player.JobTransport?.UniqueId)
+        else if (uniqueId == Game.Player.JobTransport?.UniqueId || uniqueId == 0)
+            cos = Game.Player.JobTransport;
+        else if (Game.Player.JobTransport != null)
             cos = Game.Player.JobTransport;
 
         if (cos == null)
@@ -616,7 +665,9 @@ internal class InventoryOperationResponse : IPacketHandler
 
         if (uniqueId == Game.Player.AbilityPet?.UniqueId)
             cos = Game.Player.AbilityPet;
-        else if (uniqueId == Game.Player.JobTransport?.UniqueId)
+        else if (uniqueId == Game.Player.JobTransport?.UniqueId || uniqueId == 0)
+            cos = Game.Player.JobTransport;
+        else if (Game.Player.JobTransport != null)
             cos = Game.Player.JobTransport;
 
         if (cos == null)

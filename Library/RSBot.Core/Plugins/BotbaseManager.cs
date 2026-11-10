@@ -37,25 +37,36 @@ public class BotbaseManager
         {
             Bots = new Dictionary<string, IBotbase>();
 
-            foreach (var extension in from file in Directory.GetFiles(DirectoryPath)
-                     let fileInfo = new FileInfo(file)
-                     where fileInfo.Extension == ".dll"
-                     select GetExtensionsFromAssembly(file)
-                     into loadedExtensions
-                     from extension in loadedExtensions
-                     select extension)
+            if (!Directory.Exists(DirectoryPath))
+                Directory.CreateDirectory(DirectoryPath);
+
+            foreach (var file in Directory.GetFiles(DirectoryPath, "*.dll"))
             {
-                Bots[extension.Key] = extension.Value;
                 try
                 {
-                    extension.Value.Register();
-                }
-                catch (Exception regEx)
-                {
-                    Log.Error($"Error registering botbase [{extension.Value.Name}]: {regEx.Message}");
-                }
+                    var loaded = GetExtensionsFromAssembly(file);
+                    foreach (var extension in loaded)
+                    {
+                        if (extension.Key != null && extension.Value != null)
+                        {
+                            Bots[extension.Key] = extension.Value;
+                            try
+                            {
+                                extension.Value.Register();
+                            }
+                            catch (Exception regEx)
+                            {
+                                Log.Error($"Error registering botbase [{extension.Value.Name}]: {regEx.Message}");
+                            }
 
-                Log.Debug($"Loaded botbase [{extension.Value.Name}]");
+                            Log.Debug($"Loaded botbase [{extension.Value.Name}]");
+                        }
+                    }
+                }
+                catch (Exception fileEx)
+                {
+                    Log.Error($"Failed loading botbase from '{Path.GetFileName(file)}': {fileEx.Message}");
+                }
             }
 
             try
@@ -71,8 +82,12 @@ public class BotbaseManager
         }
         catch (Exception ex)
         {
-            File.WriteAllText(Kernel.BasePath + "\\boot-error.log",
-                $"The botbase manager encountered a problem: \n{ex.Message} at {ex.StackTrace}");
+            try
+            {
+                File.WriteAllText(Path.Combine(Kernel.BasePath, "boot-error.log"),
+                    $"The botbase manager encountered a problem: \n{ex.Message} at {ex.StackTrace}");
+            }
+            catch { }
             return false;
         }
     }

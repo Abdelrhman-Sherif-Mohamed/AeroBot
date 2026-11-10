@@ -359,36 +359,49 @@ public static class ShoppingManager
 
         MarkTradeOperation();
 
-        var packet = new Packet(0x7034);
-        packet.WriteByte(InventoryOperation.SP_BUY_ITEM_COS); //Buy item flag
-        // The transport unique id must be sent here. Sending 0 makes the server
-        // answer with a cos id of 0 and the response can no longer be mapped to
-        // the job transport (the bot then thinks nothing was bought and keeps
-        // spamming purchases until the server kicks the client).
-        packet.WriteUInt(transport.UniqueId);
-        packet.WriteByte(tab);
-        packet.WriteByte(slot);
-        packet.WriteUShort(amount);
-        packet.WriteUInt(shopEntity.UniqueId);
-
-        var awaitResult = new AwaitCallback(response =>
+        bool SendBuyPacket(uint cosId)
         {
-            if (response.ReadByte() != 0x01)
-                return AwaitCallbackResult.Fail;
+            var packet = new Packet(0x7034);
+            packet.WriteByte(InventoryOperation.SP_BUY_ITEM_COS);
+            packet.WriteUInt(cosId);
+            packet.WriteByte(tab);
+            packet.WriteByte(slot);
+            packet.WriteUShort(amount);
+            packet.WriteUInt(shopEntity.UniqueId);
 
-            var operation = (InventoryOperation)response.ReadByte();
-            if (operation == InventoryOperation.SP_BUY_ITEM ||
-                operation == InventoryOperation.SP_BUY_ITEM_COS)
-                return AwaitCallbackResult.Success;
+            var awaitResult = new AwaitCallback(response =>
+            {
+                var res = response.ReadByte();
+                if (res != 0x01)
+                {
+                    var errCode = response.Remaining > 0 ? response.ReadByte() : (byte)0;
+                    Log.Debug($"[Trade Purchase] 0xB034 rejected (cosId={cosId}): result=0x{res:X2}, errorCode=0x{errCode:X2}");
+                    return AwaitCallbackResult.Fail;
+                }
 
-            // Some other inventory operation response, keep waiting.
-            return AwaitCallbackResult.ConditionFailed;
-        }, 0xB034);
+                var operation = (InventoryOperation)response.ReadByte();
+                if (operation == InventoryOperation.SP_BUY_ITEM ||
+                    operation == InventoryOperation.SP_BUY_ITEM_COS)
+                    return AwaitCallbackResult.Success;
 
-        PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
-        awaitResult.AwaitResponse();
+                return AwaitCallbackResult.ConditionFailed;
+            }, 0xB034);
 
-        return awaitResult.IsCompleted;
+            PacketManager.SendPacket(packet, PacketDestination.Server, awaitResult);
+            awaitResult.AwaitResponse(1500);
+
+            return awaitResult.IsCompleted;
+        }
+
+        // Try standard Silkroad client payload first (cosId = 0)
+        if (SendBuyPacket(0))
+            return true;
+
+        // Fallback: try with transport.UniqueId if cosId=0 was rejected
+        if (transport.UniqueId != 0 && SendBuyPacket(transport.UniqueId))
+            return true;
+
+        return false;
     }
 
     /// <summary>

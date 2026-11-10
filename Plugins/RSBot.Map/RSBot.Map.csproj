@@ -16,10 +16,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" GeneratePathProperty="true" />
     <ProjectReference Include="..\..\Library\RSBot.Core\RSBot.Core.csproj" />
     <ProjectReference Include="..\..\SDUI\SDUI\SDUI.csproj" />
   </ItemGroup>
+
+  <Target Name="CopyWebView2Loader" AfterTargets="Build">
+    <ItemGroup>
+      <WebView2X86 Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-x86\native\WebView2Loader.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WebView2X86)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('%(WebView2X86.FullPath)')" />
+    <Copy SourceFiles="@(WebView2X86)" DestinationFolder="$(TargetDir)..\..\" SkipUnchangedFiles="true" Condition="Exists('%(WebView2X86.FullPath)')" />
+    <Copy SourceFiles="@(WebView2X86)" DestinationFolder="$(TargetDir)runtimes\win-x86\native\" SkipUnchangedFiles="true" Condition="Exists('%(WebView2X86.FullPath)')" />
+  </Target>
 
   <ItemGroup>
     <Compile Update="Renderer\NavMeshRenderer.cs" />

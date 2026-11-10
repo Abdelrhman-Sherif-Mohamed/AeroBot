@@ -96,26 +96,83 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                 return false;
             }
 
-            // 2. Approach NPC if farther than 5 meters
-            if (npc.DistanceToPlayer > 5.0f)
+            // 2. Approach NPC until within interactive talk range (<= 2.5 meters)
+            if (npc.DistanceToPlayer > 2.5f)
             {
                 Log.Notify($"[Trade] الاقتراب من تاجر البضائع [{npc.Record.GetRealName()}] (المسافة: {Math.Round(npc.DistanceToPlayer, 1)}م)...");
                 Game.Player?.MoveTo(npc.Position, sleep: false);
-                for (var w = 0; w < 30; w++)
+                for (var w = 0; w < 40; w++)
                 {
-                    if (npc.DistanceToPlayer <= 5.0f)
+                    if (npc.DistanceToPlayer <= 2.5f)
                         break;
                     Thread.Sleep(200);
                 }
             }
+
+            // 3. Ensure player has completely stopped moving before initiating dialog
+            if (Game.Player != null && Game.Player.Movement.Moving)
+            {
+                Game.Player.MoveTo(Game.Player.Position, sleep: false);
+                for (var s = 0; s < 15; s++)
+                {
+                    if (!Game.Player.Movement.Moving)
+                        break;
+                    Thread.Sleep(100);
+                }
+            }
+
+            // Ensure job transport (camel/horse) has arrived near the NPC before trade
+            if (Game.Player?.JobTransport != null)
+            {
+                for (var w = 0; w < 30; w++)
+                {
+                    var camelDist = Game.Player.JobTransport.Position.DistanceTo(npc.Position);
+                    if (camelDist <= 6.0f)
+                        break;
+                    Thread.Sleep(200);
+                }
+            }
+            Thread.Sleep(400);
 
             ShoppingManager.Running = true;
             ShoppingManager.BotOpenedDialog = true;
             ShoppingManager.SelectedEntity = npc;
             Game.SelectedEntity = npc;
 
-            ShoppingManager.ChooseTalkOption(npc.Record.CodeName, TalkOption.Trade);
-            Thread.Sleep(400);
+            // 4. Open shop dialog with verification & retries
+            var dialogOpened = false;
+            for (var dAttempt = 1; dAttempt <= 3; dAttempt++)
+            {
+                Log.Notify($"[Trade] فتح نافذة متجر البضائع لدى [{npc.Record.GetRealName()}] (محاولة {dAttempt}/3)...");
+                if (ShoppingManager.ChooseTalkOption(npc.Record.CodeName, TalkOption.Trade))
+                {
+                    dialogOpened = true;
+                    Log.Notify($"[Trade] تم فتح نافذة المتجر بنجاح لدى [{npc.Record.GetRealName()}].");
+                    break;
+                }
+
+                if (npc.DistanceToPlayer > 2.5f)
+                {
+                    Game.Player?.MoveTo(npc.Position, sleep: false);
+                    for (var w = 0; w < 20; w++)
+                    {
+                        if (npc.DistanceToPlayer <= 2.5f)
+                            break;
+                        Thread.Sleep(150);
+                    }
+                    if (Game.Player != null)
+                        Game.Player.MoveTo(Game.Player.Position, sleep: false);
+                }
+                Thread.Sleep(500);
+            }
+
+            if (!dialogOpened)
+            {
+                Log.Warn($"[Trade] تعذر فتح نافذة متجر البضائع لدى [{npc.Record.GetRealName()}]. يتم تخطي الشراء لتجنب الخطأ.");
+                return false;
+            }
+
+            Thread.Sleep(300);
 
             var activeEntity = (Game.SelectedEntity as SpawnedNpcNpc) ?? (ShoppingManager.SelectedEntity as SpawnedNpcNpc) ?? npc;
             Game.SelectedEntity = activeEntity;
@@ -259,10 +316,13 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             ? TradeConfig.BuyGoodsQuantity
             : Math.Max(5000, (Game.Player.JobTransport?.Inventory?.Capacity ?? 5) * maxStack);
 
-        Log.Notify($"[Trade] بدء شراء السلعة [{packageItem.RefItem.GetRealName()}] - الكمية المستهدفة: {targetQuantity} وحدة...");
+        var playerGold = Game.Player?.Gold ?? 0;
+        Log.Notify($"[Trade] بدء شراء السلعة [{packageItem.RefItem.GetRealName()}] - الكمية المستهدفة: {targetQuantity} وحدة (رصيد الذهب: {playerGold:N0})...");
 
-        var safetyLimit = 30;
+        var safetyLimit = 35;
         var failedAttempts = 0;
+        var requestedBatch = maxStack;
+
         while (safetyLimit-- > 0)
         {
             var transport = Game.Player.JobTransport;
@@ -282,15 +342,13 @@ internal class BuyGoodsScriptCommand : IScriptCommand
                 break;
             }
 
-            var buyNextQty = maxStack;
-            if (currentQuantity + buyNextQty > targetQuantity)
-                buyNextQty = targetQuantity - currentQuantity;
+            var buyNextQty = Math.Min(requestedBatch, targetQuantity - currentQuantity);
 
             Log.Notify($"[Trade] إرسال طلب شراء {buyNextQty} وحدة (الإجمالي الحالي: {currentQuantity}/{targetQuantity})...");
 
             var confirmed = ShoppingManager.PurchaseItem(transport, tabIndex, item.SlotIndex, (ushort)buyNextQty);
 
-            System.Threading.Thread.Sleep(350); // Intentionally wait so server responds and inventory count updates
+            System.Threading.Thread.Sleep(400); // Wait for server confirmation and inventory update
 
             var newQuantity = transport.Inventory?.GetSumAmount(packageItem.RefItemCodeName) ?? currentQuantity;
 
@@ -301,13 +359,20 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             }
 
             // If the server did not confirm the purchase or the transport
-            // inventory did not change, never keep spamming buy requests: that
-            // is what makes the game client disconnect right after buying.
+            // inventory did not change, adapt batch size and avoid spamming
             if (!confirmed || newQuantity <= currentQuantity)
             {
                 failedAttempts++;
 
                 Log.Warn($"[Trade] لم يتم تأكيد شراء البضاعة من السيرفر (محاولة {failedAttempts}/3، الإجمالي الحالي: {newQuantity}).");
+
+                // If failed at 1000, adaptively try smaller batch (500 -> 100 -> 1) in case server or gold limits batch size
+                if (requestedBatch > 500)
+                    requestedBatch = 500;
+                else if (requestedBatch > 100)
+                    requestedBatch = 100;
+                else if (requestedBatch > 1)
+                    requestedBatch = 1;
 
                 if (failedAttempts >= 3)
                 {
@@ -318,6 +383,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             else
             {
                 failedAttempts = 0;
+                requestedBatch = maxStack; // Restore batch size upon successful purchase
             }
         }
 

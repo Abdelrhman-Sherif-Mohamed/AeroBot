@@ -983,15 +983,22 @@ public partial class Main : DoubleBufferedControl
         }
         else if (tabControl1.SelectedTab == tabWorldMap)
         {
+            webViewWorldMap.Visible = true;
+            webViewWorldMap.BringToFront();
+
             if (!_worldMapInitialized && !_isInitializingWorldMap)
             {
                 InitializeWorldMapAsync();
             }
-            else if (_worldMapInitialized && Game.Player != null)
+            else if (_worldMapInitialized)
             {
-                var pos = Game.Player.Position;
-                var name = (Game.Player.Name ?? "Player").Replace("'", "\\'");
-                _ = webViewWorldMap.ExecuteScriptAsync($"if (window.aerobotUpdatePlayer) {{ window.aerobotUpdatePlayer('{name}', {pos.X}, {pos.Y}, {pos.Z}, {pos.Region}); if (window.aerobotCenterPlayer) window.aerobotCenterPlayer('{name}'); }}");
+                _ = webViewWorldMap.ExecuteScriptAsync("window.dispatchEvent(new Event('resize'));");
+                if (Game.Player != null)
+                {
+                    var pos = Game.Player.Position;
+                    var name = (Game.Player.Name ?? "Player").Replace("'", "\\'");
+                    _ = webViewWorldMap.ExecuteScriptAsync($"if (window.aerobotUpdatePlayer) {{ window.aerobotUpdatePlayer('{name}', {pos.X}, {pos.Y}, {pos.Z}, {pos.Region}); if (window.aerobotCenterPlayer) window.aerobotCenterPlayer('{name}'); }}");
+                }
             }
         }
 
@@ -1045,15 +1052,47 @@ public partial class Main : DoubleBufferedControl
                 webViewWorldMap.CreateControl();
             }
 
+            try
+            {
+                var candidatePaths = new[]
+                {
+                    Application.StartupPath,
+                    Path.Combine(Application.StartupPath, "Data", "Plugins"),
+                    Path.Combine(Application.StartupPath, "runtimes", "win-x86", "native"),
+                    Path.Combine(Application.StartupPath, "Data", "Plugins", "runtimes", "win-x86", "native")
+                };
+
+                foreach (var path in candidatePaths)
+                {
+                    if (File.Exists(Path.Combine(path, "WebView2Loader.dll")))
+                    {
+                        CoreWebView2Environment.SetLoaderDllFolderPath(path);
+                        break;
+                    }
+                }
+            }
+            catch { }
+
             var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
             await webViewWorldMap.EnsureCoreWebView2Async(env);
 
+            webViewWorldMap.Visible = true;
+            webViewWorldMap.BringToFront();
+
             webViewWorldMap.CoreWebView2.Settings.IsWebMessageEnabled = true;
-            webViewWorldMap.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            webViewWorldMap.CoreWebView2.Settings.AreDevToolsEnabled = true;
             webViewWorldMap.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
 
             webViewWorldMap.WebMessageReceived -= WebViewWorldMap_WebMessageReceived;
             webViewWorldMap.WebMessageReceived += WebViewWorldMap_WebMessageReceived;
+
+            await webViewWorldMap.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"
+                window.onerror = function(msg, url, lineNo, columnNo, error) {
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ action: 'logError', message: (msg || '') + ' (' + (url || '') + ':' + (lineNo || '') + ')' });
+                    }
+                };
+            ");
 
             // Map local folder to virtual hostname to avoid file:// CORS and security restrictions
             webViewWorldMap.CoreWebView2.SetVirtualHostNameToFolderMapping(
@@ -1076,7 +1115,16 @@ public partial class Main : DoubleBufferedControl
                 }
                 else
                 {
-                    Log.Notify($"[WorldMap] فشل تحميل صفحة الخريطة: {args.WebErrorStatus}");
+                    Log.Notify($"[WorldMap] فشل تحميل صفحة الخريطة عبر النطاق الافتراضي: {args.WebErrorStatus}. جاري المحاولة المباشرة...");
+                    try
+                    {
+                        var fileUri = new Uri(htmlPath).AbsoluteUri;
+                        webViewWorldMap.CoreWebView2.Navigate(fileUri);
+                    }
+                    catch (Exception navEx)
+                    {
+                        Log.Notify($"[WorldMap] تعذر تحميل مسار الملف المباشر: {navEx.Message}");
+                    }
                 }
             };
 
@@ -1107,6 +1155,13 @@ public partial class Main : DoubleBufferedControl
             if (!root.TryGetProperty("action", out var actionProp)) return;
 
             var action = actionProp.GetString();
+            if (action == "logError")
+            {
+                if (root.TryGetProperty("message", out var msgProp))
+                    Log.Notify($"[WorldMap JS Error] {msgProp.GetString()}");
+                return;
+            }
+
             if (action == "moveTo")
             {
                 if (Game.Player == null)
@@ -1167,19 +1222,22 @@ public partial class Main : DoubleBufferedControl
     {
         if (_worldMapInitialized && Game.Player != null)
         {
+            var p = Game.Player.Position;
             var name = (Game.Player.Name ?? "Player").Replace("'", "\\'");
-            _ = webViewWorldMap.ExecuteScriptAsync($"if (window.aerobotCenterPlayer) {{ window.aerobotCenterPlayer('{name}'); }}");
+            _ = webViewWorldMap.ExecuteScriptAsync($"if (window.aerobotUpdatePlayer) {{ window.aerobotUpdatePlayer('{name}', {p.X}, {p.Y}, {p.Z}, {p.Region}); }} if (window.aerobotCenterPlayer) {{ window.aerobotCenterPlayer('{name}'); }}");
         }
     }
 
     private void btnWorldMapReload_Click(object sender, EventArgs e)
     {
-        if (_worldMapInitialized)
+        if (_worldMapInitialized && webViewWorldMap.CoreWebView2 != null)
         {
             webViewWorldMap.Reload();
         }
         else
         {
+            _worldMapInitialized = false;
+            _isInitializingWorldMap = false;
             InitializeWorldMapAsync();
         }
     }

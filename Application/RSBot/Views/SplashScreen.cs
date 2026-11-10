@@ -156,6 +156,9 @@ public partial class SplashScreen : UIWindow
             }
         }
 
+        lblLoading.Text = isArabic ? "جارٍ تحميل إضافات وملفات البوت..." : "Loading plugins and components...";
+        Application.DoEvents();
+
         if (!LoadProfileConfig())
         {
             Environment.Exit(0);
@@ -342,14 +345,18 @@ public partial class SplashScreen : UIWindow
 
         if (!Kernel.PluginManager.LoadAssemblies())
         {
-            MessageBox.Show(@"Failed to load plugins. Process canceled!", @"Initialize Application - Error",
+            var logPath = Path.Combine(Kernel.BasePath, "boot-error.log");
+            var details = File.Exists(logPath) ? $"\n\n{File.ReadAllText(logPath)}" : "";
+            MessageBox.Show(@"Failed to load plugins. Process canceled!" + details, @"Initialize Application - Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
         if (!Kernel.BotbaseManager.LoadAssemblies())
         {
-            MessageBox.Show(@"Failed to load botbases. Process canceled!", @"Initialize Application - Error",
+            var logPath = Path.Combine(Kernel.BasePath, "boot-error.log");
+            var details = File.Exists(logPath) ? $"\n\n{File.ReadAllText(logPath)}" : "";
+            MessageBox.Show(@"Failed to load botbases. Process canceled!" + details, @"Initialize Application - Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
