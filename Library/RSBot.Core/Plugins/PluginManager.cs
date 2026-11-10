@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -74,10 +74,13 @@ public class PluginManager
     {
         var result = new Dictionary<string, IPlugin>();
 
-        var assembly = Assembly.LoadFrom(file);
-
         try
         {
+            var fileName = Path.GetFileName(file);
+            if (fileName.Equals("WebView2Loader.dll", StringComparison.OrdinalIgnoreCase))
+                return result;
+
+            var assembly = Assembly.LoadFrom(file);
             var assemblyTypes = assembly.GetTypes();
 
             foreach (var extension in (from type in assemblyTypes
@@ -105,7 +108,7 @@ public class PluginManager
         }
         catch
         {
-            /* ignore, it's an invalid extension */
+            /* ignore, it's a native dll or an invalid extension */
         }
 
         return result;

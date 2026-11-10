@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -72,10 +72,13 @@ public class BotbaseManager
     {
         var result = new Dictionary<string, IBotbase>();
 
-        var assembly = Assembly.LoadFrom(file);
-
         try
         {
+            var fileName = Path.GetFileName(file);
+            if (fileName.Equals("WebView2Loader.dll", StringComparison.OrdinalIgnoreCase))
+                return result;
+
+            var assembly = Assembly.LoadFrom(file);
             var types = assembly.GetTypes();
 
             foreach (var extension in (from type in types
@@ -85,7 +88,7 @@ public class BotbaseManager
         }
         catch
         {
-            /* ignore, it's an invalid botbase */
+            /* ignore, it's a native dll or an invalid botbase */
         }
 
         return result;
