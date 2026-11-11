@@ -3,21 +3,19 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• إصلاح شامل وانتقال سلس عبر الموانئ والأنفاق في مسارات التجارة (Trade Teleportation & Ferries):
-  - إصلاح انتقال العبّارات والموانئ (Constantinople / Jangan Ferries & Tunnels): النزول التلقائي من مركبة التجارة قبل إرسال أمر الانتقال (Ferry Teleport) لتفادي رفض الخادم، والاقتراب التفاعلي من الـ NPC، والتحقق الحقيقي من اكتمال النقل إلى الضفة الأخرى قبل استئناف المسار.
-  - حماية محرك السكربتات (Script Engine Hardening): منع تخطي نقاط المسار بالكامل عند حدوث خطأ أو فشل أمر السير/الانتقال، وإيقاف السكربت بأمان بدلاً من حرق مئات الأسطر في ثوانٍ ومحاولة البيع الخاطئة.
-  - معالجة موت اللاعب أثناء التجارة: إيقاف استدعاء الجمل في حلقة مفرغة أثناء الموت، وإلغاء المسار بأمان عند الموت والعودة للمدينة للبدء من جديد بدلاً من استئناف السير من نقطة الموت البعيدة.
-  - التحقق الفعلي من وصول اللاعب لوجهة التجارة النهائية قبل إنهاء الجولة أو احتسابها ناجحة."""
+changelog_ar = """• تحديث شامل لمسار التجارة من القسطنطينية إلى هوتان (Constantinople -> Hotan) وإصلاح كشف المدن والبيع:
+  - مسار Constantinople to Hotan الجديد: المرور بتاجر البضائع Tina في القسطنطينية للشراء (buy-goods)، ثم السير عبر الميناء الجنوبي والمنطاد (Harbor Manager Gale -> Blackbeard -> Shard -> Sangnia -> Ajati -> Dawari) بأرقام انتقال مُتحقَّق منها من ملفات اللعبة حتى تاجر Sanmok في هوتان للبيع (sell-goods).
+  - إصلاح كشف المدينة الحالية (DetectCurrentCity) في التجارة التلقائية بين المدن: إصلاح التعرف على مدينة هوتان (Hotan region 23687 / 135,92) وسمرقند ودونهوانغ بدلاً من الخلط بينها عند بدء أو عكس جولات التجارة.
+  - إضافة اقتراب تلقائي لتاجر التجارة قبل أمر البيع (sell-goods) أسوة بأمر الشراء لضمان فتح نافذة التجارة بنجاح دون توقف."""
 
-changelog_en = """• Comprehensive Trade Teleportation & Ferry / Tunnel Fixes:
-  - Fixed ferry and tunnel teleportation during trade routes (Constantinople, Jangan, Central Asia): automatic dismount from trade transport prior to teleportation to prevent server rejection, interactive approach to NPC, and verified completion before path resumption.
-  - Hardened Script Engine: prevented runaway waypoint skipping when a teleport or move command encounters an obstacle/out-of-range error; safely aborts instead of skipping hundreds of waypoints in seconds.
-  - Safe death handling during trading: stopped infinite transport summon loop while dead, cleanly resets route on death and respawn in town.
-  - Verified player physical proximity to final destination before declaring trade loop complete."""
+changelog_en = """• Updated Constantinople to Hotan Trade Route & City Detection / Selling Fixes:
+  - New Constantinople to Hotan trade script: buys goods from Specialty Trader Tina (345,229), navigates the southern harbor & airship route (Harbor Manager Gale -> Blackbeard -> Shard -> Sangnia -> Ajati -> Dawari) using PK2-verified teleport IDs, and delivers to Specialty Trader Sanmok (1523,896) in Hotan.
+  - Fixed DetectCurrentCity() in City-to-City RouteBundle: resolved swapped/incorrect region IDs and fallback sectors so Hotan (23687), Samarkand (27244/27500), Donwhang (26265), Jangan (25000), and Constantinople (26959) are detected accurately.
+  - Added automatic NPC approach before sell-goods (matching buy-goods) so trade hand-ins open reliably even if the final waypoint stops a few meters short."""
 
 data = {
-    "version": "2.9.46",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.46.zip",
+    "version": "2.9.47",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.47.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -34,4 +32,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.46 update to Firebase! Status:', res.status)
+    print('Published 2.9.47 update to Firebase! Status:', res.status)

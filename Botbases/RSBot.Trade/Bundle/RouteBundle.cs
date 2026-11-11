@@ -1147,45 +1147,26 @@ internal class RouteBundle
 
 
 
-        // Check exact region IDs
-
+        // Check exact town region IDs
         if (regionId == 25000) return "jangan";
-
         if (regionId == 26265) return "donwhang";
+        if (regionId == 23687) return "hotan";
+        if (regionId == 27244 || regionId == 27500) return "samarkand";
+        if (regionId == 26959) return "constantinople";
 
-        if (regionId == 23088) return "hotan";
-
-        if (regionId == 23687) return "samarkand";
-
-        if (regionId == 26959 || regionId == 22618 || regionId == 22106) return "constantinople";
-
-
-
-        // Check sectors
-
+        // Check town sectors
         if (xSec == 168 && ySec == 97) return "jangan";
+        if (xSec == 153 && ySec == 102) return "donwhang";
+        if (xSec == 135 && ySec == 92) return "hotan";
+        if (xSec == 108 && (ySec == 106 || ySec == 107)) return "samarkand";
+        if (xSec == 79 && ySec == 105) return "constantinople";
 
-        if (xSec == 167 && ySec == 96) return "donwhang";
-
-        if (xSec == 163 && ySec == 93) return "hotan";
-
-        if (xSec == 165 && ySec == 99) return "samarkand";
-
-        if ((xSec <= 162 && ySec >= 100) || (xSec == 79 && ySec == 105)) return "constantinople";
-
-
-
-        // Fallback: distance to city centers
-
-        var distJangan = Game.Player.Position.DistanceTo(new Position(168, 97, 1000, 1200, 0));
-
-        var distDonwhang = Game.Player.Position.DistanceTo(new Position(167, 96, 3500, 2000, 0));
-
-        var distHotan = Game.Player.Position.DistanceTo(new Position(163, 93, 100, 100, 0));
-
-        var distSamarkand = Game.Player.Position.DistanceTo(new Position(165, 99, 2000, 2000, 0));
-
-        var distConstantinople = Game.Player.Position.DistanceTo(new Position(79, 105, 500, 500, 0));
+        // Fallback: distance to actual town centers
+        var distJangan = Game.Player.Position.DistanceTo(new Position(168, 97, 960, 960, 0));
+        var distDonwhang = Game.Player.Position.DistanceTo(new Position(153, 102, 960, 960, 0));
+        var distHotan = Game.Player.Position.DistanceTo(new Position(135, 92, 960, 960, 0));
+        var distSamarkand = Game.Player.Position.DistanceTo(new Position(108, 107, 960, 960, 0));
+        var distConstantinople = Game.Player.Position.DistanceTo(new Position(79, 105, 960, 960, 0));
 
 
 

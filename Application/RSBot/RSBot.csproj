@@ -19,9 +19,9 @@
 		<RepositoryUrl>https://github.com/WolvesBot</RepositoryUrl>
 		<OutputType>WinExe</OutputType>
 		<ApplicationIcon>app.ico</ApplicationIcon>
-		<AssemblyVersion>2.9.46</AssemblyVersion>
-		<FileVersion>2.9.46</FileVersion>
-		<Version>2.9.46</Version>
+		<AssemblyVersion>2.9.47</AssemblyVersion>
+		<FileVersion>2.9.47</FileVersion>
+		<Version>2.9.47</Version>
 		<PlatformTarget>x86</PlatformTarget>
 		<UseWPF>False</UseWPF>
 		<CodePage>65001</CodePage>

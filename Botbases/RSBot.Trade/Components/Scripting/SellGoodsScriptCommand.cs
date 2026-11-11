@@ -49,6 +49,58 @@ internal class SellGoodsScriptCommand : IScriptCommand
             IsBusy = true;
             var codeName = arguments[0];
 
+            SpawnedNpcNpc npc = null;
+            for (var attempt = 0; attempt < 8; attempt++)
+            {
+                if (SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, codeName, StringComparison.OrdinalIgnoreCase), out npc) ||
+                    SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null &&
+                        (p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) ||
+                         p.Record.CodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase) ||
+                         (p.Record.GetRealName() != null && (p.Record.GetRealName().Contains("Specialty", StringComparison.OrdinalIgnoreCase) || p.Record.GetRealName().Contains("Trader", StringComparison.OrdinalIgnoreCase)))), out npc))
+                {
+                    break;
+                }
+
+                Thread.Sleep(250);
+            }
+
+            if (npc != null)
+            {
+                codeName = npc.Record.CodeName;
+                if (npc.Position.DistanceToPlayer() > 3.0f)
+                {
+                    Log.Notify($"[Trade] الاقتراب من تاجر تسليم البضائع [{npc.Record.GetRealName()}] (المسافة: {Math.Round(npc.Position.DistanceToPlayer(), 1)}م)...");
+                    Game.Player?.MoveTo(npc.Position, sleep: false);
+                    for (var w = 0; w < 40; w++)
+                    {
+                        if (npc.Position.DistanceToPlayer() <= 3.0f)
+                            break;
+                        Thread.Sleep(200);
+                    }
+                }
+
+                if (Game.Player != null && Game.Player.Movement.Moving)
+                {
+                    Game.Player.MoveTo(Game.Player.Position, sleep: false);
+                    for (var s = 0; s < 15; s++)
+                    {
+                        if (!Game.Player.Movement.Moving)
+                            break;
+                        Thread.Sleep(100);
+                    }
+                }
+
+                if (Game.Player?.JobTransport != null)
+                {
+                    for (var w = 0; w < 30; w++)
+                    {
+                        if (Game.Player.JobTransport.Position.DistanceTo(npc.Position) <= 6.0f)
+                            break;
+                        Thread.Sleep(200);
+                    }
+                }
+            }
+
             // In Silkroad Online / vSRO, players stay mounted on their trade transport
             // when selling specialty trade goods to the merchant.
             Thread.Sleep(300);
@@ -64,7 +116,7 @@ internal class SellGoodsScriptCommand : IScriptCommand
             if (!talked && Game.SelectedEntity == null)
             {
                 // Fallback: search for NPC directly and select
-                if (SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, codeName, StringComparison.OrdinalIgnoreCase), out var npc) ||
+                if (SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, codeName, StringComparison.OrdinalIgnoreCase), out npc) ||
                     SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase), out npc))
                 {
                     npc.TrySelect();
