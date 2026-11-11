@@ -521,24 +521,14 @@ internal class RouteBundle
 
 
 
-        //Interrupt in case of attack or waiting for the transport
-
-        if ((ScriptManager.Running &&
-
-             Bundles.TransportBundle.Busy) ||
-
-            Bundles.AttackBundle.Busy)
-
+        // Interrupt in case of thief combat, or transport lagging outside town / while carrying goods.
+        var transportMustPause = Bundles.TransportBundle.Busy && (!AttackBundle.IsPlayerInTown() || TransportHasGoods());
+        if ((ScriptManager.Running && transportMustPause) || Bundles.AttackBundle.Busy)
         {
-
             if (!ScriptManager.Paused && ScriptManager.Running)
-
                 ScriptManager.Pause();
 
-
-
             return;
-
         }
 
 
@@ -749,26 +739,17 @@ internal class RouteBundle
 
 
 
-        //Continue previous script (only when not in active combat and transport not lost)
-
-        if (!Bundles.AttackBundle.IsAttacking && !Bundles.TransportBundle.Busy)
-
+        //Continue previous script (only when not in active combat and transport not stalled when needed)
+        var transportBlocksResume = Bundles.TransportBundle.Busy && (!AttackBundle.IsPlayerInTown() || TransportHasGoods());
+        if (!Bundles.AttackBundle.IsAttacking && !transportBlocksResume)
         {
-
             if (ScriptManager.Paused && ScriptManager.Running && CurrentRouteFile != null)
-
             {
-
                 ScriptManager.ResumeScript();
 
-
-
                 //Make sure that the next tick the script manager is ready
-
                 Thread.Sleep(100);
-
             }
-
         }
 
     }

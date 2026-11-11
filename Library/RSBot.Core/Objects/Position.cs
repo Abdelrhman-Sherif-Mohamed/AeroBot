@@ -123,6 +123,22 @@ public struct Position
     }
 
     /// <summary>
+    ///     Creates a position in meters using exact sector wrapping (safe for both positive/negative world coordinates and dungeons).
+    /// </summary>
+    public static Position CreateWorldSafe(float worldX, float worldY, float zOffset, Region referenceRegion)
+    {
+        if (referenceRegion.IsDungeon)
+            return new Position(referenceRegion, worldX * 10.0f, worldY * 10.0f, zOffset);
+
+        var xSector = (byte)(Math.Floor(worldX / 192.0) + 135);
+        var ySector = (byte)(Math.Floor(worldY / 192.0) + 92);
+        var xOffset = (float)((worldX - (xSector - 135) * 192.0) * 10.0);
+        var yOffset = (float)((worldY - (ySector - 92) * 192.0) * 10.0);
+
+        return new Position(xSector, ySector, xOffset, yOffset, zOffset);
+    }
+
+    /// <summary>
     ///     Creates a position using sector offsets
     /// </summary>
     /// <param name="region">The region identifier.</param>

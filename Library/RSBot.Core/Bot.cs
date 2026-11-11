@@ -95,25 +95,24 @@ public class Bot
     /// </summary>
     public void Stop()
     {
-        ScriptManager.Stop();
+        if (TokenSource != null && !TokenSource.IsCancellationRequested)
+            TokenSource.Cancel();
+
+        var wasRunning = Running;
+        Running = false;
+
+        ScriptManager.Stop(error: wasRunning);
         ShoppingManager.Stop();
         PickupManager.Stop();
 
-        if (Botbase == null)
+        if (Botbase == null || !wasRunning)
             return;
-
-        if (!Running)
-            return;
-
-        if (!TokenSource.IsCancellationRequested)
-            TokenSource.Cancel();
 
         EventManager.FireEvent("OnStopBot");
         Log.Notify($"Stopping bot {Botbase.Name}");
 
         Game.SelectedEntity = null;
         Botbase.Stop();
-        Running = false;
 
         Log.Notify($"Stoped bot {Botbase.Name}");
         Log.Status("Bot stopped");

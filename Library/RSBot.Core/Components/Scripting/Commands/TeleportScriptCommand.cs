@@ -80,7 +80,14 @@ internal class TeleportScriptCommand : IScriptCommand
             if (SpawnManager.TryGetEntity<SpawnedBionic>(p => p.Record != null && string.Equals(p.Record.CodeName, npcCodeName, StringComparison.OrdinalIgnoreCase), out entity))
                 break;
 
-            if (!ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+            if (ScriptManager.Paused)
+            {
+                if (!ScriptManager.WaitWhilePaused())
+                    return false;
+                continue;
+            }
+
+            if (!ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
                 return false;
 
             Thread.Sleep(200);
@@ -100,7 +107,16 @@ internal class TeleportScriptCommand : IScriptCommand
             var approachStart = DateTime.UtcNow;
             while (entity.Position.DistanceToPlayer() > 3.0f && (DateTime.UtcNow - approachStart).TotalSeconds < 10)
             {
-                if (!ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (ScriptManager.Paused)
+                {
+                    if (!ScriptManager.WaitWhilePaused())
+                        return false;
+                    approachStart = DateTime.UtcNow;
+                    Game.Player?.MoveTo(entity.Position, sleep: false);
+                    continue;
+                }
+
+                if (!ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
                     return false;
 
                 Thread.Sleep(100);
@@ -146,7 +162,7 @@ internal class TeleportScriptCommand : IScriptCommand
                 if (result == 0x01)
                     return AwaitCallbackResult.Success;
 
-                Log.Warn($"[Script] Teleport rejected by server (0xB05A result={result}).");
+                Log.Debug($"[Script] 0xB05A response result={result}; waiting for teleport completion...");
                 return AwaitCallbackResult.Fail;
             }, 0xB05A);
 
@@ -174,7 +190,14 @@ internal class TeleportScriptCommand : IScriptCommand
                     break;
                 }
 
-                if (!ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (ScriptManager.Paused)
+                {
+                    if (!ScriptManager.WaitWhilePaused())
+                        break;
+                    continue;
+                }
+
+                if (!ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
                     break;
 
                 Thread.Sleep(100);

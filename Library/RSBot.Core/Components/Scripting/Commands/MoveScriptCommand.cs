@@ -64,9 +64,16 @@ internal class MoveScriptCommand : IScriptCommand
         {
             IsBusy = true;
 
-            while (Game.Player.InAction)
+            while (Game.Player?.InAction == true)
             {
-                if (!IsBusy || !ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (ScriptManager.Paused)
+                {
+                    if (!ScriptManager.WaitWhilePaused(extraCondition: () => IsBusy))
+                        return false;
+                    continue;
+                }
+
+                if (!IsBusy || !ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
                     return false;
                 Thread.Sleep(50);
             }
@@ -77,7 +84,14 @@ internal class MoveScriptCommand : IScriptCommand
 
             while (!ExecuteMove(arguments, out targetPos))
             {
-                if (!IsBusy || !ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (ScriptManager.Paused)
+                {
+                    if (!ScriptManager.WaitWhilePaused(extraCondition: () => IsBusy))
+                        return false;
+                    continue;
+                }
+
+                if (!IsBusy || !ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
                     return false;
 
                 // If target could not be parsed, or player is far (> 35m), movement failure is fatal and cannot be skipped
@@ -143,8 +157,13 @@ internal class MoveScriptCommand : IScriptCommand
             return false;
         }
 
-        if (PlayerConfig.Get("RSBot.Training.checkUseMount", true))
-            if (!Game.Player.HasActiveVehicle && !Game.Player.IsInDungeon && !Game.Player.InAction)
+        if (Game.Player == null)
+            return false;
+
+        // Avoid conflicting riding-pet summon in RSBot.Trade (TransportBundle owns job transport COS_T).
+        var isTradeBot = Kernel.Bot?.Botbase?.Name == "RSBot.Trade";
+        if (!isTradeBot && PlayerConfig.Get("RSBot.Training.checkUseMount", true))
+            if (!Game.Player.HasActiveVehicle && !Game.Player.IsInDungeon && !Game.Player.InAction && Game.Player.JobTransport == null)
                 Game.Player.SummonVehicle();
 
         var distance = pos.Value.DistanceTo(Game.Player.Position);
@@ -158,31 +177,29 @@ internal class MoveScriptCommand : IScriptCommand
         {
             Log.Debug($"[Script] Target position is at {Math.Round(distance, 1)}m, approaching in intermediate steps...");
             var steps = (int)Math.Ceiling(distance / 70.0);
+            var startWorldX = Game.Player.Position.X;
+            var startWorldY = Game.Player.Position.Y;
+            var targetWorldX = pos.Value.X;
+            var targetWorldY = pos.Value.Y;
+
             for (var s = 1; s < steps; s++)
             {
-                if (!IsBusy || !ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (ScriptManager.Paused)
                 {
-                    IsBusy = false;
-                    return false;
+                    if (!ScriptManager.WaitWhilePaused(extraCondition: () => IsBusy))
+                        return false;
                 }
 
+                if (!IsBusy || !ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+                    return false;
+
                 var ratio = (float)s / steps;
-                var currentWorldX = Game.Player.Position.X;
-                var currentWorldY = Game.Player.Position.Y;
-                var targetWorldX = pos.Value.X;
-                var targetWorldY = pos.Value.Y;
+                var stepWorldX = startWorldX + (targetWorldX - startWorldX) * ratio;
+                var stepWorldY = startWorldY + (targetWorldY - startWorldY) * ratio;
 
-                var stepWorldX = currentWorldX + (targetWorldX - currentWorldX) * ratio;
-                var stepWorldY = currentWorldY + (targetWorldY - currentWorldY) * ratio;
-
-                var stepXSector = (byte)(Math.Floor(stepWorldX / 192.0) + 135);
-                var stepYSector = (byte)(Math.Floor(stepWorldY / 192.0) + 92);
-                var stepXOffset = (float)((stepWorldX - (stepXSector - 135) * 192.0) * 10.0);
-                var stepYOffset = (float)((stepWorldY - (stepYSector - 92) * 192.0) * 10.0);
-
-                var intermediatePos = new Position(stepXSector, stepYSector, stepXOffset, stepYOffset, pos.Value.ZOffset);
+                var intermediatePos = Position.CreateWorldSafe(stepWorldX, stepWorldY, pos.Value.ZOffset, pos.Value.Region);
                 if (!MoveWithObstacleEvasion(intermediatePos))
-                    break;
+                    return false;
             }
         }
 
@@ -194,29 +211,77 @@ internal class MoveScriptCommand : IScriptCommand
     /// <summary>
     ///     Moves towards target with continuous motion blending and smart obstacle evasion.
     /// </summary>
+    private static float GetEffectiveSpeedMetersPerSecond()
+    {
+        var player = Game.Player;
+        if (player == null)
+            return 5.0f;
+
+        var rawSpeed = player.HasActiveVehicle && player.Vehicle is { ActualSpeed: > 0 }
+            ? player.Vehicle.ActualSpeed
+            : player.ActualSpeed;
+
+        // Silkroad entity speeds (WalkSpeed / RunSpeed) are stored in 10x meters/sec.
+        return Math.Max(2.5f, rawSpeed * 0.1f);
+    }
+
+    private static int ComputeMoveTimeoutMs(double distanceMeters)
+    {
+        var speedMps = GetEffectiveSpeedMetersPerSecond();
+        return (int)(distanceMeters / speedMps * 1000.0 * 1.6) + 6000;
+    }
+
     private bool MoveWithObstacleEvasion(Position targetPos)
     {
+        if (Game.Player == null)
+            return false;
+
         // Continuous motion threshold: advance to next waypoint early to avoid any stopping between steps
         var threshold = Game.Player.HasActiveVehicle ? 7.0f : 5.0f;
         if (targetPos.DistanceToPlayer() <= threshold)
             return true;
 
         var startDistance = targetPos.DistanceToPlayer();
-        var speed = Game.Player.ActualSpeed > 0 ? Game.Player.ActualSpeed : 5.0f;
-        var maxTimeoutMs = (int)(startDistance / speed * 1000) + 3500;
+        var maxTimeoutMs = ComputeMoveTimeoutMs(startDistance);
         var startTime = DateTime.UtcNow;
 
         // Send non-blocking movement packet to server immediately
         if (!Game.Player.MoveTo(targetPos, sleep: false))
             return false;
 
-        var lastPos = Game.Player.Position;
-        var stuckMs = 0;
+        var anchorPos = Game.Player.Position;
+        var lastProgressTime = DateTime.UtcNow;
         var evasionCount = 0;
 
         while ((DateTime.UtcNow - startTime).TotalMilliseconds < maxTimeoutMs)
         {
-            if (!IsBusy || !ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+            if (ScriptManager.Paused)
+            {
+                if (Game.Player?.State?.BattleState != BattleState.InBattle)
+                    Game.Player?.MoveTo(Game.Player.Position, sleep: false);
+
+                if (!ScriptManager.WaitWhilePaused(extraCondition: () => IsBusy))
+                    return false;
+
+                if (targetPos.DistanceToPlayer() <= threshold)
+                    return true;
+
+                // If combat or a wait moved us beyond single-packet range, let ExecuteMove re-segment cleanly.
+                if (targetPos.DistanceToPlayer() > 140.0f)
+                    return false;
+
+                maxTimeoutMs = ComputeMoveTimeoutMs(targetPos.DistanceToPlayer());
+                startTime = DateTime.UtcNow;
+                anchorPos = Game.Player.Position;
+                lastProgressTime = DateTime.UtcNow;
+
+                if (!Game.Player.MoveTo(targetPos, sleep: false))
+                    return false;
+
+                continue;
+            }
+
+            if (!IsBusy || !ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
             {
                 Game.Player?.MoveTo(Game.Player.Position, sleep: false);
                 return false;
@@ -230,31 +295,25 @@ internal class MoveScriptCommand : IScriptCommand
                 return true;
 
             var currentPos = Game.Player.Position;
-            var progress = currentPos.DistanceTo(lastPos);
-
-            if (progress < 0.45f)
+            // Measure net displacement across a rolling 1.5s window to avoid false obstacle triggers on slower transports.
+            if (currentPos.DistanceTo(anchorPos) >= 1.8f)
             {
-                stuckMs += 80;
+                anchorPos = currentPos;
+                lastProgressTime = DateTime.UtcNow;
             }
-            else
-            {
-                stuckMs = 0;
-                lastPos = currentPos;
-            }
-
-            // Stuck against a tree, rock, or barrier for >= 1000ms
-            if (stuckMs >= 1000)
+            else if ((DateTime.UtcNow - lastProgressTime).TotalMilliseconds >= 1500)
             {
                 evasionCount++;
                 Game.Player.PerformObstacleEvasion(targetPos, evasionCount);
-                stuckMs = 0;
-                lastPos = Game.Player.Position;
-                startTime = DateTime.UtcNow; // Reset timeout for continued march
+                anchorPos = Game.Player.Position;
+                lastProgressTime = DateTime.UtcNow;
+                startTime = DateTime.UtcNow;
+                maxTimeoutMs = ComputeMoveTimeoutMs(targetPos.DistanceToPlayer());
             }
         }
 
         // If reasonably close at timeout expiration, proceed smoothly to next waypoint
-        return targetPos.DistanceToPlayer() <= (threshold + 4.0f);
+        return targetPos.DistanceToPlayer() <= (threshold + 5.0f);
     }
 
     public void Stop()

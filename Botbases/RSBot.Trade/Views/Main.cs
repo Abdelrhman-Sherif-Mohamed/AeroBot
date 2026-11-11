@@ -2261,25 +2261,15 @@ public partial class Main : DoubleBufferedControl
         {
             try
             {
-                ScriptManager.Stop(error: true);
-            }
-            catch
-            {
-                // ignored
-            }
-
-            try
-            {
-                Kernel.Bot?.Stop();
-            }
-            catch
-            {
-                // ignored
-            }
-
-            try
-            {
-                Bundles.Stop();
+                if (Kernel.Bot != null && Kernel.Bot.Running)
+                {
+                    Kernel.Bot.Stop();
+                }
+                else
+                {
+                    ScriptManager.Stop(error: true);
+                    Bundles.Stop();
+                }
             }
             catch
             {

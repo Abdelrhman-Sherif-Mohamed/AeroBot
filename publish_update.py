@@ -3,19 +3,21 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• تحديث شامل لمسار التجارة من القسطنطينية إلى هوتان (Constantinople -> Hotan) وإصلاح كشف المدن والبيع:
-  - مسار Constantinople to Hotan الجديد: المرور بتاجر البضائع Tina في القسطنطينية للشراء (buy-goods)، ثم السير عبر الميناء الجنوبي والمنطاد (Harbor Manager Gale -> Blackbeard -> Shard -> Sangnia -> Ajati -> Dawari) بأرقام انتقال مُتحقَّق منها من ملفات اللعبة حتى تاجر Sanmok في هوتان للبيع (sell-goods).
-  - إصلاح كشف المدينة الحالية (DetectCurrentCity) في التجارة التلقائية بين المدن: إصلاح التعرف على مدينة هوتان (Hotan region 23687 / 135,92) وسمرقند ودونهوانغ بدلاً من الخلط بينها عند بدء أو عكس جولات التجارة.
-  - إضافة اقتراب تلقائي لتاجر التجارة قبل أمر البيع (sell-goods) أسوة بأمر الشراء لضمان فتح نافذة التجارة بنجاح دون توقف."""
+changelog_ar = """• إصلاح جذري لمشاكل توقف السير وتعطل السكربت أثناء التجارة والتنقل:
+  - إصلاح حساب مهلة المشي (ActualSpeed * 0.1f) في محرك السير ونظام الالتفاف: كانت المهلة تُحسب أصغر بـ 10 مرات من الوقت الفعلي مما يسبب فشل الأوامر بعد 4-5 ثوانٍ وإيقاف الجولة بعد 3 إخفاقات متتالية.
+  - ضبط كاشف العوائق (Obstacle Evasion): استبدال الفحص اللحظي الخاطئ بفحص تقدم حقيقي كل 1.5 ثانية وحساب المتجهات بالإحداثيات العالمية لمنع التوقف الوهمي في الطرق المفتوحة.
+  - منع فشل أو إلغاء السكربت عند الإيقاف المؤقت (Pause/Resume): انتظار استئناف البوت بسلاسة عند القتال أو انتظار وسيلة النقل بدلاً من إنهاء الأمر بـ command=move failed، مع عدم تجميد السير داخل المدينة قبل شراء البضاعة.
+  - منع تعارض استدعاء النعامة (Ostrich / COS_C) مع استدعاء الجمل/الفيل التجاري (0xB04C)، وتوحيد إشعارات الإيقاف وإصلاح تحذير الانتقال الكاذب (0xB05A)."""
 
-changelog_en = """• Updated Constantinople to Hotan Trade Route & City Detection / Selling Fixes:
-  - New Constantinople to Hotan trade script: buys goods from Specialty Trader Tina (345,229), navigates the southern harbor & airship route (Harbor Manager Gale -> Blackbeard -> Shard -> Sangnia -> Ajati -> Dawari) using PK2-verified teleport IDs, and delivers to Specialty Trader Sanmok (1523,896) in Hotan.
-  - Fixed DetectCurrentCity() in City-to-City RouteBundle: resolved swapped/incorrect region IDs and fallback sectors so Hotan (23687), Samarkand (27244/27500), Donwhang (26265), Jangan (25000), and Constantinople (26959) are detected accurately.
-  - Added automatic NPC approach before sell-goods (matching buy-goods) so trade hand-ins open reliably even if the final waypoint stops a few meters short."""
+changelog_en = """• Comprehensive Movement, Script Pause/Resume & Trade Stability Fixes:
+  - Fixed 10x move timeout bug (ActualSpeed * 0.1f with active vehicle speed support) in MoveScriptCommand, Player, and Cos: prevented valid 60m-100m route steps from timing out in 4-5 seconds.
+  - Fixed false obstacle evasion triggers: switched to a 1.5s rolling world-coordinate displacement check and cross-sector meter math so open-road travel no longer stalls or loops unnecessarily.
+  - Fixed Pause vs Abort handling across ScriptManager, Move, Wait, and Teleport commands: pausing for thief combat or transport waits now pauses cleanly and resumes seamlessly without logging false command failures or aborting routes.
+  - Prevented COS_C mount summoning race with Trade COS_T transport (0xB04C), avoided town startup deadlocks before buying goods, cleaned up duplicate OnFinishScript events on stop, and silenced false 0xB05A rejection warnings while teleport completes."""
 
 data = {
-    "version": "2.9.47",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.47.zip",
+    "version": "2.9.48",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.48.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -32,4 +34,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.47 update to Firebase! Status:', res.status)
+    print('Published 2.9.48 update to Firebase! Status:', res.status)

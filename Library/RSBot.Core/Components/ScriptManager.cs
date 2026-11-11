@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using RSBot.Core.Components.Scripting;
 using RSBot.Core.Event;
@@ -72,6 +73,7 @@ public class ScriptManager
     public static bool Paused { get; private set; }
 
     private static readonly object _loopLock = new();
+    private static readonly object _stateLock = new();
     private static volatile bool _isExecutingLoop;
 
     public static void Initialize()
@@ -128,6 +130,24 @@ public class ScriptManager
         Paused = true;
 
         EventManager.FireEvent("OnPauseScript");
+    }
+
+    /// <summary>
+    ///     Blocks while the script is paused and the bot/script remains active.
+    ///     Returns <c>true</c> once resumed cleanly; <c>false</c> if stopped or aborted.
+    /// </summary>
+    public static bool WaitWhilePaused(bool ignoreBotRunning = false, Func<bool> extraCondition = null)
+    {
+        while (Paused && Running && (ignoreBotRunning || Kernel.Bot == null || Kernel.Bot.Running))
+        {
+            if (extraCondition != null && !extraCondition())
+                return false;
+
+            Thread.Sleep(100);
+        }
+
+        return Running && !Paused && (ignoreBotRunning || Kernel.Bot == null || Kernel.Bot.Running) &&
+               (extraCondition == null || extraCondition());
     }
 
     /// <summary>
@@ -230,7 +250,16 @@ public class ScriptManager
             {
                 CurrentLineIndex = i;
 
-                if (!Running || Paused || (!Kernel.Bot.Running && !ignoreBotRunning))
+                if (Paused && Running && (ignoreBotRunning || Kernel.Bot == null || Kernel.Bot.Running))
+                {
+                    if (!WaitWhilePaused(ignoreBotRunning))
+                    {
+                        error = true;
+                        break;
+                    }
+                }
+
+                if (!Running || (!ignoreBotRunning && Kernel.Bot != null && !Kernel.Bot.Running))
                 {
                     error = true;
                     break;
@@ -275,14 +304,27 @@ public class ScriptManager
 
                 if (executionResult == false)
                 {
-                    LogScriptMessage("The execution of the script command failed.", CurrentLineIndex, LogLevel.Warning,
-                        commandName);
+                    if (Paused && Running && (ignoreBotRunning || Kernel.Bot == null || Kernel.Bot.Running))
+                    {
+                        Log.Debug($"[Script] Script paused during [{commandName}] at line #{CurrentLineIndex}; waiting to resume...");
+                        if (WaitWhilePaused(ignoreBotRunning))
+                        {
+                            i--;
+                            continue;
+                        }
 
-                    if (!Running || Paused || (!Kernel.Bot.Running && !ignoreBotRunning))
+                        error = true;
+                        break;
+                    }
+
+                    if (!Running || (!ignoreBotRunning && Kernel.Bot != null && !Kernel.Bot.Running))
                     {
                         error = true;
                         break;
                     }
+
+                    LogScriptMessage("The execution of the script command failed.", CurrentLineIndex, LogLevel.Warning,
+                        commandName);
 
                     // Critical commands can never be skipped (teleporting, buying, selling, mounting, etc.)
                     var isCritical = commandName is "teleport" or "buy" or "sell" or "dismount" or "mount" or "repair";
@@ -321,8 +363,13 @@ public class ScriptManager
     /// </summary>
     public static void Stop(bool error = false)
     {
-        Running = false;
-        Paused = false;
+        bool shouldNotifyFinish;
+        lock (_stateLock)
+        {
+            shouldNotifyFinish = Running || Paused;
+            Running = false;
+            Paused = false;
+        }
 
         foreach (var handler in CommandHandlers)
         {
@@ -333,7 +380,8 @@ public class ScriptManager
             catch { }
         }
 
-        EventManager.FireEvent("OnFinishScript", error);
+        if (shouldNotifyFinish)
+            EventManager.FireEvent("OnFinishScript", error);
     }
 
     /// <summary>

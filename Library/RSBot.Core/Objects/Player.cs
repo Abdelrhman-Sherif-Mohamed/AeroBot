@@ -748,8 +748,9 @@ public class Player : SpawnedBionic
 
         if (awaitCallback.IsCompleted)
         {
-            //Wait to finish the step
-            Thread.Sleep(Convert.ToInt32(distance / Game.Player.ActualSpeed * 1000));
+            //Wait to finish the step (ActualSpeed is in 10x meters/sec)
+            var speedMps = Math.Max(2.5f, Game.Player.ActualSpeed * 0.1f);
+            Thread.Sleep(Convert.ToInt32(distance / speedMps * 1000));
 
             return true;
         }
@@ -769,9 +770,9 @@ public class Player : SpawnedBionic
     {
         var currentPos = Position;
 
-        // Calculate unit vector from current position towards target
-        var dx = targetPos.XOffset - currentPos.XOffset;
-        var dy = targetPos.YOffset - currentPos.YOffset;
+        // Calculate unit vector in world meters so sector boundaries are handled accurately.
+        var dx = targetPos.X - currentPos.X;
+        var dy = targetPos.Y - currentPos.Y;
         var len = (float)Math.Sqrt(dx * dx + dy * dy);
         if (len < 0.1f) len = 1.0f;
 
@@ -782,23 +783,31 @@ public class Player : SpawnedBionic
         // Heading = (ux, uy)
         // Left vector (90 deg CCW) = (-uy, ux)
         // Right vector (90 deg CW) = (uy, -ux)
-
-        var speed = ActualSpeed > 0 ? ActualSpeed : 5.0f;
+        var rawSpeed = HasActiveVehicle && Vehicle is { ActualSpeed: > 0 } ? Vehicle.ActualSpeed : ActualSpeed;
+        var speed = Math.Max(2.5f, rawSpeed * 0.1f);
 
         // 1) Go back 5 meters backward (in the opposite direction of the obstacle/target)
         var backDist = 5.0f;
-        var backX = currentPos.XOffset - (ux * backDist);
-        var backY = currentPos.YOffset - (uy * backDist);
-        Position backPos = new(currentPos.Region, backX, backY, currentPos.ZOffset);
+        var backPos = Position.CreateWorldSafe(
+            currentPos.X - (ux * backDist),
+            currentPos.Y - (uy * backDist),
+            currentPos.ZOffset,
+            currentPos.Region);
 
         Log.Notify($"[Navigation] تم رصد عائق في المسار! التراجع 5 أمتار للخلف (محاولة #{evasionIndex})...");
         MoveTo(backPos, sleep: false);
 
-        var backWaitMs = (int)(backDist / speed * 1000) + 200;
+        var backWaitMs = (int)(backDist / speed * 1000) + 250;
         var elapsed = 0;
         while (elapsed < backWaitMs)
         {
-            if (!Components.ScriptManager.Running || Components.ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+            if (Components.ScriptManager.Paused)
+            {
+                if (!Components.ScriptManager.WaitWhilePaused())
+                    return;
+                break;
+            }
+            if (!Components.ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
                 return;
             Thread.Sleep(50);
             elapsed += 50;
@@ -847,18 +856,26 @@ public class Player : SpawnedBionic
         }
 
         var posAfterBack = Position;
-        var sideX = posAfterBack.XOffset + (sideVecX * sideDist);
-        var sideY = posAfterBack.YOffset + (sideVecY * sideDist);
-        Position sidePos = new(posAfterBack.Region, sideX, sideY, posAfterBack.ZOffset);
+        var sidePos = Position.CreateWorldSafe(
+            posAfterBack.X + (sideVecX * sideDist),
+            posAfterBack.Y + (sideVecY * sideDist),
+            posAfterBack.ZOffset,
+            posAfterBack.Region);
 
         Log.Notify($"[Navigation] الالتفاف {sideName} لتفادي العائق...");
         MoveTo(sidePos, sleep: false);
 
-        var sideWaitMs = (int)(sideDist / speed * 1000) + 250;
+        var sideWaitMs = (int)(sideDist / speed * 1000) + 300;
         elapsed = 0;
         while (elapsed < sideWaitMs)
         {
-            if (!Components.ScriptManager.Running || Components.ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
+            if (Components.ScriptManager.Paused)
+            {
+                if (!Components.ScriptManager.WaitWhilePaused())
+                    return;
+                break;
+            }
+            if (!Components.ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
                 return;
             Thread.Sleep(50);
             elapsed += 50;

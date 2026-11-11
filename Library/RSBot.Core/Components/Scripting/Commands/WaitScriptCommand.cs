@@ -48,8 +48,16 @@ internal class WaitScriptCommand : IScriptCommand
             var waitStart = System.DateTime.UtcNow;
             while ((System.DateTime.UtcNow - waitStart).TotalMilliseconds < time)
             {
-                if (!IsBusy || !ScriptManager.Running || ScriptManager.Paused || (Kernel.Bot != null && !Kernel.Bot.Running))
-                    break;
+                if (ScriptManager.Paused)
+                {
+                    if (!ScriptManager.WaitWhilePaused(extraCondition: () => IsBusy))
+                        return false;
+                    waitStart = System.DateTime.UtcNow;
+                    continue;
+                }
+
+                if (!IsBusy || !ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+                    return false;
 
                 Thread.Sleep(100);
             }
