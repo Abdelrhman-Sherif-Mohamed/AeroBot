@@ -76,7 +76,13 @@ public class Radio : RadioButton
         animationManager.OnAnimationProgress += sender => Invalidate();
         rippleAnimationManager.OnAnimationProgress += sender => Invalidate();
 
-        CheckedChanged += (sender, args) => animationManager.StartNewAnimation(Checked ? AnimationDirection.In : AnimationDirection.Out);
+        CheckedChanged += (sender, args) =>
+        {
+            if (IsHandleCreated)
+                animationManager.StartNewAnimation(Checked ? AnimationDirection.In : AnimationDirection.Out);
+            else
+                animationManager.SetProgress(Checked ? 1 : 0);
+        };
 
         SizeChanged += OnSizeChanged;
 
@@ -159,6 +165,9 @@ public class Radio : RadioButton
         base.OnCreateControl();
         if (DesignMode) return;
 
+        if (!animationManager.IsAnimating())
+            animationManager.SetProgress(Checked ? 1 : 0);
+
         FitTextToContent();
         _mouseState = 0;
         MouseEnter += (sender, args) =>
@@ -216,6 +225,8 @@ public class Radio : RadioButton
         var RADIOBUTTON_CENTER = boxOffset + RADIOBUTTON_SIZE_HALF;
 
         var animationProgress = animationManager.GetProgress();
+        if (Checked && !animationManager.IsAnimating() && animationProgress == 0)
+            animationProgress = 1.0;
 
         var disabledOffColor = Color.LightGray;
 

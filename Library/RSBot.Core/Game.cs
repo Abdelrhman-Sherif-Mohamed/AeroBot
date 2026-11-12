@@ -157,6 +157,8 @@ public class Game
         if (Kernel.Bot.Running)
             Kernel.Bot.Stop();
 
+        Kernel.StopAllIndependentRunners();
+
         Kernel.Proxy?.Shutdown();
 
         var divisionIndex = GlobalConfig.Get<int>("RSBot.DivisionIndex");
@@ -189,10 +191,12 @@ public class Game
 
         try
         {
-            MediaPk2 = OpenArchive(directory, "media");
-            DataPk2 = OpenArchive(directory, "data");
+            System.Threading.Tasks.Parallel.Invoke(
+                () => MediaPk2 = OpenArchive(directory, "media"),
+                () => DataPk2 = OpenArchive(directory, "data")
+            );
 
-            SessionLog.Write($"Client directory: {directory} | media: {FindArchiveFile(directory, "media") ?? "Media folder"} | data: {FindArchiveFile(directory, "data") ?? "Data folder"}");
+            SessionLog.Write($"Client directory: {directory} | media: {MediaPk2?.BasePath ?? "Media folder"} | data: {DataPk2?.BasePath ?? "Data folder"}");
 
             if (MediaPk2 == null)
                 Log.Error("Could not find or open a supported media archive (Media.pk2, Media.ne, ...) or the Media folder.");
@@ -360,6 +364,14 @@ public class Game
             return false;
 
         //A random folder named "media" (like the launcher videos in some clients) is not the game media.
+        if (archiveName.Equals("Data", StringComparison.OrdinalIgnoreCase))
+        {
+            return Directory.Exists(Path.Combine(path, "navmesh")) ||
+                   File.Exists(Path.Combine(path, "regioninfo.txt")) ||
+                   Directory.Exists(Path.Combine(path, "dungeon")) ||
+                   Directory.Exists(Path.Combine(path, "prim"));
+        }
+
         return Directory.Exists(Path.Combine(path, "server_dep")) ||
                Directory.Exists(Path.Combine(path, "icon")) ||
                Directory.Exists(Path.Combine(path, "interface")) ||
@@ -415,6 +427,7 @@ public class Game
         ShoppingManager.Initialize();
         ClientlessManager.Initialize();
         ScriptManager.Initialize();
+        KillDeathTracker.Initialize();
     }
 
     /// <summary>

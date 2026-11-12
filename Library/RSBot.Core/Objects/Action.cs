@@ -128,6 +128,8 @@ public class Action
             packet.ReadByte();
 
         action.Flag = (ActionStateFlag)packet.ReadByte();*/
+        KillDeathTracker.OnSkillCast(action);
+
         if (packet.Remaining > 0)
             action.SerializeDetail(packet);
 
@@ -210,7 +212,10 @@ public class Action
                         if (state != ActionHitStateFlag.Block)
                         {
                             if (packet.Remaining < 8)
+                            {
+                                KillDeathTracker.OnHitDetail(Id, ExecutorId, uniqueId, state, 0);
                                 break;
+                            }
 
                             var critStatus = packet.ReadByte(); // 0x01: normal 0x02 critical
 
@@ -225,7 +230,12 @@ public class Action
                             var unknownState = packet.ReadInt();
                             Debug.WriteLine("UnknownState:" + unknownState);
 
+                            KillDeathTracker.OnHitDetail(Id, ExecutorId, uniqueId, state, damage);
                             EventManager.FireEvent("OnEntityHit", Id, ExecutorId, uniqueId, damage, critStatus == 0x02);
+                        }
+                        else
+                        {
+                            KillDeathTracker.OnHitDetail(Id, ExecutorId, uniqueId, state, 0);
                         }
 
                         // dont worry it will return true for knockdown states

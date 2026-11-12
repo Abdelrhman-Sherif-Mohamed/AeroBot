@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
@@ -11,6 +12,11 @@ namespace RSBot.Trade.Bundle;
 
 internal class TransportBundle
 {
+    private const float MountRangeMeters = 3.5f;
+    private const double MountCooldownSeconds = 3.5;
+    private const double RemountTimeoutSeconds = 7.0;
+    private const double BattleFallbackSeconds = 22.0;
+
     /// <summary>
     ///     A value indicating if the bot is waiting for transport.
     /// </summary>
@@ -21,14 +27,23 @@ internal class TransportBundle
     /// </summary>
     public bool TransportStuck { get; private set; }
 
+    /// <summary>
+    ///     A value indicating if the bot is stopping and approaching the transport to mount.
+    /// </summary>
+    public bool IsRemounting { get; private set; }
+
     private DateTime _lastMountAttempt = DateTime.MinValue;
     private DateTime _lastTransportSummonAttempt = DateTime.MinValue;
+    private DateTime _inBattleSince = DateTime.MinValue;
+    private DateTime _remountStartedAt = DateTime.MinValue;
+    private DateTime _lastRemountMoveAt = DateTime.MinValue;
+    private bool _pausedScript;
 
 
     /// <summary>
     ///     A value indicating if the bundle is currently busy and should block further command execution.
     /// </summary>
-    public bool Busy => WaitingForTransport || TransportStuck;
+    public bool Busy => WaitingForTransport || TransportStuck || IsRemounting;
 
     /// <summary>
     ///     Initializes the bot base
@@ -45,6 +60,9 @@ internal class TransportBundle
     {
         WaitingForTransport = false;
         TransportStuck = false;
+        _inBattleSince = DateTime.MinValue;
+        _lastMountAttempt = DateTime.MinValue;
+        CancelRemount();
     }
 
     /// <summary>
@@ -77,12 +95,19 @@ internal class TransportBundle
 
     public void Tick()
     {
+        var player = Game.Player;
+        if (player == null)
+            return;
+
         //Summon new transport?
-        if (Game.Player.JobTransport == null)
+        if (player.JobTransport == null)
         {
+            CancelRemount();
+            _inBattleSince = DateTime.MinValue;
+
             // Do not attempt to summon transport if dead or in combat/action
-            if (Game.Player?.State?.LifeState != LifeState.Alive || Game.Player?.Health == 0 ||
-                Game.Player?.State?.BattleState == BattleState.InBattle || Game.Player?.InAction == true)
+            if (player.State?.LifeState != LifeState.Alive || player.Health == 0 ||
+                player.State?.BattleState == BattleState.InBattle || player.InAction)
                 return;
 
             // Manual transport mode: the player is responsible for summoning
@@ -97,8 +122,10 @@ internal class TransportBundle
             if ((DateTime.UtcNow - _lastTransportSummonAttempt).TotalSeconds < 5.0)
                 return;
 
-            var jobTransportItem = Game.Player.Inventory
-                .GetNormalPartItems(i => i.Record.CodeName.Contains("COS_T_") && i.Record.Tid == 4588)
+            var jobTransportItem = player.Inventory
+                .GetNormalPartItems(i => i?.Record != null &&
+                                         i.Record.CodeName.Contains("COS_T_", StringComparison.OrdinalIgnoreCase) &&
+                                         i.Record.TypeID1 == 3 && i.Record.TypeID2 == 3 && i.Record.TypeID3 == 3 && i.Record.TypeID4 == 2)
                 .FirstOrDefault();
 
             if (jobTransportItem != null)
@@ -112,31 +139,158 @@ internal class TransportBundle
 
             Log.Warn("[Trade] Can not summon transport: No transport scroll in player inventory.");
 
-            Kernel.Bot.Stop();
+            TradeBotbase.StopRunner();
 
             return;
+        }
+
+        if (player.State?.LifeState != LifeState.Alive || player.Health == 0)
+        {
+            CancelRemount();
+            WaitingForTransport = false;
+            return;
+        }
+
+        if (Bundles.AttackBundle.IsAttacking)
+        {
+            CancelRemount();
+            if (player.State?.BattleState == BattleState.InBattle)
+                _inBattleSince = DateTime.UtcNow;
+
+            return;
+        }
+
+        if (player.State?.BattleState == BattleState.InBattle)
+        {
+            if (_inBattleSince == DateTime.MinValue)
+                _inBattleSince = DateTime.UtcNow;
+        }
+        else
+        {
+            _inBattleSince = DateTime.MinValue;
         }
 
         //Wait for certain things?
         if (!CheckDistanceToTransport() || !CheckTransportIsUnderAttack())
-            return;
-
-        if (TradeConfig.MountTransport && !Game.Player.HasActiveVehicle &&
-            !Bundles.AttackBundle.IsAttacking && !Game.Player.InAction &&
-            Game.Player.State?.BattleState != BattleState.InBattle)
         {
-            // Do NOT freeze or pause the script! Player and transport march together on foot!
-            // When the 20-second combat penalty expires, mounting will succeed while moving!
-            if ((DateTime.UtcNow - _lastMountAttempt).TotalSeconds >= 4.0)
+            CancelRemount();
+            return;
+        }
+
+        if (!TradeConfig.MountTransport)
+        {
+            CancelRemount();
+            if (player.HasActiveVehicle && player.Vehicle?.UniqueId == player.JobTransport.UniqueId)
+                player.JobTransport?.Dismount();
+
+            return;
+        }
+
+        if (player.HasActiveVehicle)
+        {
+            CancelRemount();
+            return;
+        }
+
+        TryRemountTransport();
+    }
+
+    private void TryRemountTransport()
+    {
+        var player = Game.Player;
+        var transport = player?.JobTransport;
+        if (player == null || transport == null || ShoppingManager.Running || player.InAction)
+        {
+            CancelRemount();
+            return;
+        }
+
+        var inBattle = player.State?.BattleState == BattleState.InBattle;
+        if (inBattle)
+        {
+            var combatEndedAt = Bundles.AttackBundle.LastCombatEndedAt;
+            var battleAnchor = combatEndedAt > _inBattleSince ? combatEndedAt : _inBattleSince;
+            if (battleAnchor == DateTime.MinValue || (DateTime.UtcNow - battleAnchor).TotalSeconds < BattleFallbackSeconds)
             {
-                _lastMountAttempt = DateTime.UtcNow;
-                Game.Player.JobTransport?.Mount();
+                CancelRemount();
+                return;
             }
         }
-        else if (!TradeConfig.MountTransport && Game.Player.HasActiveVehicle &&
-                 Game.Player.Vehicle.UniqueId == Game.Player.JobTransport.UniqueId)
+
+        if (!IsRemounting)
         {
-            Game.Player.JobTransport?.Dismount();
+            if ((DateTime.UtcNow - _lastMountAttempt).TotalSeconds < MountCooldownSeconds)
+                return;
+
+            IsRemounting = true;
+            _remountStartedAt = DateTime.UtcNow;
+            _lastRemountMoveAt = DateTime.MinValue;
+
+            if (ScriptManager.Running && !ScriptManager.Paused)
+            {
+                ScriptManager.Pause();
+                _pausedScript = true;
+            }
+        }
+
+        if ((DateTime.UtcNow - _remountStartedAt).TotalSeconds >= RemountTimeoutSeconds)
+        {
+            _lastMountAttempt = DateTime.UtcNow;
+            CancelRemount();
+            return;
+        }
+
+        var distance = transport.Position.DistanceToPlayer();
+        if (distance > MountRangeMeters)
+        {
+            if ((DateTime.UtcNow - _lastRemountMoveAt).TotalMilliseconds >= 350)
+            {
+                _lastRemountMoveAt = DateTime.UtcNow;
+                player.MoveTo(transport.Position, sleep: false);
+            }
+
+            Log.Status($"[Trade] الاقتراب لركوب وسيلة النقل ({distance:F1}م)...");
+            return;
+        }
+
+        // Silkroad servers reject 0x70CB (Mount) while moving or beyond interact range.
+        if (player.Movement.Moving || player.Movement.HasDestination)
+        {
+            player.MoveTo(player.Position, sleep: false);
+            player.StopMoving();
+            Thread.Sleep(120);
+        }
+
+        transport.Mount(1500);
+
+        var mounted = player.HasActiveVehicle && player.Vehicle?.UniqueId == transport.UniqueId;
+        _lastMountAttempt = DateTime.UtcNow;
+        CancelRemount();
+
+        if (mounted)
+        {
+            if (player.State != null && player.State.BattleState == BattleState.InBattle)
+                player.State.BattleState = BattleState.InPeace;
+
+            _inBattleSince = DateTime.MinValue;
+            Log.Notify("[Trade] تم امتطاء وسيلة النقل بنجاح!");
+        }
+    }
+
+    private void CancelRemount()
+    {
+        IsRemounting = false;
+        _remountStartedAt = DateTime.MinValue;
+        _lastRemountMoveAt = DateTime.MinValue;
+
+        if (_pausedScript)
+        {
+            _pausedScript = false;
+            if (!Bundles.AttackBundle.IsAttacking && !WaitingForTransport && !TransportStuck &&
+                ScriptManager.Running && ScriptManager.Paused)
+            {
+                ScriptManager.ResumeScript();
+            }
         }
     }
 
@@ -209,7 +363,9 @@ internal class TransportBundle
         if (transportId == 0)
             return true;
 
-        if (!SpawnManager.TryGetEntities<SpawnedBionic>(e => e.TargetId == transportId, out var attackers) || attackers == null)
+        if (!SpawnManager.TryGetEntities<SpawnedBionic>(
+                e => e.TargetId == transportId && e.State?.LifeState == LifeState.Alive, out var attackers) ||
+            attackers == null)
             return true;
 
         return !attackers.Any(AttackBundle.IsThief);
@@ -222,5 +378,7 @@ internal class TransportBundle
     {
         WaitingForTransport = false;
         TransportStuck = false;
+        _inBattleSince = DateTime.MinValue;
+        CancelRemount();
     }
 }

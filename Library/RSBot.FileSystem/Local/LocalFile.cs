@@ -11,7 +11,11 @@ public class LocalFile : IFile
         Path = filePath;
         FileSystem = fileSystem;
 
-        _fileInfo = new FileInfo(filePath);
+        var resolvedPath = fileSystem is LocalFileSystem localFs
+            ? localFs.GetAbsolutePath(filePath)
+            : filePath;
+
+        _fileInfo = new FileInfo(resolvedPath);
     }
 
     public IFileSystem FileSystem { get; }

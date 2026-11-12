@@ -47,10 +47,41 @@ public class Bot
     /// </summary>
     public void Start()
     {
-        if (Running || Botbase == null)
-            return;
+        TryStart(out _);
+    }
 
+    /// <summary>
+    ///     Attempts to start the Training bot, guarding against conflicting movement runners.
+    /// </summary>
+    public bool TryStart(out string errorMessage)
+    {
+        errorMessage = null;
+
+        if (Botbase == null)
+        {
+            errorMessage = Kernel.Language == "ar_AR"
+                ? "لم يتم تحديد بوت التدريب."
+                : "Training botbase is not selected.";
+            return false;
+        }
+
+        if (Running)
+            return true;
+
+        var conflict = Kernel.GetConflictingMovementBotDisplayName(Botbase.Name);
+        if (!string.IsNullOrEmpty(conflict))
+        {
+            var selfName = Kernel.GetLocalizedBotDisplayName(Botbase.Name, Botbase.DisplayName);
+            errorMessage = Kernel.Language == "ar_AR"
+                ? $"لا يمكن تشغيل [{selfName}] أثناء عمل [{conflict}]. يرجى إيقاف [{conflict}] أولاً."
+                : $"Cannot start {selfName} while {conflict} is running. Please stop {conflict} first.";
+            Log.Warn(errorMessage);
+            return false;
+        }
+
+        TokenSource?.Dispose();
         TokenSource = new CancellationTokenSource();
+        var token = TokenSource.Token;
 
         Task.Factory.StartNew(async e =>
             {
@@ -61,7 +92,7 @@ public class Bot
                     EventManager.FireEvent("OnStartBot");
                     Botbase.Start();
 
-                    while (!TokenSource.IsCancellationRequested)
+                    while (!token.IsCancellationRequested)
                     {
                         if (!Game.Ready)
                         {
@@ -87,7 +118,9 @@ public class Bot
                     Stop();
                 }
             },
-            TokenSource.Token, TaskCreationOptions.LongRunning);
+            token, TaskCreationOptions.LongRunning);
+
+        return true;
     }
 
     /// <summary>
@@ -101,12 +134,12 @@ public class Bot
         var wasRunning = Running;
         Running = false;
 
-        ScriptManager.Stop(error: wasRunning);
-        ShoppingManager.Stop();
-        PickupManager.Stop();
-
         if (Botbase == null || !wasRunning)
             return;
+
+        ScriptManager.Stop(error: true);
+        ShoppingManager.Stop();
+        PickupManager.Stop();
 
         EventManager.FireEvent("OnStopBot");
         Log.Notify($"Stopping bot {Botbase.Name}");

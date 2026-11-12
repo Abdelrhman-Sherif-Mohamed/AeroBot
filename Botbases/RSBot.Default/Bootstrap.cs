@@ -94,7 +94,7 @@ public class Bootstrap : IBotbase
             Log.Notify($"[AeroBot] تم تعيين مركز منطقة التدريب تلقائياً على موقع الشخصية الحالي (X: {pos.X:0.0}, Y: {pos.Y:0.0})");
         }
 
-        if (Kernel.Bot.Botbase.Area.Position.X == 0)
+        if (Container.Bot == null || Container.Bot.Area.Position.X == 0)
         {
             Log.WarnLang("ConfigureTrainingAreaBeforeStartBot");
             Kernel.Bot.Stop();

@@ -282,13 +282,13 @@ namespace SDUI.Controls
             graphics.DrawLine(borderPen, _downButtonRect.X, 0, _downButtonRect.X, _downButtonRect.Height);
 
             // Numeric value
-            var buttonsWidth = (int)(SIZE * _dpi * 2);
-            var valueRect = new Rectangle(Padding.Left + 6, 0,
-                Math.Max(1, Width - buttonsWidth - Padding.Left - Padding.Right - 10),
-                Height - 1);
+            var buttonsWidth = (int)Math.Ceiling(SIZE * _dpi * 2);
+            var textX = Math.Max(2, Padding.Left + 3);
+            var valueWidth = Math.Max(1, Width - buttonsWidth - textX - Math.Max(2, Padding.Right + 3));
+            var valueRect = new Rectangle(textX, 0, valueWidth, Height - 1);
 
             TextRenderer.DrawText(graphics, Value.ToString(), Font, valueRect, textColor,
-                TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+                TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
         }
 
         private static void DrawArrow(Graphics g, RectangleF rect, bool up, Color color)

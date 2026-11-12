@@ -5,20 +5,24 @@ namespace RSBot.Alchemy;
 
 internal class Globals
 {
-    #region Properties
+    private static readonly object _initLock = new();
+
+    static Globals()
+    {
+        lock (_initLock)
+        {
+            Botbase = new Botbase();
+            View = new Main();
+        }
+    }
 
     /// <summary>
-    ///     Gets or sets the view
-    /// </summary>
-    /// <value>
-    ///     The view.
-    /// </value>
-    public static Main View { get; } = new();
-
-    /// <summary>
-    ///     Gets or sets the bot base
+    ///     Gets or sets the bot base.
     /// </summary>
     public static Botbase Botbase { get; set; }
 
-    #endregion Properties
+    /// <summary>
+    ///     Gets the root alchemy view.
+    /// </summary>
+    public static Main View { get; }
 }

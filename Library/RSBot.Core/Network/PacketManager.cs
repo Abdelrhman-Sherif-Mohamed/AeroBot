@@ -106,10 +106,36 @@ public class PacketManager
     /// <returns></returns>
     internal static Packet CallHook(Packet packet, PacketDestination destination)
     {
-        var hooks = Hooks?.Where(hook =>
-            packet != null && hook.Opcode == packet.Opcode && hook.Destination == destination);
+        if (packet == null || Hooks == null)
+            return packet;
+
+        var hooks = Hooks.Where(hook =>
+            hook != null && hook.Opcode == packet.Opcode && hook.Destination == destination).ToList();
+
         foreach (var hook in hooks)
-            packet = hook.ReplacePacket(packet);
+        {
+            if (packet == null)
+                break;
+
+            var original = packet;
+            try
+            {
+                if (packet.Locked)
+                    packet.SeekRead(0, SeekOrigin.Begin);
+
+                packet = hook.ReplacePacket(packet);
+
+                if (packet != null && packet.Locked)
+                    packet.SeekRead(0, SeekOrigin.Begin);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug($"[PacketManager] Suppressed hook exception in {hook.GetType().Name} for opcode 0x{original.Opcode:X4}: {ex.Message}");
+                packet = original;
+                if (packet.Locked)
+                    packet.SeekRead(0, SeekOrigin.Begin);
+            }
+        }
 
         return packet;
     }

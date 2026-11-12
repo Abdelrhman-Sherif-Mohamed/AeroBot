@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Linq;
+using RSBot.Alchemy.Bot;
 using RSBot.Alchemy.Client.ReferenceObjects;
 using RSBot.Alchemy.Extension;
+using RSBot.Alchemy.Helper;
 using RSBot.Core;
 using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Components;
@@ -13,26 +15,24 @@ namespace RSBot.Alchemy.Bundle.Magic;
 
 internal class MagicBundle : IAlchemyBundle
 {
-    #region Member
-
     private bool _shouldRun = true;
-
-    #endregion Member
-
-    #region Constructor
 
     public MagicBundle()
     {
         SubscribeEvents();
     }
 
-    #endregion Constructor
+    public void Start()
+    {
+        _shouldRun = true;
+    }
 
-    #region Methods
+    public void Stop()
+    {
+        _shouldRun = false;
+        AlchemyManager.CancelPending();
+    }
 
-    /// <summary>
-    ///     Subscribes the events
-    /// </summary>
     private void SubscribeEvents()
     {
         EventManager.SubscribeEvent("OnAlchemySuccess",
@@ -44,148 +44,96 @@ internal class MagicBundle : IAlchemyBundle
         EventManager.SubscribeEvent("OnFuseRequest", new Action<AlchemyAction, AlchemyType>(OnFuseRequest));
     }
 
-    /// <summary>
-    ///     Stops this manager
-    /// </summary>
-    public void Stop()
-    {
-        _shouldRun = false;
-
-        AlchemyManager.CancelPending();
-    }
-
-    /// <summary>
-    ///     Starts this manager
-    /// </summary>
-    public void Start()
-    {
-        _shouldRun = true;
-    }
-
-    /// <summary>
-    ///     Returns the translation name for an error code
-    /// </summary>
-    /// <param name="errorCode"></param>
-    /// <returns></returns>
-    private string GetErrorTranslationName(ushort errorCode)
-    {
-        switch (errorCode)
-        {
-            case 21536:
-                return "UIIT_MSG_STRGERR_ASTRAL";
-
-            case 21537:
-                return "UIIT_MSG_ENCHANT_EQUIPCLASS_MISMATCH";
-
-            case 21538:
-                return "UIIT_MSG_STRGERR_MAGICSTONE2_MAX";
-
-            case 21540:
-                return "UIIT_MSG_STRGERR_ASTRAL";
-
-            case 21541:
-                return "UIIT_MSG_TC_ERROR_ENCHANT_HONOR_ITEM";
-
-            case 21542:
-                return "UIIT_MSG_REINFORCERR_ALREADY_DONE";
-
-            case 21543:
-                return "UIIT_MSG_STRGERR_ASTRAL";
-
-            default:
-                return "UIIT_MSG_ENCHANT_FAILED";
-        }
-    }
-
-    /// <summary>
-    ///     Runs a tick of this manager
-    /// </summary>
-    /// <param name="engineConfig">The configuration for this manager</param>
     public void Run<T>(T engineConfig)
     {
         if (engineConfig is not MagicBundleConfig config)
             return;
 
-        if (config?.MagicStones?.Count == 0)
-        {
-            Log.Warn("[Alchemy] No magic stones configured!");
-            Kernel.Bot.Stop();
+        if (!_shouldRun || (Globals.Botbase.AlchemyEngine != AlchemyEngine.Magic &&
+                            Globals.Botbase.AlchemyEngine != AlchemyEngine.Queue))
+            return;
 
+        if (config.Item == null)
+        {
+            Globals.Botbase.NotifyItemFatal("No item configured for Blues", allowSkipInQueue: true);
             return;
         }
 
-        if (config == null || _shouldRun is false || config.Item == null || config.MagicStones == null ||
-            config.MagicStones?.Count == 0)
-            return;
-
-        //Loops over every stone that should be fused
-        foreach (var stone in config.MagicStones.Where(i => i.Key.Amount > 0))
+        var item = Game.Player.Inventory.GetItemAt(config.Item.Slot);
+        if (item == null || item.ItemId != config.Item.ItemId || item.Amount == 0)
         {
-            //Wait for the next tick
-            if (_shouldRun == false)
-                break;
+            Globals.Botbase.NotifyItemFatal("Item for Blues is unavailable", allowSkipInQueue: true);
+            return;
+        }
 
-            //Check if the stone to be fused is in the correct slot, otherwise get the same item type again from the inventory
-            var magicStone = Game.Player.Inventory.GetItem(stone.Key.ItemId);
-            if (magicStone == null)
+        config.Item = item;
+
+        if (config.Targets == null || config.Targets.Count == 0)
+        {
+            Globals.Botbase.NotifyItemFatal("No magic stones configured", allowSkipInQueue: true);
+            return;
+        }
+
+        foreach (var target in config.Targets)
+        {
+            if (target?.ReferenceOption == null || string.IsNullOrEmpty(target.Group))
                 continue;
 
-            //Gets the current magic option info from the selected item if available
-            var current = config.Item.MagicOptions.FirstOrDefault(m => m.Record.Group == stone.Value.Group);
+            var magicStone = AlchemyItemHelper.GetStonesByGroup(item, target.Group).FirstOrDefault();
+            if (magicStone == null || magicStone.Amount == 0)
+                continue;
 
-            //Enough immortal to fuse the astral stone?
-            if (stone.Value.Group == RefMagicOpt.MaterialAstral)
+            var current = item.MagicOptions?.FirstOrDefault(m => m.Record?.Group == target.Group);
+
+            if (target.Group == RefMagicOpt.MaterialAstral)
             {
-                var immortalInfo = config.Item.MagicOptions.FirstOrDefault(m =>
-                    Game.ReferenceManager.GetMagicOption(m.Id).Group == RefMagicOpt.MaterialImmortal);
+                var immortalInfo = item.MagicOptions?.FirstOrDefault(m =>
+                    Game.ReferenceManager.GetMagicOption(m.Id)?.Group == RefMagicOpt.MaterialImmortal);
 
-                //Not enough immortal attribute -> Need to skip astral
-                if (immortalInfo?.Value <= current?.Value)
+                if (immortalInfo == null || immortalInfo.Value <= (current?.Value ?? 0))
                     continue;
             }
 
-            //Max value reached?
-            if (current != null && current.Record.Level != config.Item.Record.Degree)
+            if (current != null && current.Record != null && current.Record.Level != item.Record.Degree)
             {
-                //Fix in case the server sends a lower magic option id than expected (dunno why this happens)
-                var actualMagicOption = Game.ReferenceManager.GetMagicOption(current.Record.Group,
-                    (byte)config.Item.Record.Degree);
-
-                current = new MagicOptionInfo { Id = actualMagicOption.Id, Value = current.Value };
+                var actualOpt = Game.ReferenceManager.GetMagicOption(current.Record.Group, (byte)item.Record.Degree);
+                if (actualOpt != null)
+                    current = new MagicOptionInfo { Id = actualOpt.Id, Value = current.Value };
             }
 
-            Log.Debug($"[Alchemy] MaxStat: {current?.Record.GetMaxValue()}");
+            var maxAllowed = target.ReferenceOption.GetMaxValue();
+            var desiredTarget = target.TargetValue > 0 && target.TargetValue <= maxAllowed
+                ? target.TargetValue
+                : maxAllowed;
 
-            if (current == null || current.Value < current.Record.GetMaxValue())
-            {
-                if (!AlchemyManager.TryFuseMagicStone(config.Item, magicStone))
-                    continue;
+            if (current != null && current.Value >= desiredTarget)
+                continue;
 
-                _shouldRun = false;
-            }
-            else
-            {
-                Log.Notify("[Alchemy] Maximum option level reached!");
-            }
+            if (!AlchemyManager.TryFuseMagicStone(item, magicStone))
+                continue;
+
+            _shouldRun = false;
+            return;
         }
 
         if (_shouldRun)
         {
-            Log.Notify("[Alchemy] Magic stone fusing finished!");
-
-            Kernel.Bot.Stop();
+            Log.Notify("[Alchemy] Magic stone fusing finished.");
+            Globals.View.AddLog(item.Record.GetRealName(), "Blues finished");
+            Globals.Botbase.NotifyItemCompleted("Blues completed");
         }
     }
 
-    #endregion Methods
+    private static string GetErrorTranslationName(ushort errorCode) => errorCode switch
+    {
+        21536 or 21540 or 21543 => "UIIT_MSG_STRGERR_ASTRAL",
+        21537 => "UIIT_MSG_ENCHANT_EQUIPCLASS_MISMATCH",
+        21538 => "UIIT_MSG_STRGERR_MAGICSTONE2_MAX",
+        21541 => "UIIT_MSG_TC_ERROR_ENCHANT_HONOR_ITEM",
+        21542 => "UIIT_MSG_REINFORCERR_ALREADY_DONE",
+        _ => "UIIT_MSG_ENCHANT_FAILED"
+    };
 
-    #region Events
-
-    /// <summary>
-    ///     Will be triggered if any fuse request was sent to the server
-    /// </summary>
-    /// <param name="action"></param>
-    /// <param name="type"></param>
     private void OnFuseRequest(AlchemyAction action, AlchemyType type)
     {
         if (type != AlchemyType.MagicStone || !Bootstrap.IsActive)
@@ -194,9 +142,6 @@ internal class MagicBundle : IAlchemyBundle
         _shouldRun = false;
     }
 
-    /// <summary>
-    ///     Will be triggered if any stone alchemy action response was sent from the server
-    /// </summary>
     private void OnStoneAlchemy(AlchemyType type)
     {
         if (type != AlchemyType.MagicStone || !Bootstrap.IsActive)
@@ -205,94 +150,72 @@ internal class MagicBundle : IAlchemyBundle
         _shouldRun = true;
     }
 
-    /// <summary>
-    ///     Will be triggered if a stone alchemy operation was successful
-    /// </summary>
-    /// <param name="newItem">The new item after the successful action</param>
     private void OnStoneAlchemySuccess(InventoryItem oldItem, InventoryItem newItem, AlchemyType type)
     {
-        if (type != AlchemyType.MagicStone || !Bootstrap.IsActive)
+        if (type != AlchemyType.MagicStone || !Bootstrap.IsActive || newItem == null)
             return;
-
-        if (oldItem == null)
-            return;
-
-        MagicOptionInfo changedOption = null;
-
-        //Get the changed option of the item
-        var isNew = false;
-        foreach (var newMagicOption in newItem.MagicOptions)
-        {
-            var oldMagicOption = oldItem.MagicOptions.FirstOrDefault(m => m.Id == newMagicOption.Id);
-
-            changedOption = newMagicOption;
-
-            if (oldMagicOption == null)
-            {
-                isNew = true;
-                changedOption = newMagicOption;
-
-                break;
-            }
-
-            if (oldMagicOption.Value == newMagicOption.Value)
-                continue;
-
-            changedOption = newMagicOption;
-
-            break;
-        }
-
-        if (changedOption == null) return;
-
-        //Print the messages
-        var record = Game.ReferenceManager.GetMagicOption(changedOption.Id);
-
-        var message = !isNew
-            ? Game.ReferenceManager.GetTranslation("UIIT_MSG_ALCHEMY_CHANGE_CATTR").JoymaxFormat(
-                newItem.Record.GetRealName(), record.GetGroupTranslation(),
-                $"{oldItem.MagicOptions.FirstOrDefault(m => m.Id == changedOption.Id).Value} -> {changedOption.Value}")
-            : Game.ReferenceManager.GetTranslation("UIIT_MSG_ALCHEMY_APPEND_ATTR")
-                .JoymaxFormat(record.GetGroupTranslation(), newItem.Record.GetRealName());
-
-        Globals.View.AddLog(newItem.Record.GetRealName(), message);
 
         _shouldRun = true;
+
+        if (Globals.Botbase.MagicBundleConfig != null && oldItem != null &&
+            Globals.Botbase.MagicBundleConfig.Item?.Slot == oldItem.Slot)
+        {
+            Globals.Botbase.MagicBundleConfig.Item = newItem;
+        }
+
+        if (oldItem?.MagicOptions != null && newItem.MagicOptions != null)
+        {
+            foreach (var newOpt in newItem.MagicOptions)
+            {
+                var oldOpt = oldItem.MagicOptions.FirstOrDefault(m => m.Id == newOpt.Id);
+                if (oldOpt != null && oldOpt.Value == newOpt.Value)
+                    continue;
+
+                var record = Game.ReferenceManager.GetMagicOption(newOpt.Id);
+                if (record == null)
+                    break;
+
+                var message = oldOpt != null
+                    ? Game.ReferenceManager.GetTranslation("UIIT_MSG_ALCHEMY_CHANGE_CATTR")
+                        .JoymaxFormat(newItem.Record.GetRealName(), record.GetGroupTranslation(),
+                            $"{oldOpt.Value} -> {newOpt.Value}")
+                    : Game.ReferenceManager.GetTranslation("UIIT_MSG_ALCHEMY_APPEND_ATTR")
+                        .JoymaxFormat(record.GetGroupTranslation(), newItem.Record.GetRealName());
+
+                Globals.View.AddLog(newItem.Record.GetRealName(), message);
+                break;
+            }
+        }
+
+        Globals.Botbase.NotifyItemProgressed(newItem);
     }
 
-    /// <summary>
-    ///     Will be triggered if a stone alchemy action failed
-    /// </summary>
-    /// <param name="newItem">The new item after the operation failed</param>
     private void OnStoneAlchemyFailed(InventoryItem oldItem, InventoryItem newItem, AlchemyType type)
     {
         if (type != AlchemyType.MagicStone || !Bootstrap.IsActive)
             return;
 
-        Globals.View.AddLog(newItem.Record.GetRealName(),
-            Game.ReferenceManager.GetTranslation("UIIT_MSG_REINFORCERR_FAIL"));
-
         _shouldRun = true;
+        if (newItem != null)
+        {
+            if (Globals.Botbase.MagicBundleConfig?.Item?.Slot == newItem.Slot)
+                Globals.Botbase.MagicBundleConfig.Item = newItem;
+
+            Globals.View.AddLog(newItem.Record.GetRealName(),
+                Game.ReferenceManager.GetTranslation("UIIT_MSG_REINFORCERR_FAIL"));
+            Globals.Botbase.NotifyItemProgressed(newItem);
+        }
     }
 
-    /// <summary>
-    ///     Will be triggered if an stone alchemy error
-    /// </summary>
-    /// <param name="errorCode">The error code</param>
     private void OnStoneAlchemyError(ushort errorCode, AlchemyType type)
     {
         if (type != AlchemyType.MagicStone || !Bootstrap.IsActive)
             return;
 
         var translationName = GetErrorTranslationName(errorCode);
-
-        Globals.View.AddLog(
-            AlchemyManager.ActiveAlchemyItems?.Count > 0
-                ? AlchemyManager.ActiveAlchemyItems.First().Record.GetRealName()
-                : "", Game.ReferenceManager.GetTranslation(translationName));
+        var itemName = AlchemyManager.ActiveAlchemyItems?.FirstOrDefault()?.Record?.GetRealName() ?? string.Empty;
+        Globals.View.AddLog(itemName, Game.ReferenceManager.GetTranslation(translationName));
 
         _shouldRun = true;
     }
-
-    #endregion Events
 }

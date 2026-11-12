@@ -31,7 +31,11 @@ public partial class Main : UIWindow
     ///     Bot player name [_cached]
     /// </summary>
     private string _playerName;
-    private readonly Dictionary<string, UIWindow> _pluginWindows = new(8);
+    private bool _sidebarVisible;
+    private ExtensionsHubControl _extensionsHub;
+    private AccountPageControl _accountPage;
+    private System.Windows.Forms.Timer _accountRefreshTimer;
+    private ToolStripMenuItem _gearAccountItem;
 
 
 
@@ -79,14 +83,8 @@ public partial class Main : UIWindow
         if (menuStrip != null)
         {
             menuStrip.MouseLeave += (s, e) => ClearMenuSelection();
-            fileToolStripMenuItem.Click += (s, e) => fileToolStripMenuItem.ShowDropDown();
-            viewToolStripMenuItem.Click += (s, e) => viewToolStripMenuItem.ShowDropDown();
-            toolsToolStripMenuItem.Click += (s, e) => toolsToolStripMenuItem.ShowDropDown();
-            menuPlugins.Click += (s, e) => menuPlugins.ShowDropDown();
-            botsToolStripMenuItem.Click += (s, e) => botsToolStripMenuItem.ShowDropDown();
-            languageToolStripMenuItem.Click += (s, e) => languageToolStripMenuItem.ShowDropDown();
-            themeToolStripMenuItem.Click += (s, e) => themeToolStripMenuItem.ShowDropDown();
-            aboutToolStripMenuItem.Click += (s, e) => aboutToolStripMenuItem.ShowDropDown();
+            if (menuAccountSummary != null)
+                menuAccountSummary.Click += (s, e) => OpenAccountPage();
         }
 
         InitializeGearMenu();
@@ -109,32 +107,219 @@ public partial class Main : UIWindow
     }
 
     /// <summary>
-    ///     Preferred order of the sidebar pages. The current botbase takes the third slot.
+    ///     Preferred order of the sidebar pages.
     /// </summary>
     private static readonly string[] NavigationOrder =
     {
-        // Core bot pages
+        "RSBot.Account",
+        "RSBot.Statistics",
         "RSBot.General",
-        "RSBot.Items",
-        "RSBot.Inventory",
-        "RSBot.Skills",
         "RSBot.Protection",
         "RSBot.Party",
+        "RSBot.Skills",
+        "RSBot.Mastery",
+        "RSBot.Inventory",
+        "RSBot.Items",
+        "RSBot.Alchemy",
+        "RSBot.Default",
+        "RSBot.Trade",
         "RSBot.Map",
-        // Information pages
-        "RSBot.Statistics",
+        "Wolves.Stall",
+        "RSBot.QuestLog",
+        "RSBot.ExtensionsHub",
+        "Wolves.Players",
         "RSBot.Chat",
-        "RSBot.Log",
-        // Extra tools, kept at the end of the rail
+        "RSBot.CommandCenter",
+        "RSBot.Log"
+    };
+
+    /// <summary>
+    ///     Secondary tools grouped inside the unified "Extensions" ("الإضافات") tab.
+    /// </summary>
+    private static readonly string[] ExtensionsHubToolKeys =
+    {
+        "RSBot.Lure",
         "Wolves.Fortress",
         "Wolves.Control",
-        "Wolves.Stall",
+        "Wolves.Notify",
         "Wolves.AvatarTester",
-        "Wolves.Players",
+        "SonicBot.MobSelector",
+        "RSBot.ServerInfo"
+    };
+
+    /// <summary>
+    ///     Plugins excluded from the sidebar navigation rail.
+    /// </summary>
+    private static readonly HashSet<string> HiddenSidebarPlugins = new(StringComparer.OrdinalIgnoreCase)
+    {
         "SonicBot.TargetSupport",
         "SonicBot.Trivia",
-        "SonicBot.MobSelector"
+        "AeroBot.TargetSupport",
+        "AeroBot.Trivia"
     };
+
+    private static int GetExtensionsHubOrder(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return -1;
+
+        var exact = Array.IndexOf(ExtensionsHubToolKeys, name);
+        if (exact >= 0)
+            return exact;
+
+        var suffix = name.Contains('.') ? name.Substring(name.IndexOf('.') + 1) : name;
+        for (var i = 0; i < ExtensionsHubToolKeys.Length; i++)
+        {
+            var toolSuffix = ExtensionsHubToolKeys[i].Contains('.')
+                ? ExtensionsHubToolKeys[i].Substring(ExtensionsHubToolKeys[i].IndexOf('.') + 1)
+                : ExtensionsHubToolKeys[i];
+
+            if (string.Equals(suffix, toolSuffix, StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static string GetExtensionsHubTitle()
+    {
+        var fallback = Kernel.Language == "ar_AR" ? "الإضافات" : "Extensions";
+        return LanguageManager.GetLangBySpecificKey("RSBot.ExtensionsHub", "DisplayName", fallback);
+    }
+
+    private ExtensionsHubControl EnsureExtensionsHub()
+    {
+        if (_extensionsHub != null && !_extensionsHub.IsDisposed)
+            return _extensionsHub;
+
+        _extensionsHub = new ExtensionsHubControl
+        {
+            Name = "RSBot.ExtensionsHub",
+            Text = GetExtensionsHubTitle(),
+            Enabled = true,
+            Dock = DockStyle.Fill
+        };
+
+        if (windowPageControl != null && !windowPageControl.Controls.ContainsKey(_extensionsHub.Name))
+        {
+            windowPageControl.Controls.Add(_extensionsHub);
+            ChangeControlsTheme(_extensionsHub);
+        }
+
+        return _extensionsHub;
+    }
+
+    private static string GetAccountTabTitle()
+    {
+        var fallback = Kernel.Language == "ar_AR" ? "الحساب" : "Account";
+        return LanguageManager.GetLangBySpecificKey("RSBot.Account", "DisplayName", fallback);
+    }
+
+    private AccountPageControl EnsureAccountPage()
+    {
+        if (_accountPage != null && !_accountPage.IsDisposed)
+            return _accountPage;
+
+        _accountPage = new AccountPageControl
+        {
+            Name = "RSBot.Account",
+            Text = GetAccountTabTitle(),
+            Enabled = true,
+            Dock = DockStyle.Fill
+        };
+        _accountPage.AccountRefreshed += (_, _) => UpdateAccountMenuSummary();
+
+        if (windowPageControl != null && !windowPageControl.Controls.ContainsKey(_accountPage.Name))
+        {
+            windowPageControl.Controls.Add(_accountPage);
+            ChangeControlsTheme(_accountPage);
+            _accountPage.ApplyTheme();
+        }
+
+        return _accountPage;
+    }
+
+    private void EnsureAccountRefreshTimer()
+    {
+        if (_accountRefreshTimer != null)
+            return;
+
+        _accountRefreshTimer = new System.Windows.Forms.Timer { Interval = 30000 };
+        _accountRefreshTimer.Tick += (_, _) =>
+        {
+            if (IsDisposed || Disposing)
+                return;
+
+            _accountPage?.RefreshData();
+            UpdateAccountMenuSummary();
+        };
+        FormClosing += (_, _) =>
+        {
+            if (_accountRefreshTimer != null)
+            {
+                _accountRefreshTimer.Stop();
+                _accountRefreshTimer.Dispose();
+                _accountRefreshTimer = null;
+            }
+        };
+        _accountRefreshTimer.Start();
+    }
+
+    private void OpenAccountPage()
+    {
+        var page = EnsureAccountPage();
+        if (page == null)
+            return;
+
+        page.RefreshData();
+
+        if (windowPageControl == null)
+            return;
+
+        var pageIndex = windowPageControl.IndexOfPage(page);
+        if (pageIndex >= 0)
+            windowPageControl.SelectedIndex = pageIndex;
+    }
+
+    private void UpdateAccountMenuSummary()
+    {
+        if (menuAccountSummary == null)
+            return;
+
+        if (InvokeRequired)
+        {
+            try { BeginInvoke(new Action(UpdateAccountMenuSummary)); } catch { }
+            return;
+        }
+
+        bool ar = Kernel.Language == "ar_AR";
+        var user = AuthService.Instance.CurrentUser;
+        if (user == null)
+        {
+            menuAccountSummary.Text = ar ? "👤 الحساب" : "👤 Account";
+            menuAccountSummary.ToolTipText = ar ? "عرض تفاصيل الحساب والاشتراك" : "View account and subscription details";
+            menuAccountSummary.ForeColor = ColorScheme.AccentColor;
+            if (_gearAccountItem != null)
+                _gearAccountItem.Text = menuAccountSummary.Text;
+            return;
+        }
+
+        string remaining = AccountPageControl.FormatRemaining(user, ar);
+        menuAccountSummary.Text = $"👤 {user.Username}  •  ⏳ {remaining}";
+        menuAccountSummary.ToolTipText = ar
+            ? "انقر لفتح صفحة الحساب وتفاصيل الاشتراك"
+            : "Click to open the Account & Subscription page";
+
+        if (user.IsBlocked || user.IsExpired)
+            menuAccountSummary.ForeColor = Color.FromArgb(220, 38, 38);
+        else if (!user.IsLifetime && user.RemainingTime is { TotalDays: <= 3 })
+            menuAccountSummary.ForeColor = Color.FromArgb(217, 119, 6);
+        else
+            menuAccountSummary.ForeColor = ColorScheme.AccentColor;
+
+        if (_gearAccountItem != null)
+            _gearAccountItem.Text = menuAccountSummary.Text;
+    }
 
     /// <summary>
     ///     Applies a fixed, deterministic sidebar order so pages never jump around.
@@ -145,8 +330,6 @@ public partial class Main : UIWindow
             return;
 
         windowPageControl.GroupBreakBefore.Clear();
-        windowPageControl.GroupBreakBefore.Add("RSBot.Statistics");
-        windowPageControl.GroupBreakBefore.Add("Wolves.Fortress");
 
         var pages = new List<Control>(windowPageControl.Count);
         for (int i = 0; i < windowPageControl.Count; i++)
@@ -159,10 +342,6 @@ public partial class Main : UIWindow
     {
         if (control == null)
             return int.MaxValue;
-
-        // The active botbase page always sits right after "General" and "Items".
-        if (Kernel.BotbaseManager?.Bots != null && Kernel.BotbaseManager.Bots.ContainsKey(control.Name))
-            return 2;
 
         var name = control.Name ?? string.Empty;
         var index = Array.IndexOf(NavigationOrder, name);
@@ -181,10 +360,7 @@ public partial class Main : UIWindow
             }
         }
 
-        if (index < 0)
-            return 100;
-
-        return index < 2 ? index : index + 1;
+        return index < 0 ? 100 : index;
     }
 
     /// <summary>
@@ -195,13 +371,20 @@ public partial class Main : UIWindow
         BackColor = ColorScheme.BackColor;
         TitleHeight = 32;
         VerticalTabs = true;
+        _extensionsHub?.ApplyTheme();
+        _accountPage?.ApplyTheme();
 
         if (menuStrip != null)
         {
             ApplyThemeToToolStrip(menuStrip);
+            UpdateAccountMenuSummary();
         }
 
-        if (ExtendMenu != null)
+        if (_gearMenu != null && !_gearMenu.Visible)
+        {
+            RebuildGearMenu();
+        }
+        else if (ExtendMenu != null)
         {
             ApplyThemeToToolStrip(ExtendMenu);
         }
@@ -337,6 +520,12 @@ public partial class Main : UIWindow
             StyleActionButton(btnSave, Color.FromArgb(41, 128, 185), Color.White);
         if (btnClearLog != null && btnClearLog.Parent != null)
             StyleActionButton(btnClearLog, neutralBack, neutralFore);
+
+        bool running = Kernel.Bot?.Running == true;
+        if (btnStartBot != null)
+            btnStartBot.Enabled = !running;
+        if (btnStopBot != null)
+            btnStopBot.Enabled = running;
     }
 
     private static void StyleActionButton(SDUI.Controls.Button button, Color backColor, Color foreColor)
@@ -373,46 +562,6 @@ public partial class Main : UIWindow
 
         bool ar = Kernel.Language == "ar_AR";
 
-        if (fileToolStripMenuItem != null)
-            fileToolStripMenuItem.Text = ar ? "ملف" : "File";
-        if (viewToolStripMenuItem != null)
-            viewToolStripMenuItem.Text = ar ? "عرض" : "View";
-        if (toolsToolStripMenuItem != null)
-            toolsToolStripMenuItem.Text = ar ? "أدوات" : "Tools";
-        if (menuPlugins != null)
-            menuPlugins.Text = ar ? "إضافات" : "Plugins";
-        if (botsToolStripMenuItem != null)
-            botsToolStripMenuItem.Text = ar ? "البوتات" : "Bots";
-        if (languageToolStripMenuItem != null)
-            languageToolStripMenuItem.Text = ar ? "اللغة" : "Language";
-        if (themeToolStripMenuItem != null)
-            themeToolStripMenuItem.Text = ar ? "المظهر" : "Theme";
-        if (aboutToolStripMenuItem != null)
-            aboutToolStripMenuItem.Text = ar ? "حول" : "About";
-
-        if (menuSelectProfile != null)
-            menuSelectProfile.Text = ar ? "اختيار الملف الشخصي..." : "Select Profile...";
-        if (networkConfigToolStripMenuItem != null)
-            networkConfigToolStripMenuItem.Text = ar ? "إعدادات البروكسي" : "Proxy Config";
-        if (menuItemExit != null)
-            menuItemExit.Text = ar ? "خروج" : "Exit";
-        if (menuSidebar != null)
-            menuSidebar.Text = ar ? "الشريط الجانبي" : "Sidebar";
-        if (menuLog != null)
-            menuLog.Text = ar ? "السجل" : "Log";
-        if (menuScriptRecorder != null)
-            menuScriptRecorder.Text = ar ? "مسجل السكربت" : "Script Recorder";
-        if (darkToolStripMenuItem != null)
-            darkToolStripMenuItem.Text = ar ? "داكن" : "Dark";
-        if (lightToolStripMenuItem != null)
-            lightToolStripMenuItem.Text = ar ? "فاتح" : "Light";
-        if (autoToolStripMenuItem != null)
-            autoToolStripMenuItem.Text = ar ? "تلقائي" : "Auto";
-        if (coloredToolStripMenuItem != null)
-            coloredToolStripMenuItem.Text = ar ? "اختيار لون" : "Choose a color";
-        if (thisToolStripMenuItem != null)
-            thisToolStripMenuItem.Text = ar ? "هذا البرنامج" : "This";
-
         menuCurrentProfile.Text = ar
             ? $"الملف: {ProfileManager.SelectedProfile}"
             : $"Profile: {ProfileManager.SelectedProfile}";
@@ -421,13 +570,32 @@ public partial class Main : UIWindow
             lblIngameStatus.Text = ar ? "غير متصل" : "Not in game";
         else if (Kernel.Bot != null && Kernel.Bot.Running)
             lblIngameStatus.Text = ar ? "يعمل" : "Running";
+
+        if (_extensionsHub != null && !_extensionsHub.IsDisposed)
+        {
+            _extensionsHub.Text = GetExtensionsHubTitle();
+            _extensionsHub.RefreshLocalization();
+        }
+
+        if (_accountPage != null && !_accountPage.IsDisposed)
+        {
+            _accountPage.Text = GetAccountTabTitle();
+            _accountPage.ApplyLanguage();
+        }
+
+        UpdateAccountMenuSummary();
+        RebuildGearMenu();
     }
     private SDUI.Controls.ContextMenuStrip _gearMenu;
 
     private void InitializeGearMenu()
     {
-        // ExtendMenu is kept null to avoid duplicate gear icon in title bar
-        ExtendMenu = null;
+        _gearMenu = new SDUI.Controls.ContextMenuStrip
+        {
+            Renderer = new SDUI.Renderers.MenuRenderer()
+        };
+        ExtendMenu = _gearMenu;
+        RebuildGearMenu();
     }
 
     private void RebuildGearMenu()
@@ -439,8 +607,10 @@ public partial class Main : UIWindow
 
         // File
         var mFile = new ToolStripMenuItem(ar ? "ملف" : "File");
-        var mSave = new ToolStripMenuItem(ar ? "💾 حفظ الإعدادات" : "💾 Save Settings", null, btnSave_Click);
-        mSave.ShortcutKeys = Keys.Control | Keys.S;
+        var mSave = new ToolStripMenuItem(ar ? "💾 حفظ الإعدادات" : "💾 Save Settings", null, btnSave_Click)
+        {
+            ShortcutKeys = Keys.Control | Keys.S
+        };
         var mSelProfile = new ToolStripMenuItem(ar ? "اختيار الملف الشخصي..." : "Select Profile...", null, menuSelectProfile_Click);
         var mProxy = new ToolStripMenuItem(ar ? "إعدادات البروكسي" : "Proxy Config", null, networkConfigToolStripMenuItem_Click);
         var mExit = new ToolStripMenuItem(ar ? "خروج" : "Exit", null, menuItemExit_Click);
@@ -448,11 +618,9 @@ public partial class Main : UIWindow
 
         // View
         var mView = new ToolStripMenuItem(ar ? "عرض" : "View");
-        var mSidebar = new ToolStripMenuItem(ar ? "الشريط الجانبي" : "Sidebar") { Checked = menuSidebar?.Checked ?? false };
-        mSidebar.Click += (s, e) =>
+        var mSidebar = new ToolStripMenuItem(ar ? "الشريط الجانبي" : "Sidebar", null, menuSidebar_Click)
         {
-            menuSidebar_Click(menuSidebar, EventArgs.Empty);
-            mSidebar.Checked = menuSidebar.Checked;
+            Checked = _sidebarVisible
         };
         mView.DropDownItems.Add(mSidebar);
 
@@ -461,48 +629,31 @@ public partial class Main : UIWindow
         var mRecorder = new ToolStripMenuItem(ar ? "مسجل السكربت" : "Script Recorder", null, menuScriptRecorder_Click);
         mTools.DropDownItems.Add(mRecorder);
 
-        // Plugins
-        var mPlugins = new ToolStripMenuItem(ar ? "إضافات" : "Plugins");
-        if (menuPlugins != null)
-        {
-            foreach (ToolStripItem it in menuPlugins.DropDownItems)
-            {
-                var clone = new ToolStripMenuItem(it.Text) { Enabled = it.Enabled, Tag = it.Tag };
-                clone.Click += PluginMenuItem_Click;
-                mPlugins.DropDownItems.Add(clone);
-            }
-        }
-
-        // Bots
-        var mBots = new ToolStripMenuItem(ar ? "البوتات" : "Bots");
-        if (botsToolStripMenuItem != null)
-        {
-            foreach (ToolStripMenuItem it in botsToolStripMenuItem.DropDown.Items)
-            {
-                var clone = new ToolStripMenuItem(it.Text) { Name = it.Name, Checked = it.Checked };
-                clone.Click += Item_Click;
-                mBots.DropDownItems.Add(clone);
-            }
-        }
-
         // Language
         var mLang = new ToolStripMenuItem(ar ? "اللغة" : "Language");
-        if (languageToolStripMenuItem != null)
+        foreach (var lang in LanguageManager.GetLanguages())
         {
-            foreach (ToolStripMenuItem it in languageToolStripMenuItem.DropDownItems)
+            var langItem = new ToolStripMenuItem(lang.Value)
             {
-                var clone = new ToolStripMenuItem(it.Text) { Tag = it.Tag, Checked = it.Checked };
-                clone.Click += (s, e) => { LanguageDropdown_Click(clone, e); RebuildGearMenu(); };
-                mLang.DropDownItems.Add(clone);
-            }
+                Tag = lang.Key,
+                Checked = string.Equals(Kernel.Language, lang.Key, StringComparison.OrdinalIgnoreCase)
+            };
+            langItem.Click += LanguageDropdown_Click;
+            mLang.DropDownItems.Add(langItem);
         }
 
         // Theme
+        bool isAutoTheme = GlobalConfig.Get("RSBot.Theme.Auto", true);
+        bool isDarkTheme = !isAutoTheme && ColorScheme.BackColor == DarkThemeColor;
+        bool isLightTheme = !isAutoTheme && ColorScheme.BackColor == LightThemeColor;
         var mTheme = new ToolStripMenuItem(ar ? "المظهر" : "Theme");
-        var mDark = new ToolStripMenuItem(ar ? "داكن" : "Dark", null, darkToolStripMenuItem_Click);
-        var mLight = new ToolStripMenuItem(ar ? "فاتح" : "Light", null, lightToolStripMenuItem_Click);
-        var mAuto = new ToolStripMenuItem(ar ? "تلقائي" : "Auto", null, autoToolStripMenuItem_Click);
-        var mColor = new ToolStripMenuItem(ar ? "اختيار لون" : "Choose a color", null, coloredToolStripMenuItem_Click);
+        var mDark = new ToolStripMenuItem(ar ? "داكن" : "Dark", null, darkToolStripMenuItem_Click) { Checked = isDarkTheme };
+        var mLight = new ToolStripMenuItem(ar ? "فاتح" : "Light", null, lightToolStripMenuItem_Click) { Checked = isLightTheme };
+        var mAuto = new ToolStripMenuItem(ar ? "تلقائي" : "Auto", null, autoToolStripMenuItem_Click) { Checked = isAutoTheme };
+        var mColor = new ToolStripMenuItem(ar ? "اختيار لون" : "Choose a color", null, coloredToolStripMenuItem_Click)
+        {
+            Checked = !isAutoTheme && !isDarkTheme && !isLightTheme
+        };
         mTheme.DropDownItems.AddRange(new ToolStripItem[] { mDark, mLight, mAuto, mColor });
 
         // About
@@ -510,7 +661,17 @@ public partial class Main : UIWindow
         var mThis = new ToolStripMenuItem(ar ? "هذا البرنامج" : "This", null, menuItemThis_Click);
         mAbout.DropDownItems.Add(mThis);
 
-        _gearMenu.Items.AddRange(new ToolStripItem[] { mFile, mView, mTools, mPlugins, mBots, mLang, mTheme, mAbout });
+        var accountLabel = !string.IsNullOrWhiteSpace(menuAccountSummary?.Text)
+            ? menuAccountSummary.Text
+            : (ar ? "👤 الحساب" : "👤 Account");
+        _gearAccountItem = new ToolStripMenuItem(accountLabel, null, (s, e) => OpenAccountPage());
+
+        _gearMenu.Items.AddRange(new ToolStripItem[]
+        {
+            mFile, mView, mTools, mLang, mTheme, mAbout,
+            new ToolStripSeparator(),
+            _gearAccountItem
+        });
 
         ApplyThemeToToolStrip(_gearMenu);
     }
@@ -687,59 +848,32 @@ public partial class Main : UIWindow
     }
 
     /// <summary>
-    ///     Selects the botbase.
+    ///     Switches the sidebar tab to the requested botbase page without altering the Training botbase.
     /// </summary>
-    /// <param name="index">The index.</param>
+    /// <param name="name">The botbase name.</param>
     private void SelectBotbase(string name)
     {
-        if (Kernel.Bot.Running)
+        if (string.IsNullOrWhiteSpace(name))
             return;
 
-        var oldBotbaseName = Kernel.Bot?.Botbase?.Name;
-        var newBotbase = Kernel.BotbaseManager.Bots.FirstOrDefault(bot => bot.Value.Name == name);
-        if (newBotbase.Value == null)
+        if (windowPageControl != null && windowPageControl.Controls.ContainsKey(name))
         {
-            Log.Error($"Botbase [{name}] could not be found!");
-
-            return;
+            var page = windowPageControl.Controls[name];
+            var pageIndex = windowPageControl.IndexOfPage(page);
+            if (pageIndex >= 0)
+                windowPageControl.SelectedIndex = pageIndex;
         }
-
-        try
+        else if (_extensionsHub != null && _extensionsHub.ContainsTool(name))
         {
-            newBotbase.Value.Translate();
+            if (windowPageControl != null && windowPageControl.Controls.ContainsKey(_extensionsHub.Name))
+            {
+                var hubIndex = windowPageControl.IndexOfPage(_extensionsHub);
+                if (hubIndex >= 0)
+                    windowPageControl.SelectedIndex = hubIndex;
+            }
+
+            _extensionsHub.SelectTool(name);
         }
-        catch (Exception ex)
-        {
-            Log.Error($"[SelectBotbase] Error translating botbase [{name}]: {ex.Message}");
-        }
-
-        var control = newBotbase.Value.View;
-        control.Name = newBotbase.Value.Name;
-        control.Text = LanguageManager.GetLangBySpecificKey(newBotbase.Value.Name, "TabText", newBotbase.Value.TabText);
-        control.Enabled = true;
-
-        var oldBotbaseControl = !string.IsNullOrWhiteSpace(oldBotbaseName)
-            ? windowPageControl.Controls[oldBotbaseName]
-            : null;
-
-        windowPageControl.Controls.Add(control);
-        windowPageControl.MovePageTo(control, 2);
-        ChangeControlsTheme(control);
-
-
-        Kernel.Bot?.SetBotbase(newBotbase.Value);
-        GlobalConfig.Set("RSBot.BotName", newBotbase.Value.Name);
-
-        if (Game.Player != null)
-            EventManager.FireEvent("OnLoadCharacter");
-
-        foreach (ToolStripMenuItem item in botsToolStripMenuItem.DropDown.Items)
-            item.Checked = newBotbase.Value.Name == item.Name;
-
-        if (oldBotbaseControl != null && !ReferenceEquals(oldBotbaseControl, control))
-            windowPageControl.Controls.Remove(oldBotbaseControl);
-
-        ApplyNavigationOrder();
     }
 
     /// <summary>
@@ -763,13 +897,31 @@ public partial class Main : UIWindow
             Kernel.PluginManager.Extensions.OrderBy(entry => entry.Value.Index)
                 .ToDictionary(x => x.Key, x => x.Value);
 
-        foreach (var extension in extensions.Where(extension => extension.Value.DisplayAsTab))
+        foreach (var extension in extensions.Where(extension =>
+                     !HiddenSidebarPlugins.Contains(extension.Value.InternalName) &&
+                     (extension.Value.DisplayAsTab || GetExtensionsHubOrder(extension.Value.InternalName) >= 0)))
         {
             try
             {
                 extension.Value.Translate();
 
                 var control = extension.Value.View;
+                if (control == null)
+                    continue;
+
+                var hubOrder = GetExtensionsHubOrder(extension.Value.InternalName);
+                if (hubOrder >= 0)
+                {
+                    var ext = extension.Value;
+                    EnsureExtensionsHub().AddTool(
+                        ext.InternalName,
+                        () => LanguageManager.GetLangBySpecificKey(ext.InternalName, "DisplayName", ext.DisplayName),
+                        control,
+                        hubOrder);
+                    ChangeControlsTheme(control);
+                    continue;
+                }
+
                 control.Name = extension.Value.InternalName;
                 control.Text = LanguageManager.GetLangBySpecificKey(extension.Value.InternalName, "DisplayName",
                     extension.Value.DisplayName);
@@ -785,27 +937,6 @@ public partial class Main : UIWindow
             }
         }
 
-        foreach (var extension in extensions.Where(extension => !extension.Value.DisplayAsTab))
-        {
-            try
-            {
-                var menuItemText = LanguageManager.GetLangBySpecificKey(extension.Value.InternalName, "DisplayName",
-                    extension.Value.DisplayName);
-                var menuItem = new ToolStripMenuItem(menuItemText)
-                {
-                    Enabled = true
-                };
-                menuItem.Click += PluginMenuItem_Click;
-                menuItem.Tag = extension.Value;
-
-                menuPlugins.DropDownItems.Add(menuItem);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[LoadExtensions] Error adding menu item [{extension.Key}]: {ex.Message}");
-            }
-        }
-
         ApplyNavigationOrder();
         RebuildGearMenu();
     }
@@ -815,7 +946,7 @@ public partial class Main : UIWindow
     /// </summary>
     private void ConfigureSidebar()
     {
-        pSidebar.Visible = menuSidebar.Checked;
+        pSidebar.Visible = _sidebarVisible;
     }
 
     /// <summary>
@@ -826,18 +957,6 @@ public partial class Main : UIWindow
     {
         if (logPanel != null)
             logPanel.Visible = false;
-
-        if (menuLog != null)
-            menuLog.Checked = false;
-    }
-
-    private void menuLog_Click(object sender, EventArgs e)
-    {
-        ConfigureLog();
-        GlobalConfig.Set("RSBot.ShowLog", menuLog.Checked.ToString());
-
-        if (sender is ToolStripMenuItem item && !ReferenceEquals(item, menuLog))
-            item.Checked = menuLog.Checked;
     }
 
     private void PopulateServerCombobox(DivisionInfo info)
@@ -857,46 +976,6 @@ public partial class Main : UIWindow
     #endregion Methods
 
     #region Form events
-
-    /// <summary>
-    ///     Handles the Click event of the MenuItem control.
-    /// </summary>
-    /// <param name="sender">The source of the event.</param>
-    /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
-    /// <exception cref="System.NotImplementedException"></exception>
-    private void PluginMenuItem_Click(object sender, EventArgs e)
-    {
-        var menuItem = (ToolStripMenuItem)sender;
-        var plugin = (IPlugin)menuItem.Tag;
-
-        if (!_pluginWindows.TryGetValue(plugin.InternalName, out var pluginWindow) || pluginWindow.IsDisposed)
-        {
-            pluginWindow = new UIWindow
-            {
-                Text = plugin.DisplayName,
-                Name = plugin.InternalName,
-                MaximizeBox = false,
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                Icon = Icon,
-                StartPosition = FormStartPosition.CenterParent,
-                ShowTitle = true
-            };
-
-            var content = plugin.View;
-            content.Dock = DockStyle.Fill;
-
-            plugin.Translate();
-
-            pluginWindow.Size = new Size(content.Size.Width + 16, content.Size.Height + 32);
-            pluginWindow.Controls.Add(content);
-
-            _pluginWindows[plugin.InternalName] = pluginWindow;
-        }
-
-        if (!pluginWindow.Visible)
-            pluginWindow.Show();
-
-    }
 
     /// <summary>
     ///     Handles the Click event of the menuScriptRecorder control.
@@ -986,9 +1065,10 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void menuSidebar_Click(object sender, EventArgs e)
     {
-        menuSidebar.Checked = !menuSidebar.Checked;
-        GlobalConfig.Set("RSBot.ShowSidebar", menuSidebar.Checked.ToString());
+        _sidebarVisible = !_sidebarVisible;
+        GlobalConfig.Set("RSBot.ShowSidebar", _sidebarVisible.ToString());
         ConfigureSidebar();
+        RebuildGearMenu();
     }
 
     /// <summary>
@@ -1021,29 +1101,22 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void Main_Load(object sender, EventArgs e)
     {
-        menuSidebar.Checked = GlobalConfig.Get("RSBot.ShowSidebar", false);
-        menuLog.Checked = false;
+        _sidebarVisible = GlobalConfig.Get("RSBot.ShowSidebar", false);
         GlobalConfig.Set("RSBot.ShowLog", "false");
-
-        foreach (var item in LanguageManager.GetLanguages())
-        {
-            var dropdown = new ToolStripMenuItem(item.Value);
-            dropdown.Click += LanguageDropdown_Click;
-            dropdown.Tag = item.Key;
-            languageToolStripMenuItem.DropDownItems.Add(dropdown);
-
-            if (Kernel.Language == dropdown.Tag?.ToString())
-                dropdown.Checked = true;
-        }
 
         ConfigureSidebar();
         ConfigureLog();
         VerticalTabs = true;
         WindowPageControl = windowPageControl;
 
+        EnsureAccountPage();
         ApplyNavigationOrder();
         ApplyCurrentLanguage();
         ApplyVisualStyle();
+        _accountPage?.RefreshData();
+        UpdateAccountMenuSummary();
+        RebuildGearMenu();
+        EnsureAccountRefreshTimer();
 
         ClearMenuSelection();
 
@@ -1069,14 +1142,11 @@ public partial class Main : UIWindow
     private void LanguageDropdown_Click(object sender, EventArgs e)
     {
         var dropdown = sender as ToolStripMenuItem;
-        if (dropdown.Checked)
+        if (dropdown == null || dropdown.Checked || dropdown.Tag == null)
             return;
 
         LanguageManager.ClearCache();
         Kernel.Language = dropdown.Tag.ToString();
-
-        foreach (ToolStripMenuItem item in languageToolStripMenuItem.DropDownItems)
-            item.Checked = false;
 
         foreach (var plugin in Kernel.PluginManager.Extensions)
         {
@@ -1102,11 +1172,10 @@ public partial class Main : UIWindow
             {
                 botbase.Value.Translate();
 
-                if (!windowPageControl.Controls.ContainsKey(botbase.Key))
-                    continue;
+                var localizedTabText = LanguageManager.GetLangBySpecificKey(botbase.Key, "TabText", botbase.Value.TabText);
 
-                var tabpage = windowPageControl.Controls[botbase.Key];
-                tabpage.Text = LanguageManager.GetLangBySpecificKey(botbase.Key, "TabText", botbase.Value.TabText);
+                if (windowPageControl.Controls.ContainsKey(botbase.Key))
+                    windowPageControl.Controls[botbase.Key].Text = localizedTabText;
             }
             catch (Exception ex)
             {
@@ -1115,10 +1184,16 @@ public partial class Main : UIWindow
         }
 
         LanguageManager.Translate(this, Kernel.Language);
+
+        if (_accountPage != null && !_accountPage.IsDisposed)
+        {
+            _accountPage.Text = GetAccountTabTitle();
+            _accountPage.ApplyLanguage();
+        }
+
+        UpdateAccountMenuSummary();
         
         ApplyCurrentLanguage();
-
-        dropdown.Checked = true;
 
         GlobalConfig.Set("RSBot.Language", Kernel.Language);
         GlobalConfig.Save();
@@ -1132,37 +1207,10 @@ public partial class Main : UIWindow
     /// </summary>
     private void btnStartStop_Click(object sender, EventArgs e)
     {
-        if (Kernel.Proxy == null)
-            return;
-
-        if (!Kernel.Proxy.IsConnectedToAgentserver)
-            return;
-
-        if (Kernel.Bot == null)
-        {
-            Log.NotifyLang("NotifyPleaseSelectProperBotBase");
-            return;
-        }
-
-        if (Game.Player == null)
-        {
-            Log.WarnLang("NotifyPlayerWasNull");
-            return;
-        }
-
-        if (!Kernel.Bot.Running)
-        {
-            Kernel.Bot.Start();
-
-            Log.StatusLang("Running");
-        }
+        if (Kernel.Bot == null || !Kernel.Bot.Running)
+            StartBot();
         else
-        {
-            Log.NotifyLang("StopingBot", Kernel.Bot.Botbase.DisplayName);
-
-            Kernel.Bot.Stop();
-            Log.StatusLang("Ready");
-        }
+            StopBot();
     }
 
     /// <summary>
@@ -1498,16 +1546,58 @@ public partial class Main : UIWindow
 
         foreach (var bot in Kernel.BotbaseManager.Bots)
         {
-            var item = new ToolStripMenuItem
+            try
             {
-                Name = bot.Value.Name,
-                Text = bot.Value.DisplayName
-            };
-            item.Click += Item_Click;
-            botsToolStripMenuItem.DropDown.Items.Add(item);
+                bot.Value.Translate();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[OnLoadBotbases] Error translating botbase [{bot.Key}]: {ex.Message}");
+            }
+
+            var control = bot.Value.View;
+            var localizedTabText = LanguageManager.GetLangBySpecificKey(bot.Value.Name, "TabText", bot.Value.TabText);
+
+            if (control != null)
+            {
+                var hubOrder = GetExtensionsHubOrder(bot.Value.Name);
+                if (hubOrder >= 0)
+                {
+                    var currentBot = bot.Value;
+                    EnsureExtensionsHub().AddTool(
+                        currentBot.Name,
+                        () => LanguageManager.GetLangBySpecificKey(currentBot.Name, "TabText", currentBot.TabText),
+                        control,
+                        hubOrder);
+                    ChangeControlsTheme(control);
+                }
+                else
+                {
+                    control.Name = bot.Value.Name;
+                    control.Text = localizedTabText;
+                    control.Enabled = true;
+                    control.Dock = DockStyle.Fill;
+
+                    if (!windowPageControl.Controls.ContainsKey(control.Name))
+                    {
+                        windowPageControl.Controls.Add(control);
+                        ChangeControlsTheme(control);
+                    }
+                }
+            }
+
         }
 
-        SelectBotbase(GlobalConfig.Get("RSBot.BotName", "RSBot.Default"));
+        var trainingBotbase = Kernel.BotbaseManager.Bots.FirstOrDefault(bot => bot.Key == "RSBot.Default").Value
+                              ?? Kernel.BotbaseManager.Bots.Values.FirstOrDefault();
+
+        if (trainingBotbase != null)
+        {
+            Kernel.Bot?.SetBotbase(trainingBotbase);
+            GlobalConfig.Set("RSBot.BotName", trainingBotbase.Name);
+        }
+
+        ApplyNavigationOrder();
         RebuildGearMenu();
     }
 
@@ -1517,11 +1607,7 @@ public partial class Main : UIWindow
     /// <param name="sender">The source of the event.</param>
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     /// <exception cref="System.NotImplementedException"></exception>
-    private void Item_Click(object sender, EventArgs e)
-    {
-        var item = sender as ToolStripMenuItem;
-        SelectBotbase(item.Name);
-    }
+
 
     /// <summary>
     ///     Reset UI after character disconnect
@@ -1537,6 +1623,8 @@ public partial class Main : UIWindow
             control.Controls["overlay"].Show();
 
         }
+
+        _extensionsHub?.SetIngameState(false);
 
         var disconnectedText = LanguageManager.GetLang("Disconnected");
         if (!Text.EndsWith(disconnectedText))
@@ -1600,8 +1688,7 @@ public partial class Main : UIWindow
             control.Controls["overlay"]?.Hide();
         }
 
-        foreach (ToolStripItem item in menuPlugins.DropDownItems)
-            item.Enabled = true;
+        _extensionsHub?.SetIngameState(true);
 
         _playerName = Game.Player.Name;
         Text = $@"Aerobot - {_playerName}";
@@ -1652,6 +1739,26 @@ public partial class Main : UIWindow
         lstLog?.Items.Clear();
     }
 
+    private bool EnsureTrainingBotbase()
+    {
+        if (Kernel.Bot == null)
+            return false;
+
+        if (Kernel.Bot.Botbase?.Name == "RSBot.Default")
+            return true;
+
+        var trainingBotbase = Kernel.BotbaseManager?.Bots?
+            .FirstOrDefault(bot => bot.Key == "RSBot.Default").Value;
+        if (trainingBotbase == null)
+        {
+            Log.NotifyLang("NotifyPleaseSelectProperBotBase");
+            return false;
+        }
+
+        Kernel.Bot.SetBotbase(trainingBotbase);
+        return true;
+    }
+
     private void StartBot()
     {
         if (Kernel.Proxy == null || !Kernel.Proxy.IsConnectedToAgentserver)
@@ -1671,7 +1778,16 @@ public partial class Main : UIWindow
 
         if (!Kernel.Bot.Running)
         {
-            Kernel.Bot.Start();
+            if (!EnsureTrainingBotbase())
+                return;
+
+            if (!Kernel.Bot.TryStart(out var errorMessage))
+            {
+                if (!string.IsNullOrWhiteSpace(errorMessage))
+                    MessageBox.Show(errorMessage, "AeroBot", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             Log.StatusLang("Running");
         }
     }
@@ -1680,7 +1796,7 @@ public partial class Main : UIWindow
     {
         if (Kernel.Bot != null && Kernel.Bot.Running)
         {
-            Log.NotifyLang("StopingBot", Kernel.Bot.Botbase.DisplayName);
+            Log.NotifyLang("StopingBot", Kernel.Bot.Botbase?.DisplayName ?? "Training");
             Kernel.Bot.Stop();
             Log.StatusLang("Ready");
         }

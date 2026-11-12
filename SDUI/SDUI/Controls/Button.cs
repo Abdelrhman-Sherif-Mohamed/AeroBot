@@ -19,16 +19,57 @@ public class Button : System.Windows.Forms.Button
     private int _mouseState = 0;
 
     private SizeF textSize;
+
+    private SizeF MeasureTextSize(string value)
+    {
+        var text = value ?? string.Empty;
+        var gdiSize = TextRenderer.MeasureText(text, Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+
+        try
+        {
+            using var g = CreateGraphics();
+            using var sf = new StringFormat(StringFormat.GenericTypographic)
+            {
+                FormatFlags = StringFormatFlags.NoWrap
+            };
+            var gdipSize = g.MeasureString(text, Font, int.MaxValue, sf);
+            return new SizeF(
+                Math.Max(gdiSize.Width, gdipSize.Width),
+                Math.Max(gdiSize.Height, gdipSize.Height));
+        }
+        catch
+        {
+            return gdiSize;
+        }
+    }
+
+    private void UpdateAutoSize()
+    {
+        textSize = MeasureTextSize(base.Text);
+        if (AutoSize)
+            Size = GetPreferredSize();
+        Invalidate();
+    }
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        UpdateAutoSize();
+    }
+
+    protected override void OnPaddingChanged(EventArgs e)
+    {
+        base.OnPaddingChanged(e);
+        UpdateAutoSize();
+    }
+
     public override string Text
     {
         get { return base.Text; }
         set
         {
             base.Text = value;
-            textSize = TextRenderer.MeasureText(value, Font);
-            if (AutoSize)
-                Size = GetPreferredSize();
-            Invalidate();
+            UpdateAutoSize();
         }
     }
 
@@ -277,14 +318,19 @@ public class Button : System.Windows.Forms.Button
 
     public override Size GetPreferredSize(Size proposedSize)
     {
-        // Provides extra space for proper padding for content
-        int extra = 16;
+        if (textSize.IsEmpty && !string.IsNullOrEmpty(Text))
+            textSize = MeasureTextSize(Text);
+
+        // Provides extra space for proper padding and shadow inset
+        int extra = Math.Max(16, Padding.Horizontal + (int)Math.Ceiling(_shadowDepth) + 6);
 
         if (Image != null)
             // 24 is for icon size
             // 4 is for the space between icon & text
             extra += 24 + 4;
 
-        return new Size((int)Math.Ceiling(textSize.Width) + extra, 23);
+        var width = Math.Max((int)Math.Ceiling(textSize.Width) + extra, MinimumSize.Width);
+        var height = Math.Max(23, MinimumSize.Height);
+        return new Size(width, height);
     }
 }

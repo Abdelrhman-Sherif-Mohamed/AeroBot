@@ -34,5 +34,6 @@ public class Bootstrap : IPlugin
     public void Translate()
     {
         LanguageManager.Translate(View, Kernel.Language);
+        Views.View.Instance.ApplyLocalization();
     }
 }

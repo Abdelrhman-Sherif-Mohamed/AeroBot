@@ -189,7 +189,7 @@ internal class RouteBundle
     {
 
         // Error during script execution or bot stopped -> Do not advance trade loops!
-        if (error || !TradeBotbase.IsActive || Kernel.Bot == null || !Kernel.Bot.Running || !Game.Ready)
+        if (error || !TradeBotbase.IsActive || !Game.Ready)
         {
             if (error)
                 Log.Warn($"[CityTrade] OnFinishScript received error=true. Trade round execution was aborted/failed.");
@@ -249,6 +249,7 @@ internal class RouteBundle
             {
 
                 TradeConfig.CurrentTradeLoop++;
+                TradeStats.OnRunSettled();
 
 
 
@@ -312,7 +313,7 @@ internal class RouteBundle
 
                     CurrentRouteFile = null;
 
-                    Kernel.Bot.Stop();
+                    TradeBotbase.StopRunner();
 
                     return;
 
@@ -456,6 +457,10 @@ internal class RouteBundle
 
         _checkForTownScript = !TradeConfig.TracePlayer && !TransportHasGoods();
 
+        TradeStats.OnSessionStarted();
+        if (TransportHasGoods())
+            TradeStats.OnRunStarted();
+
 
 
         if (TradeConfig.UseCityToCity)
@@ -490,7 +495,7 @@ internal class RouteBundle
 
     {
 
-        if (Kernel.Bot == null || !Kernel.Bot.Running || !TradeBotbase.IsActive)
+        if (!TradeBotbase.IsActive)
 
             return;
 
@@ -521,8 +526,9 @@ internal class RouteBundle
 
 
 
-        // Interrupt in case of thief combat, or transport lagging outside town / while carrying goods.
-        var transportMustPause = Bundles.TransportBundle.Busy && (!AttackBundle.IsPlayerInTown() || TransportHasGoods());
+        // Interrupt in case of thief combat, remounting, or transport lagging outside town / while carrying goods.
+        var transportMustPause = Bundles.TransportBundle.IsRemounting ||
+                                 (Bundles.TransportBundle.Busy && (!AttackBundle.IsPlayerInTown() || TransportHasGoods()));
         if ((ScriptManager.Running && transportMustPause) || Bundles.AttackBundle.Busy)
         {
             if (!ScriptManager.Paused && ScriptManager.Running)
@@ -661,7 +667,7 @@ internal class RouteBundle
 
                 Log.Warn("[Trade] Could not find the next route!");
 
-                Kernel.Bot.Stop();
+                TradeBotbase.StopRunner();
 
 
 
@@ -739,8 +745,9 @@ internal class RouteBundle
 
 
 
-        //Continue previous script (only when not in active combat and transport not stalled when needed)
-        var transportBlocksResume = Bundles.TransportBundle.Busy && (!AttackBundle.IsPlayerInTown() || TransportHasGoods());
+        //Continue previous script (only when not in active combat and transport not remounting/stalled when needed)
+        var transportBlocksResume = Bundles.TransportBundle.IsRemounting ||
+                                    (Bundles.TransportBundle.Busy && (!AttackBundle.IsPlayerInTown() || TransportHasGoods()));
         if (!Bundles.AttackBundle.IsAttacking && !transportBlocksResume)
         {
             if (ScriptManager.Paused && ScriptManager.Running && CurrentRouteFile != null)
@@ -826,7 +833,7 @@ internal class RouteBundle
 
 
 
-            Kernel.Bot.Stop();
+            TradeBotbase.StopRunner();
 
 
 
@@ -932,7 +939,7 @@ internal class RouteBundle
 
 
 
-            Kernel.Bot.Stop();
+            TradeBotbase.StopRunner();
 
 
 
@@ -1341,6 +1348,8 @@ internal class RouteBundle
 
 
 
+            TradeBotbase.StopRunner();
+
             Log.Notify("[CityTrade] جاري تفعيل البوت الافتراضي (التدريب)...");
 
             var defaultBot = Kernel.BotbaseManager.Bots.FirstOrDefault(b => b.Value.Name == "RSBot.Default").Value;
@@ -1349,7 +1358,9 @@ internal class RouteBundle
 
             {
 
-                Kernel.Bot?.SetBotbase(defaultBot);
+                if (!ReferenceEquals(Kernel.Bot?.Botbase, defaultBot))
+
+                    Kernel.Bot?.SetBotbase(defaultBot);
 
                 Kernel.Bot?.Start();
 
@@ -1362,8 +1373,6 @@ internal class RouteBundle
             {
 
                 Log.Warn("[CityTrade] لم يتم العثور على بوت التدريب الافتراضي (RSBot.Default)!");
-
-                Kernel.Bot?.Stop();
 
             }
 

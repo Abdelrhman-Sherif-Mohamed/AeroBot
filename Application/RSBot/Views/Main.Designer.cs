@@ -61,27 +61,8 @@ namespace RSBot.Views
             botbase1ToolStripMenuItem1 = new ToolStripMenuItem();
             botbase1ToolStripMenuItem = new ToolStripMenuItem();
             notifyIcon = new NotifyIcon(components);
-            fileToolStripMenuItem = new ToolStripMenuItem();
-            menuItemSaveSettings = new ToolStripMenuItem();
-            menuSelectProfile = new ToolStripMenuItem();
-            networkConfigToolStripMenuItem = new ToolStripMenuItem();
-            menuItemExit = new ToolStripMenuItem();
-            viewToolStripMenuItem = new ToolStripMenuItem();
-            menuSidebar = new ToolStripMenuItem();
-            menuLog = new ToolStripMenuItem();
-            toolsToolStripMenuItem = new ToolStripMenuItem();
-            menuScriptRecorder = new ToolStripMenuItem();
-            menuPlugins = new ToolStripMenuItem();
-            aboutToolStripMenuItem = new ToolStripMenuItem();
-            thisToolStripMenuItem = new ToolStripMenuItem();
             menuStrip = new SDUI.Controls.MenuStrip();
-            botsToolStripMenuItem = new ToolStripMenuItem();
-            languageToolStripMenuItem = new ToolStripMenuItem();
-            themeToolStripMenuItem = new ToolStripMenuItem();
-            darkToolStripMenuItem = new ToolStripMenuItem();
-            lightToolStripMenuItem = new ToolStripMenuItem();
-            autoToolStripMenuItem = new ToolStripMenuItem();
-            coloredToolStripMenuItem = new ToolStripMenuItem();
+            menuAccountSummary = new ToolStripMenuItem();
             topCharacter = new Character();
             windowPageControl = new SDUI.Controls.WindowPageControl();
             stripStatus.SuspendLayout();
@@ -401,143 +382,26 @@ namespace RSBot.Views
             notifyIcon.Visible = true;
             notifyIcon.Click += notifyIcon_Click;
             // 
-            // fileToolStripMenuItem
-            // 
-            fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuItemSaveSettings, new ToolStripSeparator(), menuSelectProfile, networkConfigToolStripMenuItem, menuItemExit });
-            fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            fileToolStripMenuItem.AutoSize = true;
-            fileToolStripMenuItem.Text = "File";
-            // 
-            // menuItemSaveSettings
-            // 
-            menuItemSaveSettings.Name = "menuItemSaveSettings";
-            menuItemSaveSettings.ShortcutKeys = Keys.Control | Keys.S;
-            menuItemSaveSettings.Size = new System.Drawing.Size(193, 26);
-            menuItemSaveSettings.Text = "Save Settings";
-            menuItemSaveSettings.Click += btnSave_Click;
-            // 
-            // menuSelectProfile
-            //            menuSelectProfile.Name = "menuSelectProfile";
-            menuSelectProfile.Size = new System.Drawing.Size(193, 26);
-            menuSelectProfile.Text = "Select Profile...";
-            menuSelectProfile.Click += menuSelectProfile_Click;
-            // 
-            // networkConfigToolStripMenuItem
-            //            networkConfigToolStripMenuItem.Name = "networkConfigToolStripMenuItem";
-            networkConfigToolStripMenuItem.Size = new System.Drawing.Size(193, 26);
-            networkConfigToolStripMenuItem.Text = "Proxy Config";
-            networkConfigToolStripMenuItem.Click += networkConfigToolStripMenuItem_Click;
-            // 
-            // menuItemExit
-            //            menuItemExit.Name = "menuItemExit";
-            menuItemExit.Size = new System.Drawing.Size(193, 26);
-            menuItemExit.Text = "Exit";
-            menuItemExit.Click += menuItemExit_Click;
-            // 
-            // viewToolStripMenuItem
-            // 
-            viewToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuSidebar });            viewToolStripMenuItem.Name = "viewToolStripMenuItem";
-            viewToolStripMenuItem.AutoSize = true;
-            viewToolStripMenuItem.Text = "View";
-            // 
-            // menuSidebar
-            // 
-            menuSidebar.Name = "menuSidebar";
-            menuSidebar.Size = new System.Drawing.Size(147, 26);
-            menuSidebar.Text = "Sidebar";
-            menuSidebar.Click += menuSidebar_Click;
-            // 
-            // menuLog
-            // 
-            menuLog.Checked = false;
-            menuLog.CheckOnClick = false;
-            menuLog.Visible = false;
-            menuLog.Name = "menuLog";
-            menuLog.Size = new System.Drawing.Size(147, 26);
-            menuLog.Text = "Log";
-            menuLog.Click += menuLog_Click;
-            // 
-            // toolsToolStripMenuItem
-            // 
-            toolsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { menuScriptRecorder });            toolsToolStripMenuItem.Name = "toolsToolStripMenuItem";
-            toolsToolStripMenuItem.AutoSize = true;
-            toolsToolStripMenuItem.Text = "Tools";
-            // 
-            // menuScriptRecorder
-            //            menuScriptRecorder.Name = "menuScriptRecorder";
-            menuScriptRecorder.Size = new System.Drawing.Size(201, 26);
-            menuScriptRecorder.Text = "Script Recorder";
-            menuScriptRecorder.Click += menuScriptRecorder_Click;
-            // 
-            // menuPlugins
-            //            menuPlugins.Name = "menuPlugins";
-            menuPlugins.AutoSize = true;
-            menuPlugins.Text = "Plugins";
-            // 
-            // aboutToolStripMenuItem
-            // 
-            aboutToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { thisToolStripMenuItem });            aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            aboutToolStripMenuItem.AutoSize = true;
-            aboutToolStripMenuItem.Text = "About";
-            // 
-            // thisToolStripMenuItem
-            //            thisToolStripMenuItem.Name = "thisToolStripMenuItem";
-            thisToolStripMenuItem.Size = new System.Drawing.Size(122, 26);
-            thisToolStripMenuItem.Text = "This";
-            thisToolStripMenuItem.Click += menuItemThis_Click;
-            // 
             // menuStrip
             // 
             menuStrip.BackColor = System.Drawing.Color.Transparent;
             menuStrip.Dock = DockStyle.Top;
             menuStrip.Font = new System.Drawing.Font("Segoe UI", 9.25F);
             menuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, viewToolStripMenuItem, toolsToolStripMenuItem, menuPlugins, botsToolStripMenuItem, languageToolStripMenuItem, themeToolStripMenuItem, aboutToolStripMenuItem });
+            menuStrip.Items.AddRange(new ToolStripItem[] { menuAccountSummary });
             menuStrip.Location = new System.Drawing.Point(0, 0);
             menuStrip.Name = "menuStrip";
-            menuStrip.Padding = new Padding(6, 4, 0, 4);
+            menuStrip.Padding = new Padding(6, 4, 8, 4);
             menuStrip.Size = new System.Drawing.Size(1022, 28);
             menuStrip.TabIndex = 14;
             // 
-            // botsToolStripMenuItem
-            //            botsToolStripMenuItem.Name = "botsToolStripMenuItem";
-            botsToolStripMenuItem.AutoSize = true;
-            botsToolStripMenuItem.Text = "Bots";
+            // menuAccountSummary
             // 
-            // languageToolStripMenuItem
-            //            languageToolStripMenuItem.Name = "languageToolStripMenuItem";
-            languageToolStripMenuItem.AutoSize = true;
-            languageToolStripMenuItem.Text = "Language";
-            // 
-            // themeToolStripMenuItem
-            // 
-            themeToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkToolStripMenuItem, lightToolStripMenuItem, autoToolStripMenuItem, coloredToolStripMenuItem });            themeToolStripMenuItem.Name = "themeToolStripMenuItem";
-            themeToolStripMenuItem.AutoSize = true;
-            themeToolStripMenuItem.Text = "Theme";
-            // 
-            // darkToolStripMenuItem
-            //            darkToolStripMenuItem.Name = "darkToolStripMenuItem";
-            darkToolStripMenuItem.Size = new System.Drawing.Size(197, 26);
-            darkToolStripMenuItem.Text = "Dark";
-            darkToolStripMenuItem.Click += darkToolStripMenuItem_Click;
-            // 
-            // lightToolStripMenuItem
-            //            lightToolStripMenuItem.Name = "lightToolStripMenuItem";
-            lightToolStripMenuItem.Size = new System.Drawing.Size(197, 26);
-            lightToolStripMenuItem.Text = "Light";
-            lightToolStripMenuItem.Click += lightToolStripMenuItem_Click;
-            // 
-            // autoToolStripMenuItem
-            //            autoToolStripMenuItem.Name = "autoToolStripMenuItem";
-            autoToolStripMenuItem.Size = new System.Drawing.Size(197, 26);
-            autoToolStripMenuItem.Text = "Auto";
-            autoToolStripMenuItem.Click += autoToolStripMenuItem_Click;
-            // 
-            // coloredToolStripMenuItem
-            //            coloredToolStripMenuItem.Name = "coloredToolStripMenuItem";
-            coloredToolStripMenuItem.Size = new System.Drawing.Size(197, 26);
-            coloredToolStripMenuItem.Text = "Choose a color";
-            coloredToolStripMenuItem.Click += coloredToolStripMenuItem_Click;
+            menuAccountSummary.Name = "menuAccountSummary";
+            menuAccountSummary.Alignment = ToolStripItemAlignment.Right;
+            menuAccountSummary.AutoSize = true;
+            menuAccountSummary.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold);
+            menuAccountSummary.Text = "";
             // 
             // topCharacter
             // 
@@ -581,7 +445,6 @@ namespace RSBot.Views
             MainMenuStrip = menuStrip;
             DwmMargin = 0;
             ExtendBox = true;
-            ExtendMenu = null;
             Hatch = System.Drawing.Drawing2D.HatchStyle.Percent20;
             Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Location = new System.Drawing.Point(0, 0);
@@ -635,28 +498,9 @@ namespace RSBot.Views
         private System.Windows.Forms.ToolStripMenuItem botbase1ToolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem botbase1ToolStripMenuItem;
         private System.Windows.Forms.NotifyIcon notifyIcon;
-        private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem menuItemSaveSettings;
-        private System.Windows.Forms.ToolStripMenuItem menuItemExit;
-        private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem menuSidebar;
-        private System.Windows.Forms.ToolStripMenuItem menuLog;
-        private System.Windows.Forms.ToolStripMenuItem toolsToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem menuScriptRecorder;
-        private System.Windows.Forms.ToolStripMenuItem menuPlugins;
-        private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem thisToolStripMenuItem;
         private SDUI.Controls.MenuStrip menuStrip;
-        private System.Windows.Forms.ToolStripMenuItem themeToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem darkToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem lightToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem coloredToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem languageToolStripMenuItem;
-        private ToolStripMenuItem menuSelectProfile;
-        private ToolStripMenuItem botsToolStripMenuItem;
-        private ToolStripMenuItem autoToolStripMenuItem;
+        private ToolStripMenuItem menuAccountSummary;
         private SDUI.Controls.Button buttonConfig;
-        private ToolStripMenuItem networkConfigToolStripMenuItem;
         private ToolStripMenuItem menuCurrentProfile;
         private SDUI.Controls.WindowPageControl windowPageControl;
         private Entity entity1;

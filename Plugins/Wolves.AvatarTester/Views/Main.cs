@@ -528,7 +528,8 @@ public partial class Main : DoubleBufferedControl
         }
         else
         {
-            var targetWeapon = AvatarTesterManager.FindMatchingWeapon(curWep.Record, item);
+            var targetWeapon = AvatarTesterManager.ResolveMaxiGuardSwitcherTarget(curWep.Record, item)
+                            ?? AvatarTesterManager.FindMatchingWeapon(curWep.Record, item);
             var wepToPreview = targetWeapon ?? curWep.Record;
 
             AvatarTesterManager.Instance.EquipWeaponOnPlayer(wepToPreview.ID, opt);
@@ -570,7 +571,8 @@ public partial class Main : DoubleBufferedControl
         }
         else
         {
-            var targetShield = AvatarTesterManager.FindMatchingShield(curShield.Record, item);
+            var targetShield = AvatarTesterManager.ResolveMaxiGuardSwitcherTarget(curShield.Record, item)
+                            ?? AvatarTesterManager.FindMatchingShield(curShield.Record, item);
             var shieldToPreview = targetShield ?? curShield.Record;
 
             AvatarTesterManager.Instance.EquipShieldOnPlayer(shieldToPreview.ID, opt);

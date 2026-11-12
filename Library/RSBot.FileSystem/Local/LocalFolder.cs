@@ -7,14 +7,20 @@ public class LocalFolder : IFolder
     {
         Path = path;
         FileSystem = fileSystem;
-        
-        _directoryInfo = new DirectoryInfo(path);
+
+        var resolvedPath = fileSystem is LocalFileSystem localFs
+            ? localFs.GetAbsolutePath(path)
+            : path;
+
+        _directoryInfo = new DirectoryInfo(resolvedPath);
     }
 
     public IFileSystem FileSystem { get; }
     public string Path { get; }
-    public string Name => System.IO.Path.GetFileName(Path);
-    public IFolder Parent => FileSystem.GetFolder(System.IO.Path.GetDirectoryName(Path) ?? string.Empty);
+    public string Name => string.IsNullOrEmpty(Path) ? _directoryInfo.Name : System.IO.Path.GetFileName(Path.TrimEnd('/', '\\'));
+    public IFolder Parent => string.IsNullOrEmpty(Path)
+        ? this
+        : FileSystem.GetFolder(System.IO.Path.GetDirectoryName(Path.TrimEnd('/', '\\')) ?? string.Empty);
 
     public long CreationTime => _directoryInfo.CreationTime.Ticks;
     

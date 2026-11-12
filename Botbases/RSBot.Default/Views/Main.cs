@@ -358,7 +358,7 @@ public partial class Main : DoubleBufferedControl
 
             // ---- Right column: walkback, berserk and advanced settings --------
 
-            const int backH = 190;
+            const int backH = 214;
 
             Place(groupBoxWalkback, rightX, top, rightW, backH);
 
@@ -396,11 +396,13 @@ public partial class Main : DoubleBufferedControl
 
             Place(checkBoxUseReverse, 16 + optionW + 12, 138, optionW, 30);
 
+            Place(groupBoxWalkback.Controls["checkSkipTownScript"], 16, 172, rightW - 32, 30);
+
 
 
             var berserkY = top + backH + gap;
 
-            const int berserkH = 200;
+            const int berserkH = 184;
 
             Place(groupBoxBerserk, rightX, berserkY, rightW, berserkH);
 

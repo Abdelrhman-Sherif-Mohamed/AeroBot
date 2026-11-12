@@ -12,6 +12,23 @@ namespace RSBot.Lure;
 
 public class LureBotbase : IBotbase
 {
+    public static LureBotbase Instance { get; private set; }
+    public static BotRunner Runner { get; private set; }
+    public static bool IsActive => Runner?.Running == true;
+
+    public static BotRunner EnsureRunner()
+    {
+        if (Runner == null && Instance != null)
+            Runner = Kernel.GetOrCreateRunner(Instance, usesMovement: true, stopsPickupOnStop: true, stopsShoppingOnStop: true);
+
+        return Runner;
+    }
+
+    public static void StopRunner()
+    {
+        Runner?.Stop();
+    }
+
     private bool _interrupted;
     public string Name => "RSBot.Lure";
 
@@ -26,7 +43,7 @@ public class LureBotbase : IBotbase
     /// </summary>
     public void Tick()
     {
-        if (!Kernel.Bot.Running)
+        if (!IsActive)
             return;
 
         if (PickupManager.RunningPlayerPickup)
@@ -106,6 +123,8 @@ public class LureBotbase : IBotbase
 
     public void Register()
     {
+        Instance = this;
+        EnsureRunner();
         Log.Debug("[Lure] Botbase registered to the kernel!");
     }
 
@@ -115,5 +134,10 @@ public class LureBotbase : IBotbase
     public void Translate()
     {
         LanguageManager.Translate(View, Kernel.Language);
+        if (View is Views.Main main)
+        {
+            main.ApplyLocalization();
+            main.ApplyTheme();
+        }
     }
 }

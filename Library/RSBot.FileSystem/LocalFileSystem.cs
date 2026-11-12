@@ -9,7 +9,7 @@ public class LocalFileSystem : IFileSystem
 {
     public LocalFileSystem(string basePath, bool readOnly)
     {
-        BasePath = basePath;
+        BasePath = Path.GetFullPath(basePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         ReadOnly = readOnly;
 
         Root = new LocalFolder("", this);
@@ -114,10 +114,13 @@ public class LocalFileSystem : IFileSystem
 
     public IFileReader OpenRead(object entry)
     {
-        if (entry is not LocalFolder folder)
-            throw new ArgumentException("Entry should be of type LocalFolder.");
+        if (entry is LocalFile file)
+            return OpenRead(file.Path);
 
-        return OpenRead(folder.Path);
+        if (entry is LocalFolder folder)
+            return OpenRead(folder.Path);
+
+        throw new ArgumentException("Entry should be of type LocalFile or LocalFolder.");
     }
 
     /// <inheritdoc />s
@@ -159,8 +162,11 @@ public class LocalFileSystem : IFileSystem
         throw new NotSupportedException("The local filesystem doesn't support filename discovery yet!");
     }
 
-    private string GetAbsolutePath(string path)
+    internal string GetAbsolutePath(string path)
     {
+        if (string.IsNullOrEmpty(path))
+            return BasePath + PathSeparator;
+
         if (!path.StartsWith(PathSeparator))
             path = PathSeparator + path;
 
@@ -175,15 +181,10 @@ public class LocalFileSystem : IFileSystem
 
     private string GetRelativePath(string absolutePath)
     {
-        if (!absolutePath.StartsWith(BasePath))
+        if (!absolutePath.StartsWith(BasePath, StringComparison.OrdinalIgnoreCase))
             return absolutePath;
 
-        var relativePathOffset = BasePath.Length + 1;
-        var relativePathLength = absolutePath.Length - BasePath.Length - 1;
-
-        var relativePath = absolutePath.Substring(relativePathOffset, relativePathLength);
-
-        return relativePath;
+        return absolutePath.Substring(BasePath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 
     private void AssertFolderExists(string path)

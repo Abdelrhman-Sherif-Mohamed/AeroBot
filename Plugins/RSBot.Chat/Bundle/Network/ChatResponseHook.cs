@@ -11,11 +11,8 @@ internal class ChatResponseHook : IPacketHook
 
     public Packet ReplacePacket(Packet packet)
     {
-        if (!Game.Clientless && Bundle.Chat.IgnoreChatResponsePacket)
-        {
-            Bundle.Chat.IgnoreChatResponsePacket = false;
+        if (!Game.Clientless && Bundle.Chat.TryConsumePendingAck())
             return null;
-        }
 
         return packet;
     }

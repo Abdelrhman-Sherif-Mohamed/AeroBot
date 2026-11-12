@@ -31,7 +31,7 @@ internal static class InventoryUpdateSubscriber
             RSBot.Core.Components.ShoppingManager.IsRecentTradeOperation ||
             (Game.Player?.JobTransport != null) ||
             (Game.Player?.TradeInfo != null) ||
-            (Kernel.Bot != null && Kernel.Bot.Running && Kernel.Bot.Botbase?.Name == "RSBot.Trade"))
+            Kernel.IsRunnerActive("RSBot.Trade"))
             return;
 
         // Never sort/order if character has trade goods in inventory (prevents server kick DC)

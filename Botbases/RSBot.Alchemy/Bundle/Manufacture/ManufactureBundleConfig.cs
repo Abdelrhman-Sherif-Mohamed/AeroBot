@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using RSBot.Alchemy.Models;
 using RSBot.Core.Objects;
 
 namespace RSBot.Alchemy.Bundle.Manufacture;
@@ -11,17 +12,9 @@ internal enum ManufactureMode
 
 internal class ManufactureBundleConfig
 {
-    #region Properties
-
-    /// <summary>
-    ///     Gets or sets the make-stuff selector.
-    /// </summary>
+    public bool AutoManufacture { get; set; }
+    public int DelayMs { get; set; } = 500;
     public ManufactureMode Mode { get; set; } = ManufactureMode.Resolve;
-
-    /// <summary>
-    ///     Gets or sets the materials staged for the operation.
-    /// </summary>
     public List<InventoryItem> Materials { get; set; } = new();
-
-    #endregion Properties
+    public List<ManufactureQueueEntry> Queue { get; set; } = new();
 }

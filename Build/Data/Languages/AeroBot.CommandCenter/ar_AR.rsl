@@ -1,4 +1,4 @@
-﻿DisplayName="مركز الأوامر"
+﻿DisplayName="الشروط"
 AeroBot.CommandCenter.Main.checkEnable="تفعيل مركز الأوامر"
 AeroBot.CommandCenter.Main.btnResetToDefaults="إعادة للافتراضي"
 AeroBot.CommandCenter.Main.btnSave="حفظ"

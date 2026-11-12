@@ -11,7 +11,7 @@ public class QuestPlugin : IPlugin
 {
     public string InternalName => "RSBot.QuestLog";
     public string DisplayName => "Quests";
-    public bool DisplayAsTab => false;
+    public bool DisplayAsTab => true;
     public int Index => 0;
     public bool RequireIngame => true;
 

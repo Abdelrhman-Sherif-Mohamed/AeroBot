@@ -209,6 +209,8 @@ public static class SpawnManager
     /// <param name="packet">The packet</param>
     public static void Parse(Packet packet, bool isGroup = false)
     {
+        SpawnedPlayer spawnedPlayerForTracker = null;
+
         lock (_lock)
         {
             var refObjId = packet.ReadUInt();
@@ -248,6 +250,7 @@ public static class SpawnManager
                             spawnedPlayer.Deserialize(packet);
 
                             _entities.Add(spawnedPlayer);
+                            spawnedPlayerForTracker = spawnedPlayer;
                             EventManager.FireEvent("OnSpawnPlayer", spawnedPlayer);
                         }
                             break;
@@ -328,6 +331,9 @@ public static class SpawnManager
                 }
             }
         }
+
+        if (spawnedPlayerForTracker != null)
+            KillDeathTracker.OnPlayerSpawned(spawnedPlayerForTracker);
     }
 
     /// <summary>
@@ -365,5 +371,7 @@ public static class SpawnManager
             //Entities.Clear();
             _entities = [];
         }
+
+        KillDeathTracker.OnSpawnCleared();
     }
 }

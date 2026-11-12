@@ -1,81 +1,103 @@
-﻿namespace RSBot.Chat.Views
+﻿using System.Drawing;
+using System.Windows.Forms;
+
+namespace RSBot.Chat.Views
 {
     partial class Main
     {
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
+            if (disposing)
             {
-                components.Dispose();
+                UnsubscribeEvents();
+                components?.Dispose();
             }
             base.Dispose(disposing);
         }
 
         #region Windows Form Designer generated code
 
-        /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             tabMain = new SDUI.Controls.TabControl();
             tabAll = new System.Windows.Forms.TabPage();
             txtAll = new System.Windows.Forms.RichTextBox();
             separator6 = new SDUI.Controls.Separator();
+            panelAllInput = new System.Windows.Forms.Panel();
             txtSendAll = new SDUI.Controls.TextBox();
+            spacerAll = new System.Windows.Forms.Panel();
+            btnSendAll = new SDUI.Controls.Button();
+
             tabPrivate = new System.Windows.Forms.TabPage();
             txtPrivate = new System.Windows.Forms.RichTextBox();
             separator5 = new SDUI.Controls.Separator();
             panel1 = new System.Windows.Forms.Panel();
             textBoxPrivateMsg = new SDUI.Controls.TextBox();
             txtRecievePrivate = new SDUI.Controls.TextBox();
+            spacerPrivateLeft = new System.Windows.Forms.Panel();
+            spacerPrivateRight = new System.Windows.Forms.Panel();
+            btnSendPrivate = new SDUI.Controls.Button();
+
             tabParty = new System.Windows.Forms.TabPage();
             txtParty = new System.Windows.Forms.RichTextBox();
             separator4 = new SDUI.Controls.Separator();
+            panelPartyInput = new System.Windows.Forms.Panel();
             txtSendParty = new SDUI.Controls.TextBox();
+            spacerParty = new System.Windows.Forms.Panel();
+            btnSendParty = new SDUI.Controls.Button();
+
             tabGuild = new System.Windows.Forms.TabPage();
             txtGuild = new System.Windows.Forms.RichTextBox();
             separator3 = new SDUI.Controls.Separator();
+            panelGuildInput = new System.Windows.Forms.Panel();
             txtSendGuild = new SDUI.Controls.TextBox();
+            spacerGuild = new System.Windows.Forms.Panel();
+            btnSendGuild = new SDUI.Controls.Button();
+
             tabUnion = new System.Windows.Forms.TabPage();
             txtUnion = new System.Windows.Forms.RichTextBox();
             separator2 = new SDUI.Controls.Separator();
+            panelUnionInput = new System.Windows.Forms.Panel();
             txtSendUnion = new SDUI.Controls.TextBox();
+            spacerUnion = new System.Windows.Forms.Panel();
+            btnSendUnion = new SDUI.Controls.Button();
+
             tabAcademy = new System.Windows.Forms.TabPage();
             txtAcademy = new System.Windows.Forms.RichTextBox();
             separator1 = new SDUI.Controls.Separator();
+            panelAcademyInput = new System.Windows.Forms.Panel();
             txtSendAcademy = new SDUI.Controls.TextBox();
+            spacerAcademy = new System.Windows.Forms.Panel();
+            btnSendAcademy = new SDUI.Controls.Button();
+
             tabGlobal = new System.Windows.Forms.TabPage();
             txtGlobal = new System.Windows.Forms.RichTextBox();
             tabStall = new System.Windows.Forms.TabPage();
             txtStall = new System.Windows.Forms.RichTextBox();
             tabUnique = new System.Windows.Forms.TabPage();
             UniqueText = new System.Windows.Forms.RichTextBox();
+
             tabMain.SuspendLayout();
             tabAll.SuspendLayout();
+            panelAllInput.SuspendLayout();
             tabPrivate.SuspendLayout();
             panel1.SuspendLayout();
             tabParty.SuspendLayout();
+            panelPartyInput.SuspendLayout();
             tabGuild.SuspendLayout();
+            panelGuildInput.SuspendLayout();
             tabUnion.SuspendLayout();
+            panelUnionInput.SuspendLayout();
             tabAcademy.SuspendLayout();
+            panelAcademyInput.SuspendLayout();
             tabGlobal.SuspendLayout();
             tabStall.SuspendLayout();
             tabUnique.SuspendLayout();
             SuspendLayout();
-            // 
+
             // tabMain
-            // 
             tabMain.Controls.Add(tabAll);
             tabMain.Controls.Add(tabPrivate);
             tabMain.Controls.Add(tabParty);
@@ -86,421 +108,234 @@
             tabMain.Controls.Add(tabStall);
             tabMain.Controls.Add(tabUnique);
             tabMain.Dock = System.Windows.Forms.DockStyle.Fill;
-            tabMain.ItemSize = new System.Drawing.Size(80, 24);
+            tabMain.ItemSize = new System.Drawing.Size(96, 30);
             tabMain.Location = new System.Drawing.Point(0, 0);
             tabMain.Name = "tabMain";
             tabMain.SelectedIndex = 0;
             tabMain.Size = new System.Drawing.Size(754, 477);
             tabMain.TabIndex = 0;
-            // 
+            tabMain.SelectedIndexChanged += OnSelectedTabChanged;
+
             // tabAll
-            // 
-            tabAll.BackColor = System.Drawing.Color.White;
-            tabAll.Controls.Add(txtAll);
-            tabAll.Controls.Add(separator6);
-            tabAll.Controls.Add(txtSendAll);
-            tabAll.Location = new System.Drawing.Point(4, 28);
-            tabAll.Name = "tabAll";
-            tabAll.Padding = new System.Windows.Forms.Padding(3);
-            tabAll.Size = new System.Drawing.Size(746, 445);
-            tabAll.TabIndex = 0;
-            tabAll.Text = "All";
-            // 
-            // txtAll
-            // 
-            txtAll.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            txtAll.Dock = System.Windows.Forms.DockStyle.Fill;
-            txtAll.Location = new System.Drawing.Point(3, 3);
-            txtAll.Name = "txtAll";
-            txtAll.ReadOnly = true;
-            txtAll.Size = new System.Drawing.Size(740, 408);
-            txtAll.TabIndex = 2;
-            txtAll.Text = "";
-            // 
-            // separator6
-            // 
-            separator6.Dock = System.Windows.Forms.DockStyle.Bottom;
-            separator6.IsVertical = false;
-            separator6.Location = new System.Drawing.Point(3, 411);
-            separator6.Name = "separator6";
-            separator6.Size = new System.Drawing.Size(740, 10);
-            separator6.TabIndex = 4;
-            separator6.Text = "separator6";
-            // 
-            // txtSendAll
-            // 
-            txtSendAll.Dock = System.Windows.Forms.DockStyle.Bottom;
-            txtSendAll.Location = new System.Drawing.Point(3, 421);
-            txtSendAll.MaxLength = 32767;
-            txtSendAll.MultiLine = false;
-            txtSendAll.Name = "txtSendAll";
-            txtSendAll.PassFocusShow = false;
-            txtSendAll.Radius = 2;
-            txtSendAll.Size = new System.Drawing.Size(740, 21);
-            txtSendAll.TabIndex = 3;
-            txtSendAll.Tag = "1";
-            txtSendAll.TextAlignment = System.Windows.Forms.HorizontalAlignment.Left;
-            txtSendAll.UseSystemPasswordChar = false;
-            txtSendAll.PreviewKeyDown += MessagePreviewKeyDown;
-            // 
+            ConfigureOutputTextBox(txtAll, "txtAll");
+            ConfigureSeparator(separator6, "separator6");
+            ConfigureSendBar(panelAllInput, "panelAllInput", txtSendAll, "txtSendAll", "1", spacerAll, btnSendAll, "btnSendAll");
+            ConfigureSendTabPage(tabAll, "tabAll", "All", 0, txtAll, separator6, panelAllInput);
+
             // tabPrivate
-            // 
-            tabPrivate.BackColor = System.Drawing.Color.White;
-            tabPrivate.Controls.Add(txtPrivate);
-            tabPrivate.Controls.Add(separator5);
-            tabPrivate.Controls.Add(panel1);
-            tabPrivate.Location = new System.Drawing.Point(4, 25);
-            tabPrivate.Name = "tabPrivate";
-            tabPrivate.Padding = new System.Windows.Forms.Padding(3);
-            tabPrivate.Size = new System.Drawing.Size(746, 448);
-            tabPrivate.TabIndex = 1;
-            tabPrivate.Text = "Private";
-            // 
-            // txtPrivate
-            // 
-            txtPrivate.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            txtPrivate.Dock = System.Windows.Forms.DockStyle.Fill;
-            txtPrivate.Location = new System.Drawing.Point(3, 3);
-            txtPrivate.Name = "txtPrivate";
-            txtPrivate.Size = new System.Drawing.Size(740, 402);
-            txtPrivate.TabIndex = 7;
-            txtPrivate.Text = "";
-            // 
-            // separator5
-            // 
-            separator5.Dock = System.Windows.Forms.DockStyle.Bottom;
-            separator5.IsVertical = false;
-            separator5.Location = new System.Drawing.Point(3, 405);
-            separator5.Name = "separator5";
-            separator5.Size = new System.Drawing.Size(740, 10);
-            separator5.TabIndex = 6;
-            separator5.Text = "separator5";
-            // 
-            // panel1
-            // 
-            panel1.BackColor = System.Drawing.Color.Transparent;
-            panel1.Controls.Add(textBoxPrivateMsg);
-            panel1.Controls.Add(txtRecievePrivate);
+            ConfigureOutputTextBox(txtPrivate, "txtPrivate");
+            ConfigureSeparator(separator5, "separator5");
             panel1.Dock = System.Windows.Forms.DockStyle.Bottom;
-            panel1.Location = new System.Drawing.Point(3, 415);
+            panel1.Height = 40;
             panel1.Name = "panel1";
-            panel1.Size = new System.Drawing.Size(740, 30);
-            panel1.TabIndex = 8;
-            // 
-            // textBoxPrivateMsg
-            // 
-            textBoxPrivateMsg.Location = new System.Drawing.Point(164, 3);
+            panel1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+
+            textBoxPrivateMsg.Dock = System.Windows.Forms.DockStyle.Fill;
             textBoxPrivateMsg.MaxLength = 32767;
             textBoxPrivateMsg.MultiLine = false;
             textBoxPrivateMsg.Name = "textBoxPrivateMsg";
             textBoxPrivateMsg.PassFocusShow = false;
-            textBoxPrivateMsg.Radius = 2;
-            textBoxPrivateMsg.Size = new System.Drawing.Size(573, 21);
+            textBoxPrivateMsg.Radius = 4;
             textBoxPrivateMsg.TabIndex = 4;
             textBoxPrivateMsg.Tag = "2";
             textBoxPrivateMsg.TextAlignment = System.Windows.Forms.HorizontalAlignment.Left;
             textBoxPrivateMsg.UseSystemPasswordChar = false;
-            textBoxPrivateMsg.PreviewKeyDown += MessagePreviewKeyDown;
-            // 
-            // txtRecievePrivate
-            // 
-            txtRecievePrivate.Location = new System.Drawing.Point(3, 3);
-            txtRecievePrivate.MaxLength = 32767;
+            textBoxPrivateMsg.KeyDown += MessageInputKeyDown;
+
+            spacerPrivateLeft.Dock = System.Windows.Forms.DockStyle.Left;
+            spacerPrivateLeft.Width = 6;
+            spacerPrivateLeft.Name = "spacerPrivateLeft";
+
+            txtRecievePrivate.Dock = System.Windows.Forms.DockStyle.Left;
+            txtRecievePrivate.MaxLength = 64;
             txtRecievePrivate.MultiLine = false;
             txtRecievePrivate.Name = "txtRecievePrivate";
             txtRecievePrivate.PassFocusShow = false;
-            txtRecievePrivate.Radius = 2;
-            txtRecievePrivate.Size = new System.Drawing.Size(155, 21);
-            txtRecievePrivate.TabIndex = 4;
+            txtRecievePrivate.Radius = 4;
+            txtRecievePrivate.Width = 175;
+            txtRecievePrivate.TabIndex = 3;
             txtRecievePrivate.TextAlignment = System.Windows.Forms.HorizontalAlignment.Left;
             txtRecievePrivate.UseSystemPasswordChar = false;
-            // 
+            txtRecievePrivate.KeyDown += PrivateTargetKeyDown;
+
+            spacerPrivateRight.Dock = System.Windows.Forms.DockStyle.Right;
+            spacerPrivateRight.Width = 6;
+            spacerPrivateRight.Name = "spacerPrivateRight";
+
+            ConfigureSendButton(btnSendPrivate, "btnSendPrivate");
+
+            panel1.Controls.Add(textBoxPrivateMsg);
+            panel1.Controls.Add(spacerPrivateLeft);
+            panel1.Controls.Add(txtRecievePrivate);
+            panel1.Controls.Add(spacerPrivateRight);
+            panel1.Controls.Add(btnSendPrivate);
+            textBoxPrivateMsg.BringToFront();
+
+            ConfigureSendTabPage(tabPrivate, "tabPrivate", "Private", 1, txtPrivate, separator5, panel1);
+
             // tabParty
-            // 
-            tabParty.BackColor = System.Drawing.Color.White;
-            tabParty.Controls.Add(txtParty);
-            tabParty.Controls.Add(separator4);
-            tabParty.Controls.Add(txtSendParty);
-            tabParty.Location = new System.Drawing.Point(4, 28);
-            tabParty.Name = "tabParty";
-            tabParty.Padding = new System.Windows.Forms.Padding(3);
-            tabParty.Size = new System.Drawing.Size(746, 445);
-            tabParty.TabIndex = 2;
-            tabParty.Text = "Party";
-            // 
-            // txtParty
-            // 
-            txtParty.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            txtParty.Dock = System.Windows.Forms.DockStyle.Fill;
-            txtParty.Location = new System.Drawing.Point(3, 3);
-            txtParty.Name = "txtParty";
-            txtParty.ReadOnly = true;
-            txtParty.Size = new System.Drawing.Size(740, 408);
-            txtParty.TabIndex = 2;
-            txtParty.Text = "";
-            // 
-            // separator4
-            // 
-            separator4.Dock = System.Windows.Forms.DockStyle.Bottom;
-            separator4.IsVertical = false;
-            separator4.Location = new System.Drawing.Point(3, 411);
-            separator4.Name = "separator4";
-            separator4.Size = new System.Drawing.Size(740, 10);
-            separator4.TabIndex = 4;
-            separator4.Text = "separator4";
-            // 
-            // txtSendParty
-            // 
-            txtSendParty.Dock = System.Windows.Forms.DockStyle.Bottom;
-            txtSendParty.Location = new System.Drawing.Point(3, 421);
-            txtSendParty.MaxLength = 32767;
-            txtSendParty.MultiLine = false;
-            txtSendParty.Name = "txtSendParty";
-            txtSendParty.PassFocusShow = false;
-            txtSendParty.Radius = 2;
-            txtSendParty.Size = new System.Drawing.Size(740, 21);
-            txtSendParty.TabIndex = 3;
-            txtSendParty.Tag = "4";
-            txtSendParty.TextAlignment = System.Windows.Forms.HorizontalAlignment.Left;
-            txtSendParty.UseSystemPasswordChar = false;
-            txtSendParty.PreviewKeyDown += MessagePreviewKeyDown;
-            // 
+            ConfigureOutputTextBox(txtParty, "txtParty");
+            ConfigureSeparator(separator4, "separator4");
+            ConfigureSendBar(panelPartyInput, "panelPartyInput", txtSendParty, "txtSendParty", "4", spacerParty, btnSendParty, "btnSendParty");
+            ConfigureSendTabPage(tabParty, "tabParty", "Party", 2, txtParty, separator4, panelPartyInput);
+
             // tabGuild
-            // 
-            tabGuild.BackColor = System.Drawing.Color.White;
-            tabGuild.Controls.Add(txtGuild);
-            tabGuild.Controls.Add(separator3);
-            tabGuild.Controls.Add(txtSendGuild);
-            tabGuild.Location = new System.Drawing.Point(4, 28);
-            tabGuild.Name = "tabGuild";
-            tabGuild.Padding = new System.Windows.Forms.Padding(3);
-            tabGuild.Size = new System.Drawing.Size(746, 445);
-            tabGuild.TabIndex = 3;
-            tabGuild.Text = "Guild";
-            // 
-            // txtGuild
-            // 
-            txtGuild.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            txtGuild.Dock = System.Windows.Forms.DockStyle.Fill;
-            txtGuild.Location = new System.Drawing.Point(3, 3);
-            txtGuild.Name = "txtGuild";
-            txtGuild.ReadOnly = true;
-            txtGuild.Size = new System.Drawing.Size(740, 408);
-            txtGuild.TabIndex = 2;
-            txtGuild.Text = "";
-            // 
-            // separator3
-            // 
-            separator3.Dock = System.Windows.Forms.DockStyle.Bottom;
-            separator3.IsVertical = false;
-            separator3.Location = new System.Drawing.Point(3, 411);
-            separator3.Name = "separator3";
-            separator3.Size = new System.Drawing.Size(740, 10);
-            separator3.TabIndex = 4;
-            separator3.Text = "separator3";
-            // 
-            // txtSendGuild
-            // 
-            txtSendGuild.Dock = System.Windows.Forms.DockStyle.Bottom;
-            txtSendGuild.Location = new System.Drawing.Point(3, 421);
-            txtSendGuild.MaxLength = 32767;
-            txtSendGuild.MultiLine = false;
-            txtSendGuild.Name = "txtSendGuild";
-            txtSendGuild.PassFocusShow = false;
-            txtSendGuild.Radius = 2;
-            txtSendGuild.Size = new System.Drawing.Size(740, 21);
-            txtSendGuild.TabIndex = 3;
-            txtSendGuild.Tag = "5";
-            txtSendGuild.TextAlignment = System.Windows.Forms.HorizontalAlignment.Left;
-            txtSendGuild.UseSystemPasswordChar = false;
-            txtSendGuild.PreviewKeyDown += MessagePreviewKeyDown;
-            // 
+            ConfigureOutputTextBox(txtGuild, "txtGuild");
+            ConfigureSeparator(separator3, "separator3");
+            ConfigureSendBar(panelGuildInput, "panelGuildInput", txtSendGuild, "txtSendGuild", "5", spacerGuild, btnSendGuild, "btnSendGuild");
+            ConfigureSendTabPage(tabGuild, "tabGuild", "Guild", 3, txtGuild, separator3, panelGuildInput);
+
             // tabUnion
-            // 
-            tabUnion.BackColor = System.Drawing.Color.White;
-            tabUnion.Controls.Add(txtUnion);
-            tabUnion.Controls.Add(separator2);
-            tabUnion.Controls.Add(txtSendUnion);
-            tabUnion.Location = new System.Drawing.Point(4, 25);
-            tabUnion.Name = "tabUnion";
-            tabUnion.Padding = new System.Windows.Forms.Padding(3);
-            tabUnion.Size = new System.Drawing.Size(746, 448);
-            tabUnion.TabIndex = 6;
-            tabUnion.Text = "Union";
-            // 
-            // txtUnion
-            // 
-            txtUnion.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            txtUnion.Dock = System.Windows.Forms.DockStyle.Fill;
-            txtUnion.Location = new System.Drawing.Point(3, 3);
-            txtUnion.Name = "txtUnion";
-            txtUnion.ReadOnly = true;
-            txtUnion.Size = new System.Drawing.Size(740, 411);
-            txtUnion.TabIndex = 4;
-            txtUnion.Text = "";
-            // 
-            // separator2
-            // 
-            separator2.Dock = System.Windows.Forms.DockStyle.Bottom;
-            separator2.IsVertical = false;
-            separator2.Location = new System.Drawing.Point(3, 414);
-            separator2.Name = "separator2";
-            separator2.Size = new System.Drawing.Size(740, 10);
-            separator2.TabIndex = 6;
-            separator2.Text = "separator2";
-            // 
-            // txtSendUnion
-            // 
-            txtSendUnion.Dock = System.Windows.Forms.DockStyle.Bottom;
-            txtSendUnion.Location = new System.Drawing.Point(3, 424);
-            txtSendUnion.MaxLength = 32767;
-            txtSendUnion.MultiLine = false;
-            txtSendUnion.Name = "txtSendUnion";
-            txtSendUnion.PassFocusShow = false;
-            txtSendUnion.Radius = 2;
-            txtSendUnion.Size = new System.Drawing.Size(740, 21);
-            txtSendUnion.TabIndex = 5;
-            txtSendUnion.Tag = "11";
-            txtSendUnion.TextAlignment = System.Windows.Forms.HorizontalAlignment.Left;
-            txtSendUnion.UseSystemPasswordChar = false;
-            txtSendUnion.PreviewKeyDown += MessagePreviewKeyDown;
-            // 
+            ConfigureOutputTextBox(txtUnion, "txtUnion");
+            ConfigureSeparator(separator2, "separator2");
+            ConfigureSendBar(panelUnionInput, "panelUnionInput", txtSendUnion, "txtSendUnion", "11", spacerUnion, btnSendUnion, "btnSendUnion");
+            ConfigureSendTabPage(tabUnion, "tabUnion", "Union", 4, txtUnion, separator2, panelUnionInput);
+
             // tabAcademy
-            // 
-            tabAcademy.BackColor = System.Drawing.Color.White;
-            tabAcademy.Controls.Add(txtAcademy);
-            tabAcademy.Controls.Add(separator1);
-            tabAcademy.Controls.Add(txtSendAcademy);
-            tabAcademy.Location = new System.Drawing.Point(4, 28);
-            tabAcademy.Name = "tabAcademy";
-            tabAcademy.Padding = new System.Windows.Forms.Padding(3);
-            tabAcademy.Size = new System.Drawing.Size(746, 445);
-            tabAcademy.TabIndex = 4;
-            tabAcademy.Text = "Academy";
-            // 
-            // txtAcademy
-            // 
-            txtAcademy.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            txtAcademy.Dock = System.Windows.Forms.DockStyle.Fill;
-            txtAcademy.Location = new System.Drawing.Point(3, 3);
-            txtAcademy.Name = "txtAcademy";
-            txtAcademy.ReadOnly = true;
-            txtAcademy.Size = new System.Drawing.Size(740, 408);
-            txtAcademy.TabIndex = 2;
-            txtAcademy.Text = "";
-            // 
-            // separator1
-            // 
-            separator1.Dock = System.Windows.Forms.DockStyle.Bottom;
-            separator1.IsVertical = false;
-            separator1.Location = new System.Drawing.Point(3, 411);
-            separator1.Name = "separator1";
-            separator1.Size = new System.Drawing.Size(740, 10);
-            separator1.TabIndex = 4;
-            separator1.Text = "separator1";
-            // 
-            // txtSendAcademy
-            // 
-            txtSendAcademy.Dock = System.Windows.Forms.DockStyle.Bottom;
-            txtSendAcademy.Location = new System.Drawing.Point(3, 421);
-            txtSendAcademy.MaxLength = 32767;
-            txtSendAcademy.MultiLine = false;
-            txtSendAcademy.Name = "txtSendAcademy";
-            txtSendAcademy.PassFocusShow = false;
-            txtSendAcademy.Radius = 2;
-            txtSendAcademy.Size = new System.Drawing.Size(740, 21);
-            txtSendAcademy.TabIndex = 3;
-            txtSendAcademy.Tag = "16";
-            txtSendAcademy.TextAlignment = System.Windows.Forms.HorizontalAlignment.Left;
-            txtSendAcademy.UseSystemPasswordChar = false;
-            txtSendAcademy.PreviewKeyDown += MessagePreviewKeyDown;
-            // 
+            ConfigureOutputTextBox(txtAcademy, "txtAcademy");
+            ConfigureSeparator(separator1, "separator1");
+            ConfigureSendBar(panelAcademyInput, "panelAcademyInput", txtSendAcademy, "txtSendAcademy", "16", spacerAcademy, btnSendAcademy, "btnSendAcademy");
+            ConfigureSendTabPage(tabAcademy, "tabAcademy", "Academy", 5, txtAcademy, separator1, panelAcademyInput);
+
             // tabGlobal
-            // 
-            tabGlobal.BackColor = System.Drawing.Color.White;
-            tabGlobal.Controls.Add(txtGlobal);
-            tabGlobal.Location = new System.Drawing.Point(4, 28);
-            tabGlobal.Name = "tabGlobal";
-            tabGlobal.Padding = new System.Windows.Forms.Padding(3);
-            tabGlobal.Size = new System.Drawing.Size(746, 445);
-            tabGlobal.TabIndex = 5;
-            tabGlobal.Text = "Global / Notice";
-            // 
-            // txtGlobal
-            // 
-            txtGlobal.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            txtGlobal.Dock = System.Windows.Forms.DockStyle.Fill;
-            txtGlobal.Location = new System.Drawing.Point(3, 3);
-            txtGlobal.Name = "txtGlobal";
-            txtGlobal.ReadOnly = true;
-            txtGlobal.Size = new System.Drawing.Size(740, 439);
-            txtGlobal.TabIndex = 2;
-            txtGlobal.Text = "";
-            // 
+            ConfigureOutputTextBox(txtGlobal, "txtGlobal");
+            ConfigureReadOnlyTabPage(tabGlobal, "tabGlobal", "Global / Notice", 6, txtGlobal);
+
             // tabStall
-            // 
-            tabStall.BackColor = System.Drawing.Color.White;
-            tabStall.Controls.Add(txtStall);
-            tabStall.Location = new System.Drawing.Point(4, 28);
-            tabStall.Name = "tabStall";
-            tabStall.Padding = new System.Windows.Forms.Padding(3);
-            tabStall.Size = new System.Drawing.Size(746, 445);
-            tabStall.TabIndex = 5;
-            tabStall.Text = "Stall";
-            // 
-            // txtStall
-            // 
-            txtStall.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            txtStall.Dock = System.Windows.Forms.DockStyle.Fill;
-            txtStall.Location = new System.Drawing.Point(3, 3);
-            txtStall.Name = "txtStall";
-            txtStall.ReadOnly = true;
-            txtStall.Size = new System.Drawing.Size(740, 439);
-            txtStall.TabIndex = 2;
-            txtStall.Text = "";
-            // 
+            ConfigureOutputTextBox(txtStall, "txtStall");
+            ConfigureReadOnlyTabPage(tabStall, "tabStall", "Stall", 7, txtStall);
+
             // tabUnique
-            // 
-            tabUnique.BackColor = System.Drawing.Color.White;
-            tabUnique.Controls.Add(UniqueText);
-            tabUnique.Location = new System.Drawing.Point(4, 28);
-            tabUnique.Name = "tabUnique";
-            tabUnique.Padding = new System.Windows.Forms.Padding(3);
-            tabUnique.Size = new System.Drawing.Size(746, 445);
-            tabUnique.TabIndex = 7;
-            tabUnique.Text = "Unique";
-            // 
-            // UniqueText
-            // 
-            UniqueText.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            UniqueText.Dock = System.Windows.Forms.DockStyle.Fill;
-            UniqueText.Location = new System.Drawing.Point(3, 3);
-            UniqueText.Name = "UniqueText";
-            UniqueText.ReadOnly = true;
-            UniqueText.Size = new System.Drawing.Size(740, 439);
-            UniqueText.TabIndex = 3;
-            UniqueText.Text = "";
-            // 
+            ConfigureOutputTextBox(UniqueText, "UniqueText");
+            ConfigureReadOnlyTabPage(tabUnique, "tabUnique", "Unique", 8, UniqueText);
+
             // Main
-            // 
-            AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
-            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
             Controls.Add(tabMain);
-            Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
             Name = "Main";
-            Size = new System.Drawing.Size(754, 477);
+            Size = new Size(754, 477);
+
             tabMain.ResumeLayout(false);
             tabAll.ResumeLayout(false);
+            panelAllInput.ResumeLayout(false);
             tabPrivate.ResumeLayout(false);
             panel1.ResumeLayout(false);
             tabParty.ResumeLayout(false);
+            panelPartyInput.ResumeLayout(false);
             tabGuild.ResumeLayout(false);
+            panelGuildInput.ResumeLayout(false);
             tabUnion.ResumeLayout(false);
+            panelUnionInput.ResumeLayout(false);
             tabAcademy.ResumeLayout(false);
+            panelAcademyInput.ResumeLayout(false);
             tabGlobal.ResumeLayout(false);
             tabStall.ResumeLayout(false);
             tabUnique.ResumeLayout(false);
             ResumeLayout(false);
+        }
+
+        private static void ConfigureOutputTextBox(System.Windows.Forms.RichTextBox box, string name)
+        {
+            box.BorderStyle = BorderStyle.None;
+            box.DetectUrls = true;
+            box.Dock = DockStyle.Fill;
+            box.Name = name;
+            box.ReadOnly = true;
+            box.ScrollBars = RichTextBoxScrollBars.Vertical;
+            box.WordWrap = true;
+            box.Text = string.Empty;
+        }
+
+        private static void ConfigureSeparator(SDUI.Controls.Separator sep, string name)
+        {
+            sep.Dock = DockStyle.Bottom;
+            sep.IsVertical = false;
+            sep.Name = name;
+            sep.Size = new Size(740, 8);
+        }
+
+        private void ConfigureSendButton(SDUI.Controls.Button btn, string name)
+        {
+            btn.Dock = DockStyle.Right;
+            btn.Width = 86;
+            btn.Name = name;
+            btn.Text = "Send";
+            btn.Tag = "PreserveColor";
+            btn.Cursor = Cursors.Hand;
+            btn.Click += SendButtonClick;
+        }
+
+        private void ConfigureSendBar(
+            System.Windows.Forms.Panel panel,
+            string panelName,
+            SDUI.Controls.TextBox textBox,
+            string textBoxName,
+            string chatTag,
+            System.Windows.Forms.Panel spacer,
+            SDUI.Controls.Button sendButton,
+            string buttonName)
+        {
+            panel.Dock = DockStyle.Bottom;
+            panel.Height = 40;
+            panel.Name = panelName;
+            panel.Padding = new Padding(4, 4, 4, 4);
+
+            textBox.Dock = DockStyle.Fill;
+            textBox.MaxLength = 32767;
+            textBox.MultiLine = false;
+            textBox.Name = textBoxName;
+            textBox.PassFocusShow = false;
+            textBox.Radius = 4;
+            textBox.Tag = chatTag;
+            textBox.TextAlignment = HorizontalAlignment.Left;
+            textBox.UseSystemPasswordChar = false;
+            textBox.KeyDown += MessageInputKeyDown;
+
+            spacer.Dock = DockStyle.Right;
+            spacer.Width = 6;
+            spacer.Name = panelName + "_spacer";
+
+            ConfigureSendButton(sendButton, buttonName);
+
+            panel.Controls.Add(textBox);
+            panel.Controls.Add(spacer);
+            panel.Controls.Add(sendButton);
+            textBox.BringToFront();
+        }
+
+        private static void ConfigureSendTabPage(
+            TabPage page,
+            string name,
+            string text,
+            int tabIndex,
+            System.Windows.Forms.RichTextBox output,
+            SDUI.Controls.Separator sep,
+            System.Windows.Forms.Panel inputPanel)
+        {
+            page.Name = name;
+            page.Padding = new Padding(6);
+            page.TabIndex = tabIndex;
+            page.Text = text;
+            page.Controls.Add(output);
+            page.Controls.Add(sep);
+            page.Controls.Add(inputPanel);
+            output.BringToFront();
+        }
+
+        private static void ConfigureReadOnlyTabPage(
+            TabPage page,
+            string name,
+            string text,
+            int tabIndex,
+            System.Windows.Forms.RichTextBox output)
+        {
+            page.Name = name;
+            page.Padding = new Padding(6);
+            page.TabIndex = tabIndex;
+            page.Text = text;
+            page.Controls.Add(output);
         }
 
         #endregion
@@ -538,5 +373,23 @@
         private System.Windows.Forms.RichTextBox txtPrivate;
         private SDUI.Controls.TextBox textBoxPrivateMsg;
         private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.Panel panelAllInput;
+        private System.Windows.Forms.Panel spacerAll;
+        private SDUI.Controls.Button btnSendAll;
+        private System.Windows.Forms.Panel spacerPrivateLeft;
+        private System.Windows.Forms.Panel spacerPrivateRight;
+        private SDUI.Controls.Button btnSendPrivate;
+        private System.Windows.Forms.Panel panelPartyInput;
+        private System.Windows.Forms.Panel spacerParty;
+        private SDUI.Controls.Button btnSendParty;
+        private System.Windows.Forms.Panel panelGuildInput;
+        private System.Windows.Forms.Panel spacerGuild;
+        private SDUI.Controls.Button btnSendGuild;
+        private System.Windows.Forms.Panel panelUnionInput;
+        private System.Windows.Forms.Panel spacerUnion;
+        private SDUI.Controls.Button btnSendUnion;
+        private System.Windows.Forms.Panel panelAcademyInput;
+        private System.Windows.Forms.Panel spacerAcademy;
+        private SDUI.Controls.Button btnSendAcademy;
     }
 }

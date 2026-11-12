@@ -800,10 +800,11 @@ public partial class Main : DoubleBufferedControl
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 2,
+            RowCount = 3,
             BackColor = Color.Transparent
         };
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 24F));
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
         grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
         panelLogHeader = new System.Windows.Forms.Panel
@@ -863,10 +864,10 @@ public partial class Main : DoubleBufferedControl
             Padding = new Padding(0, 2, 0, 2)
         };
 
-        btnStartBot = MakeLogButton("شغل البوت", Color.FromArgb(34, 197, 94));
+        btnStartBot = MakeLogButton("تشغيل التجارة", Color.FromArgb(34, 197, 94));
         btnStartBot.Click += btnStartBot_Click;
 
-        btnStopBot = MakeLogButton("وقف البوت", Color.FromArgb(220, 38, 38));
+        btnStopBot = MakeLogButton("إيقاف التجارة", Color.FromArgb(220, 38, 38));
         btnStopBot.Click += btnStopBot_Click;
 
         btnShowClient = MakeLogButton("إظهار الكلاينت", Color.FromArgb(37, 99, 235));
@@ -906,8 +907,19 @@ public partial class Main : DoubleBufferedControl
 
         panelLogBody.Controls.Add(rtbLog);
 
+        lblTradeStats = new System.Windows.Forms.Label
+        {
+            Text = TradeStats.FormatSummary(Kernel.Language == "ar_AR"),
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Color.FromArgb(148, 163, 184),
+            AutoSize = false,
+            Font = new Font("Segoe UI", 8.2F)
+        };
+
         grid.Controls.Add(panelLogHeader, 0, 0);
-        grid.Controls.Add(panelLogBody, 0, 1);
+        grid.Controls.Add(lblTradeStats, 0, 1);
+        grid.Controls.Add(panelLogBody, 0, 2);
         panel.Controls.Add(grid);
 
         return panel;
@@ -1084,10 +1096,12 @@ public partial class Main : DoubleBufferedControl
         EventManager.SubscribeEvent("OnJobJoin", new System.Action(OnUpdateJobInfo));
         EventManager.SubscribeEvent("OnJobLeave", new System.Action(OnUpdateJobInfo));
         EventManager.SubscribeEvent("OnJobAliasUpdate", new System.Action(OnUpdateJobInfo));
-        EventManager.SubscribeEvent("OnStartBot", new System.Action(OnBotStateChanged));
-        EventManager.SubscribeEvent("OnStopBot", new System.Action(OnBotStateChanged));
+        TradeBotbase.EnsureRunner().StateChanged += OnBotStateChanged;
         EventManager.SubscribeEvent("OnAddLog", new Action<string, LogLevel>(AppendLog));
         EventManager.SubscribeEvent("OnLoadCharacter", new System.Action(OnCharacterLoaded));
+        EventManager.SubscribeEvent("OnTradeRunStarted", new System.Action(UpdateUiState));
+        EventManager.SubscribeEvent("OnTradeRunSettled", new Action<int, long, long>((_, _, _) => UpdateUiState()));
+        EventManager.SubscribeEvent("OnClock", new System.Action(UpdateTradeStatsLabel));
     }
 
     /// <summary>
@@ -1270,7 +1284,7 @@ public partial class Main : DoubleBufferedControl
 
         TradeConfig.StartCity = comboStartCity.SelectedItem?.ToString() ?? "Auto-Detect";
 
-        if (Kernel.Bot?.Running != true)
+        if (!TradeBotbase.IsActive)
             TradeConfig.CurrentTradeLoop = 0;
 
         UpdateUiState();
@@ -1283,7 +1297,7 @@ public partial class Main : DoubleBufferedControl
 
         TradeConfig.DestinationCity = comboDestCity.SelectedItem?.ToString() ?? "Donwhang";
 
-        if (Kernel.Bot?.Running != true)
+        if (!TradeBotbase.IsActive)
             TradeConfig.CurrentTradeLoop = 0;
 
         UpdateUiState();
@@ -2002,40 +2016,69 @@ public partial class Main : DoubleBufferedControl
 
     public static readonly TradeGoodEntry[] TradeGoodsCatalog = new[]
     {
-        // Jangan
+        // Jangan (NPC_CH_SPECIAL & NPC_CH_SPECIAL2)
         new TradeGoodEntry(2147u, "ITEM_ETC_TRADE_CH_01", "PACKAGE_ITEM_ETC_TRADE_CH_01", "White Silk"),
         new TradeGoodEntry(2148u, "ITEM_ETC_TRADE_CH_02", "PACKAGE_ITEM_ETC_TRADE_CH_02", "Red Silk"),
         new TradeGoodEntry(2149u, "ITEM_ETC_TRADE_CH_03", "PACKAGE_ITEM_ETC_TRADE_CH_03", "Blue celadon vase"),
         new TradeGoodEntry(2150u, "ITEM_ETC_TRADE_CH_04", "PACKAGE_ITEM_ETC_TRADE_CH_04", "Wolju celadon vase"),
+        new TradeGoodEntry(7570u, "ITEM_ETC_TRADE_CH_05", "PACKAGE_ITEM_ETC_TRADE_CH_05", "Tiger Eye Stone"),
+        new TradeGoodEntry(7571u, "ITEM_ETC_TRADE_CH_06", "PACKAGE_ITEM_ETC_TRADE_CH_06", "Poplar Tree"),
+        new TradeGoodEntry(7572u, "ITEM_ETC_TRADE_CH_07", "PACKAGE_ITEM_ETC_TRADE_CH_07", "High Class Tiger Lether"),
 
-        // Donwhang
+        // Donwhang (NPC_WC_SPECIAL & NPC_WC_SPECIAL2)
         new TradeGoodEntry(2151u, "ITEM_ETC_TRADE_WC_01", "PACKAGE_ITEM_ETC_TRADE_WC_01", "Leather"),
         new TradeGoodEntry(2152u, "ITEM_ETC_TRADE_WC_02", "PACKAGE_ITEM_ETC_TRADE_WC_02", "Footstall"),
         new TradeGoodEntry(2153u, "ITEM_ETC_TRADE_WC_03", "PACKAGE_ITEM_ETC_TRADE_WC_03", "Saddle"),
         new TradeGoodEntry(2154u, "ITEM_ETC_TRADE_WC_04", "PACKAGE_ITEM_ETC_TRADE_WC_04", "Horseshoe"),
+        new TradeGoodEntry(7573u, "ITEM_ETC_TRADE_WC_05", "PACKAGE_ITEM_ETC_TRADE_WC_05", "Brown Pearl"),
+        new TradeGoodEntry(7574u, "ITEM_ETC_TRADE_WC_06", "PACKAGE_ITEM_ETC_TRADE_WC_06", "Silver Bar"),
+        new TradeGoodEntry(7575u, "ITEM_ETC_TRADE_WC_07", "PACKAGE_ITEM_ETC_TRADE_WC_07", "Gold Bar"),
 
-        // Hotan
+        // Hotan (NPC_KT_SPECIAL)
         new TradeGoodEntry(2155u, "ITEM_ETC_TRADE_KT_01", "PACKAGE_ITEM_ETC_TRADE_KT_01", "Nephrite"),
         new TradeGoodEntry(2156u, "ITEM_ETC_TRADE_KT_02", "PACKAGE_ITEM_ETC_TRADE_KT_02", "Agate"),
         new TradeGoodEntry(2157u, "ITEM_ETC_TRADE_KT_03", "PACKAGE_ITEM_ETC_TRADE_KT_03", "Crystal"),
         new TradeGoodEntry(2158u, "ITEM_ETC_TRADE_KT_04", "PACKAGE_ITEM_ETC_TRADE_KT_04", "Jade"),
 
-        // Samarkand
-        new TradeGoodEntry(10398u, "ITEM_ETC_TRADE_EU_SA_01", "PACKAGE_ITEM_ETC_TRADE_EU_SA_01", "Wool"),
-        new TradeGoodEntry(10399u, "ITEM_ETC_TRADE_EU_SA_02", "PACKAGE_ITEM_ETC_TRADE_EU_SA_02", "Azure Stone"),
-        new TradeGoodEntry(10400u, "ITEM_ETC_TRADE_EU_SA_03", "PACKAGE_ITEM_ETC_TRADE_EU_SA_03", "Spice"),
-        new TradeGoodEntry(10401u, "ITEM_ETC_TRADE_EU_SA_04", "PACKAGE_ITEM_ETC_TRADE_EU_SA_04", "Pomegranate"),
+        // Samarkand (NPC_CA_SPECIAL)
+        new TradeGoodEntry(10398u, "ITEM_ETC_TRADE_CA_01", "PACKAGE_ITEM_ETC_TRADE_CA_01", "Wool"),
+        new TradeGoodEntry(10399u, "ITEM_ETC_TRADE_CA_02", "PACKAGE_ITEM_ETC_TRADE_CA_02", "Azure Stone"),
+        new TradeGoodEntry(10400u, "ITEM_ETC_TRADE_CA_03", "PACKAGE_ITEM_ETC_TRADE_CA_03", "Spice"),
+        new TradeGoodEntry(10401u, "ITEM_ETC_TRADE_CA_04", "PACKAGE_ITEM_ETC_TRADE_CA_04", "Pomegranate"),
 
-        // Constantinople
-        new TradeGoodEntry(10394u, "ITEM_ETC_TRADE_EU_CA_01", "PACKAGE_ITEM_ETC_TRADE_EU_CA_01", "Linen"),
-        new TradeGoodEntry(10395u, "ITEM_ETC_TRADE_EU_CA_02", "PACKAGE_ITEM_ETC_TRADE_EU_CA_02", "Perfume"),
-        new TradeGoodEntry(10396u, "ITEM_ETC_TRADE_EU_CA_03", "PACKAGE_ITEM_ETC_TRADE_EU_CA_03", "Coral"),
-        new TradeGoodEntry(10397u, "ITEM_ETC_TRADE_EU_CA_04", "PACKAGE_ITEM_ETC_TRADE_EU_CA_04", "Pearl"),
+        // Constantinople (NPC_EU_SPECIAL)
+        new TradeGoodEntry(10394u, "ITEM_ETC_TRADE_EU_01", "PACKAGE_ITEM_ETC_TRADE_EU_01", "Linen"),
+        new TradeGoodEntry(10395u, "ITEM_ETC_TRADE_EU_02", "PACKAGE_ITEM_ETC_TRADE_EU_02", "Perfume"),
+        new TradeGoodEntry(10396u, "ITEM_ETC_TRADE_EU_03", "PACKAGE_ITEM_ETC_TRADE_EU_03", "Coral"),
+        new TradeGoodEntry(10397u, "ITEM_ETC_TRADE_EU_04", "PACKAGE_ITEM_ETC_TRADE_EU_04", "Pearl"),
 
-        // Alexandria
-        new TradeGoodEntry(24671u, "ITEM_ETC_TRADE_OA_01", "PACKAGE_ITEM_ETC_TRADE_OA_01", "Incense"),
-        new TradeGoodEntry(24672u, "ITEM_ETC_TRADE_OA_02", "PACKAGE_ITEM_ETC_TRADE_OA_02", "Marble"),
+        // Alexandria / Salt Desert / Valley / Delta (NPC_SD_M_AREA_SPECIAL, SPECIAL2, SPECIAL3)
+        new TradeGoodEntry(24671u, "ITEM_ETC_TRADE_SD_01", "PACKAGE_ITEM_ETC_TRADE_SD_01", "Incense"),
+        new TradeGoodEntry(24672u, "ITEM_ETC_TRADE_SD_02", "PACKAGE_ITEM_ETC_TRADE_SD_02", "Marble"),
+        new TradeGoodEntry(24675u, "ITEM_ETC_TRADE_VE_01", "PACKAGE_ITEM_ETC_TRADE_VE_01", "Alabastar"),
+        new TradeGoodEntry(24676u, "ITEM_ETC_TRADE_VE_02", "PACKAGE_ITEM_ETC_TRADE_VE_02", "Skabera"),
+        new TradeGoodEntry(24677u, "ITEM_ETC_TRADE_DE_01", "PACKAGE_ITEM_ETC_TRADE_DE_01", "Lily"),
+        new TradeGoodEntry(24678u, "ITEM_ETC_TRADE_DE_02", "PACKAGE_ITEM_ETC_TRADE_DE_02", "Silver Product"),
+
+        // Field Traders (NPC_TK_SPECIAL & NPC_RM_SPECIAL)
+        new TradeGoodEntry(7576u, "ITEM_ETC_TRADE_TK_01", "PACKAGE_ITEM_ETC_TRADE_TK_01", "Red Sand"),
+        new TradeGoodEntry(7577u, "ITEM_ETC_TRADE_TK_02", "PACKAGE_ITEM_ETC_TRADE_TK_02", "Gold Dust"),
+        new TradeGoodEntry(7578u, "ITEM_ETC_TRADE_TK_03", "PACKAGE_ITEM_ETC_TRADE_TK_03", "Treasure of NiYa"),
+        new TradeGoodEntry(7579u, "ITEM_ETC_TRADE_RM_01", "PACKAGE_ITEM_ETC_TRADE_RM_01", "Wind Seed"),
+        new TradeGoodEntry(7580u, "ITEM_ETC_TRADE_RM_02", "PACKAGE_ITEM_ETC_TRADE_RM_02", "Bird Feather"),
+        new TradeGoodEntry(7581u, "ITEM_ETC_TRADE_RM_03", "PACKAGE_ITEM_ETC_TRADE_RM_03", "Pine Tree"),
     };
+
+    private static string GetLegacyAliasPackageCode(string packageCode)
+    {
+        if (packageCode.Contains("_TRADE_EU_", StringComparison.OrdinalIgnoreCase))
+            return packageCode.Replace("_TRADE_EU_", "_TRADE_EU_CA_", StringComparison.OrdinalIgnoreCase);
+        if (packageCode.Contains("_TRADE_CA_", StringComparison.OrdinalIgnoreCase))
+            return packageCode.Replace("_TRADE_CA_", "_TRADE_EU_SA_", StringComparison.OrdinalIgnoreCase);
+        if (packageCode.Contains("_TRADE_SD_", StringComparison.OrdinalIgnoreCase))
+            return packageCode.Replace("_TRADE_SD_", "_TRADE_OA_", StringComparison.OrdinalIgnoreCase);
+        return null;
+    }
 
     private void RefreshGoods()
     {
@@ -2049,6 +2092,7 @@ public partial class Main : DoubleBufferedControl
         }
 
         var preferredMap = TradeConfig.GetPreferredGoodsDictionary();
+        var scrollIndex = dgvGoods.FirstDisplayedScrollingRowIndex;
 
         dgvGoods.SuspendLayout();
         try
@@ -2077,9 +2121,11 @@ public partial class Main : DoubleBufferedControl
                 bool isBuy = false;
                 int quantity = 0;
 
+                var aliasPkg = GetLegacyAliasPackageCode(entry.PackageCode);
                 if (preferredMap.TryGetValue(entry.PackageCode, out var pref) ||
                     preferredMap.TryGetValue(entry.CodeName, out pref) ||
-                    preferredMap.TryGetValue(entry.Id.ToString(), out pref))
+                    preferredMap.TryGetValue(entry.Id.ToString(), out pref) ||
+                    (aliasPkg != null && preferredMap.TryGetValue(aliasPkg, out pref)))
                 {
                     isBuy = pref.Buy;
                     quantity = pref.Quantity;
@@ -2099,6 +2145,8 @@ public partial class Main : DoubleBufferedControl
         finally
         {
             dgvGoods.ResumeLayout();
+            if (scrollIndex >= 0 && scrollIndex < dgvGoods.Rows.Count)
+                dgvGoods.FirstDisplayedScrollingRowIndex = scrollIndex;
         }
     }
 
@@ -2164,31 +2212,30 @@ public partial class Main : DoubleBufferedControl
 
     private void StartTradeBot()
     {
-        if (Kernel.Bot == null)
-            return;
+        var isAr = Kernel.Language == "ar_AR";
 
         if (!Game.Ready || Game.Player == null)
         {
-            MessageBox.Show("يرجى تسجيل الدخول إلى اللعبة أولاً.", "التداول",
+            MessageBox.Show(
+                isAr ? "يرجى تسجيل الدخول إلى اللعبة أولاً." : "Please log in to the game first.",
+                isAr ? "التجارة" : "Trade",
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
-        if (Kernel.Bot.Running)
+        if (TradeBotbase.IsActive)
             return;
 
-        var tradeBotbase = Kernel.BotbaseManager?.Bots?
-            .FirstOrDefault(b => b.Value != null && b.Value.Name == "RSBot.Trade").Value;
-
-        if (tradeBotbase == null)
+        if (!TradeBotbase.IsTrader())
         {
-            MessageBox.Show("لم يتم العثور على بوت التداول.", "التداول",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(
+                isAr
+                    ? "الشخصية الحالية ليست تاجر! تأكد من ارتداء بدلة التجارة (Trader)."
+                    : "The active character is not a trader! Make sure that you wear the trader job suit.",
+                isAr ? "التجارة" : "Trade",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
-
-        if (!ReferenceEquals(Kernel.Bot.Botbase, tradeBotbase))
-            Kernel.Bot.SetBotbase(tradeBotbase);
 
         // A manual start always begins a fresh loop counter.
         TradeConfig.CurrentTradeLoop = 0;
@@ -2241,33 +2288,48 @@ public partial class Main : DoubleBufferedControl
             }
         }
 
-        Log.Notify($"[Trade] تشغيل البوت — الوضع: {GetModeName()} | الحلقات: {FormatLoops(TradeConfig.TradeLoops)}");
+        var runner = TradeBotbase.EnsureRunner();
+        if (runner == null)
+        {
+            MessageBox.Show(
+                isAr ? "تعذر تهيئة مشغل التجارة." : "Could not initialize the Trade runner.",
+                isAr ? "التجارة" : "Trade",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
 
-        Kernel.Bot.Start();
+        if (!runner.TryStart(out var conflictOrPermError))
+        {
+            MessageBox.Show(conflictOrPermError, isAr ? "التجارة" : "Trade",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        Log.Notify($"[Trade] تشغيل التجارة — الوضع: {GetModeName()} | الحلقات: {FormatLoops(TradeConfig.TradeLoops)}");
         UpdateUiState();
     }
 
     private void StopTradeBot()
     {
+        var isAr = Kernel.Language == "ar_AR";
         btnStartBot.Enabled = true;
         btnStopBot.Enabled = false;
         btnStartTrade.Enabled = true;
         btnStopTrade.Enabled = false;
 
-        lblTradeStatus.Text = "الحالة: جاري الإيقاف...";
+        lblTradeStatus.Text = isAr ? "الحالة: جاري الإيقاف..." : "Status: Stopping...";
         lblTradeStatus.ForeColor = Color.FromArgb(251, 191, 36);
 
         Task.Run(() =>
         {
             try
             {
-                if (Kernel.Bot != null && Kernel.Bot.Running)
+                if (TradeBotbase.IsActive)
                 {
-                    Kernel.Bot.Stop();
+                    TradeBotbase.StopRunner();
                 }
                 else
                 {
-                    ScriptManager.Stop(error: true);
                     Bundles.Stop();
                 }
             }
@@ -2295,8 +2357,8 @@ public partial class Main : DoubleBufferedControl
                 // ignored
             }
 
-            Log.Notify("[Trade] تم إيقاف التداول والبوت بنجاح.");
-            Log.Status("Ready");
+            Log.Notify("[Trade] تم إيقاف التجارة بنجاح.");
+            UpdateUiState();
         });
     }
 
@@ -2336,9 +2398,6 @@ public partial class Main : DoubleBufferedControl
 
         UpdateUiState();
         UpdateJobInfo();
-
-        if (tabControlMain?.SelectedTab == tabPageGoods)
-            RefreshGoods();
     }
 
     private void OnBotStateChanged()
@@ -2368,19 +2427,51 @@ public partial class Main : DoubleBufferedControl
         if (IsDisposed || btnStartBot == null)
             return;
 
-        var running = Kernel.Bot?.Running == true;
+        if (InvokeRequired)
+        {
+            try
+            {
+                BeginInvoke(new System.Action(UpdateUiState));
+            }
+            catch { }
+            return;
+        }
+
+        var running = TradeBotbase.IsActive;
+        var ar = Kernel.Language == "ar_AR";
 
         btnStartBot.Enabled = !running;
         btnStopBot.Enabled = running;
         btnStartTrade.Enabled = !running;
         btnStopTrade.Enabled = running;
 
-        lblTradeStatus.Text = running ? "الحالة: يعمل" : "الحالة: متوقف";
+        lblTradeStatus.Text = running
+            ? (ar ? "الحالة: يعمل" : "Status: Running")
+            : (ar ? "الحالة: متوقف" : "Status: Stopped");
         lblTradeStatus.ForeColor = running
             ? Color.FromArgb(74, 222, 128)
             : Color.FromArgb(248, 113, 113);
 
         UpdateRouteStatus();
+        UpdateTradeStatsLabel();
+    }
+
+    private void UpdateTradeStatsLabel()
+    {
+        if (IsDisposed || lblTradeStats == null)
+            return;
+
+        if (InvokeRequired)
+        {
+            try
+            {
+                BeginInvoke(new System.Action(UpdateTradeStatsLabel));
+            }
+            catch { }
+            return;
+        }
+
+        lblTradeStats.Text = TradeStats.FormatSummary(Kernel.Language == "ar_AR");
     }
 
     private void UpdateRouteStatus()
@@ -2587,8 +2678,9 @@ public partial class Main : DoubleBufferedControl
         if (btnDeselectAllGoods != null) btnDeselectAllGoods.Text = ar ? "إلغاء التحديد" : "Deselect All";
         if (btnRefreshGoods != null) btnRefreshGoods.Text = ar ? "تحديث" : "Refresh";
 
-        btnStartBot.Text = ar ? "شغل البوت" : "Start Bot";
-        btnStopBot.Text = ar ? "وقف البوت" : "Stop Bot";
+        btnStartBot.Text = ar ? "تشغيل التجارة" : "Start Trade";
+        btnStopBot.Text = ar ? "إيقاف التجارة" : "Stop Trade";
+        UpdateUiState();
         btnShowClient.Text = ar ? "إظهار الكلاينت" : "Show Client";
         btnClearLogs.Text = ar ? "مسح السجلات" : "Clear Logs";
 

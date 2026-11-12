@@ -1,7 +1,6 @@
 ﻿using RSBot.Chat.Views;
 using RSBot.Core;
 using RSBot.Core.Components;
-using RSBot.Core.Extensions;
 using RSBot.Core.Network;
 using RSBot.Core.Objects;
 using RSBot.Core.Objects.Spawn;
@@ -32,48 +31,60 @@ internal class ChatResponse : IPacketHandler
     /// <param name="packet">The packet.</param>
     public void Invoke(Packet packet)
     {
-        var type = (ChatType)packet.ReadByte();
+        if (packet == null || packet.Remaining < 1)
+            return;
 
-        var message = string.Empty;
+        var type = (ChatType)packet.ReadByte();
 
         switch (type)
         {
             case ChatType.All:
             case ChatType.AllGM:
+            {
+                if (packet.Remaining < 6)
+                    return;
+
                 var senderId = packet.ReadUInt();
-                message = packet.ReadConditonalString();
+                var message = Bundle.Chat.ReadChatString(packet);
 
-                if (senderId != Game.Player.UniqueId)
+                string senderName;
+                if (Game.Player != null && senderId == Game.Player.UniqueId)
                 {
-                    if (!SpawnManager.TryGetEntity<SpawnedPlayer>(senderId, out var player))
-                        return;
-
-                    View.Instance.AppendMessage(message, player.Name, ChatType.All);
+                    senderName = Game.Player.Name;
+                }
+                else if (SpawnManager.TryGetEntity<SpawnedPlayer>(senderId, out var player) && !string.IsNullOrWhiteSpace(player?.Name))
+                {
+                    senderName = player.Name;
                 }
                 else
                 {
-                    View.Instance.AppendMessage(message, Game.Player.Name, ChatType.All);
+                    senderName = type == ChatType.AllGM ? "GM" : $"[{senderId}]";
                 }
 
+                View.Instance.AppendMessage(message, senderName, type);
                 break;
+            }
 
             case ChatType.Notice:
-
-                message = packet.ReadConditonalString();
-
+            {
+                var message = Bundle.Chat.ReadChatString(packet);
                 View.Instance.AppendMessage(message, "Notice", type);
                 break;
+            }
 
             case ChatType.Npc:
-                //TODO: get npc by guid
                 break;
 
             default:
-                var sender = packet.ReadString();
-                message = packet.ReadConditonalString();
+            {
+                var sender = Bundle.Chat.ReadSenderName(packet);
+                var message = Bundle.Chat.ReadChatString(packet);
+                if (string.IsNullOrEmpty(sender))
+                    sender = type.ToString();
 
                 View.Instance.AppendMessage(message, sender, type);
                 break;
+            }
         }
     }
 }

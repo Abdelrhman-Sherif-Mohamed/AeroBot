@@ -85,6 +85,15 @@ public partial class Main : DoubleBufferedControl
         new("SIT", "البارتي / الهمس", "أوامر القائد (Leaders)", "الجلوس أو الوقوف", "Sit or stand up", "SIT"),
         new("CAPE [لون]", "البارتي / الهمس", "أوامر القائد (Leaders)", "ارتداء كيب الـ PVP باللون المفضل (yellow, blue, red, white)", "Equip PVP cape color", "CAPE red"),
         new("USE [اسم الأداة]", "البارتي / الهمس", "أوامر القائد (Leaders)", "استخدام أداة من الحقيبة بالاسم", "Use inventory item by name", "USE Speed Potion"),
+        new("EQUIP [اسم/وظيفة]", "البارتي / الهمس", "أوامر القائد (Leaders)", "ارتداء قطعة عتاد أو لبس وظيفة (trader, hunter, thief, job)", "Equip item or job suit (trader/hunter/thief)", "EQUIP trader"),
+        new("UNEQUIP [اسم/وظيفة]", "البارتي / الهمس", "أوامر القائد (Leaders)", "خلع قطعة عتاد أو لبس الوظيفة إلى الحقيبة", "Unequip item or job suit to inventory", "UNEQUIP trader"),
+        new("TERMINATE", "البارتي / الهمس", "أوامر القائد (Leaders)", "إلغاء استدعاء الحصان أو وسيلة التجارة (الجمل)", "Terminate active transport/trade pet", "TERMINATE"),
+        new("SORT", "البارتي / الهمس", "أوامر القائد (Leaders)", "ترتيب وتجميع العناصر المتشابهة في الحقيبة", "Sort and stack items in inventory", "SORT"),
+        new("TP [المصدر] [الوجهة]", "البارتي / الهمس", "أوامر القائد (Leaders)", "الانتقال عبر البوابة القريبة إلى مدينة أو منطقة أخرى", "Teleport to destination via nearby teleporter", "TP Donwhang"),
+        new("RECALL [اسم NPC]", "البارتي / الهمس", "أوامر القائد (Leaders)", "حفظ نقطة العودة (Recall) عند شخصية NPC المحددة", "Set recall point to nearby NPC", "RECALL Hotan"),
+        new("REVERSE [return/death/zone]", "البارتي / الهمس", "أوامر القائد (Leaders)", "استخدام سكرول الريفيرس لنقطة العودة أو الموت أو المنطقة", "Use reverse scroll to return/death/zone", "REVERSE death"),
+        new("CHAT [قناة] [رسالة]", "البارتي / الهمس", "أوامر القائد (Leaders)", "إرسال رسالة شات عبر البوت (all, party, guild, private)", "Send chat message remotely", "CHAT party Ready"),
+        new("INJECT [opcode] [enc] [bytes]", "البارتي / الهمس", "أوامر القائد (Leaders)", "حقن وإرسال باكت مخصص إلى السيرفر (للمتقدمين)", "Inject raw hex packet to server", "INJECT 704F false 04"),
         new("DC / DIS", "البارتي / الهمس", "أوامر القائد (Leaders)", "قطع الاتصال والخروج الفوري من اللعبة", "Disconnect client immediately", "DC")
     };
 

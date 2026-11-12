@@ -35,5 +35,6 @@ public class ServerInfo : IPlugin
     public void Translate()
     {
         LanguageManager.Translate(View, Kernel.Language);
+        Views.View.Main.ApplyLocalization();
     }
 }

@@ -1016,7 +1016,7 @@ namespace RSBot.Inventory.Views
 
             checkAutoSort.Depth = 0;
 
-            checkAutoSort.Location = new System.Drawing.Point(425, 11);
+            checkAutoSort.Location = new System.Drawing.Point(346, 10);
 
             checkAutoSort.Margin = new System.Windows.Forms.Padding(0);
 
@@ -1026,7 +1026,7 @@ namespace RSBot.Inventory.Views
 
             checkAutoSort.Ripple = true;
 
-            checkAutoSort.Size = new System.Drawing.Size(90, 22);
+            checkAutoSort.Size = new System.Drawing.Size(130, 24);
 
             checkAutoSort.TabIndex = 6;
 
@@ -1048,7 +1048,7 @@ namespace RSBot.Inventory.Views
 
             checkAutoOrder.Depth = 0;
 
-            checkAutoOrder.Location = new System.Drawing.Point(520, 11);
+            checkAutoOrder.Location = new System.Drawing.Point(482, 10);
 
             checkAutoOrder.Margin = new System.Windows.Forms.Padding(0);
 
@@ -1058,7 +1058,7 @@ namespace RSBot.Inventory.Views
 
             checkAutoOrder.Ripple = true;
 
-            checkAutoOrder.Size = new System.Drawing.Size(95, 22);
+            checkAutoOrder.Size = new System.Drawing.Size(134, 24);
 
             checkAutoOrder.TabIndex = 7;
 

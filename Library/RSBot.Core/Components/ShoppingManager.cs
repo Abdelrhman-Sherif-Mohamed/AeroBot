@@ -552,10 +552,18 @@ public static class ShoppingManager
 
         if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && string.Equals(p.Record.CodeName, npcCodeName, StringComparison.OrdinalIgnoreCase), out var entity))
         {
-            if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && (p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) || p.Record.CodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase)), out entity))
+            // Match gender/indexed variants like NPC_CH_WAREHOUSE -> NPC_CH_WAREHOUSE_M / NPC_CH_WAREHOUSE_W
+            var prefix = npcCodeName + "_";
+            if (!SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && p.Record.CodeName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase), out entity))
             {
-                Log.Warn("Cannot access the NPC [" + npcCodeName + "] because it does not exist nearby.");
-                return;
+                var isSpecialtyTarget = npcCodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) ||
+                                        npcCodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase);
+                if (!isSpecialtyTarget ||
+                    !SpawnManager.TryGetEntity<SpawnedNpcNpc>(p => p.Record != null && (p.Record.CodeName.Contains("SPECIAL", StringComparison.OrdinalIgnoreCase) || p.Record.CodeName.Contains("SMUGGLER", StringComparison.OrdinalIgnoreCase)), out entity))
+                {
+                    Log.Warn("Cannot access the NPC [" + npcCodeName + "] because it does not exist nearby.");
+                    return;
+                }
             }
         }
 

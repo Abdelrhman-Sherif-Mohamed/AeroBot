@@ -699,6 +699,89 @@ public class AvatarTesterManager
 
     #region Helpers
 
+    private static readonly object _maxiGuardLock = new();
+    private static System.Collections.Generic.Dictionary<(string Switcher, string BaseItem), string> _maxiGuardExactMap;
+    private static System.Collections.Generic.Dictionary<(string Switcher, byte T2, byte T3, byte T4), string> _maxiGuardTypeMap;
+
+    private static void EnsureMaxiGuardSwitcherMapLoaded()
+    {
+        if (_maxiGuardExactMap != null || Game.MediaPk2 == null || Game.ReferenceManager == null)
+            return;
+
+        lock (_maxiGuardLock)
+        {
+            if (_maxiGuardExactMap != null)
+                return;
+
+            var exact = new System.Collections.Generic.Dictionary<(string Switcher, string BaseItem), string>();
+            var byType = new System.Collections.Generic.Dictionary<(string Switcher, byte T2, byte T3, byte T4), string>();
+
+            try
+            {
+                if (Game.MediaPk2.TryGetFile("maxiguard\\itemmallwearitemconfig.txt", out var cfgFile))
+                {
+                    using var reader = cfgFile.OpenRead();
+                    foreach (var raw in reader.ReadAllLines())
+                    {
+                        if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("//"))
+                            continue;
+
+                        var cols = raw.Split('\t');
+                        if (cols.Length < 3)
+                            continue;
+
+                        var sw = cols[0].Trim().ToUpperInvariant();
+                        var baseCode = cols[1].Trim().ToUpperInvariant();
+                        var resCode = cols[2].Trim();
+                        if (sw.Length == 0 || baseCode.Length == 0 || resCode.Length == 0)
+                            continue;
+
+                        exact[(sw, baseCode)] = resCode;
+
+                        var targetRef = Game.ReferenceManager.GetRefItem(resCode) ?? Game.ReferenceManager.GetRefItem(baseCode);
+                        if (targetRef != null)
+                            byType.TryAdd((sw, targetRef.TypeID2, targetRef.TypeID3, targetRef.TypeID4), resCode);
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            _maxiGuardExactMap = exact;
+            _maxiGuardTypeMap = byType;
+        }
+    }
+
+    public static RefObjItem ResolveMaxiGuardSwitcherTarget(RefObjItem baseItem, RefObjItem switcherItem)
+    {
+        if (baseItem == null || switcherItem == null || string.IsNullOrEmpty(switcherItem.CodeName))
+            return null;
+
+        EnsureMaxiGuardSwitcherMapLoaded();
+
+        var sw = switcherItem.CodeName.Trim().ToUpperInvariant();
+        var baseCode = (baseItem.CodeName ?? string.Empty).Trim().ToUpperInvariant();
+
+        if (_maxiGuardExactMap != null &&
+            _maxiGuardExactMap.TryGetValue((sw, baseCode), out var exactRes))
+        {
+            var resolved = Game.ReferenceManager?.GetRefItem(exactRes);
+            if (resolved != null)
+                return resolved;
+        }
+
+        if (_maxiGuardTypeMap != null &&
+            _maxiGuardTypeMap.TryGetValue((sw, baseItem.TypeID2, baseItem.TypeID3, baseItem.TypeID4), out var typeRes))
+        {
+            var resolved = Game.ReferenceManager?.GetRefItem(typeRes);
+            if (resolved != null)
+                return resolved;
+        }
+
+        return null;
+    }
+
     public static string GetItemDisplayName(RefObjItem item)
     {
         if (item == null) return "(غير معروف)";

@@ -1,16 +1,34 @@
-﻿using RSBot.Alchemy.Bundle;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using RSBot.Alchemy.Bundle;
 using RSBot.Alchemy.Bundle.Attribute;
 using RSBot.Alchemy.Bundle.Dismantle;
 using RSBot.Alchemy.Bundle.Enhance;
 using RSBot.Alchemy.Bundle.Magic;
 using RSBot.Alchemy.Bundle.Manufacture;
+using RSBot.Alchemy.Helper;
+using RSBot.Alchemy.Models;
+using RSBot.Alchemy.Stats;
 using RSBot.Core;
+using RSBot.Core.Client.ReferenceObjects;
+using RSBot.Core.Objects;
 
 namespace RSBot.Alchemy.Bot;
 
+internal enum AlchemyEngine
+{
+    Queue,
+    Enhance,
+    Magic,
+    Attribute,
+    Manufacture,
+    Dismantle
+}
+
 internal class Botbase
 {
-    #region Constructor
+    private int _queueCursor;
 
     public Botbase()
     {
@@ -19,262 +37,384 @@ internal class Botbase
         AttributeBundle = new AttributeBundle();
         ManufactureBundle = new ManufactureBundle();
         DismantleBundle = new DismantleBundle();
+
+        SessionStats = new AlchemySessionStats();
+        SessionStats.SubscribeEvents();
     }
 
-    #endregion Constructor
+    public AlchemyEngine AlchemyEngine { get; set; } = AlchemyEngine.Queue;
 
-    #region Properties
+    public EnhanceBundle EnhanceBundle { get; }
+    public AttributeBundle AttributeBundle { get; }
+    public MagicBundle MagicBundle { get; }
+    public ManufactureBundle ManufactureBundle { get; }
+    public DismantleBundle DismantleBundle { get; }
 
-    /// <summary>
-    ///     The selected botbase engine
-    /// </summary>
-    public AlchemyEngine AlchemyEngine { get; set; }
-
-    /// <summary>
-    ///     The enhancement manager used to increase item OptLevel
-    /// </summary>
-    public IAlchemyBundle EnhanceBundle { get; }
-
-    /// <summary>
-    ///     Gets or sets the attribute granter.
-    /// </summary>
-    /// <value>
-    ///     The attribute granter.
-    /// </value>
-    public IAlchemyBundle AttributeBundle { get; set; }
-
-    /// <summary>
-    ///     The magic option manager used to fuse magic stones
-    /// </summary>
-    public IAlchemyBundle MagicBundle { get; set; }
-
-    /// <summary>
-    ///     The make-stuff manager used to resolve or compound alchemy materials
-    /// </summary>
-    public IAlchemyBundle ManufactureBundle { get; }
-
-    /// <summary>
-    ///     The dismantle manager used to break equipment into alchemy materials
-    /// </summary>
-    public IAlchemyBundle DismantleBundle { get; }
-
-    /// <summary>
-    ///     The configuration for the Enhancer
-    /// </summary>
     public EnhanceBundleConfig EnhanceBundleConfig { get; set; }
-
-    /// <summary>
-    ///     The configuration for the magic option granter
-    /// </summary>
     public MagicBundleConfig MagicBundleConfig { get; set; }
-
-    /// <summary>
-    ///     Gets or sets the attributes configuration.
-    /// </summary>
-    /// <value>
-    ///     The attributes configuration.
-    /// </value>
     public AttributeBundleConfig AttributeBundleConfig { get; set; }
+    public ManufactureBundleConfig ManufactureBundleConfig { get; set; } = new();
+    public DismantleBundleConfig DismantleBundleConfig { get; set; } = new();
 
-    /// <summary>
-    ///     Gets or sets the configuration for the manufacture manager.
-    /// </summary>
-    public ManufactureBundleConfig ManufactureBundleConfig { get; set; }
+    public List<AlchemyQueueEntry> Queue { get; } = new();
+    public AlchemyQueueEntry CurrentQueueEntry { get; private set; }
+    public AlchemySessionStats SessionStats { get; }
 
-    /// <summary>
-    ///     Gets or sets the configuration for the dismantle manager.
-    /// </summary>
-    public DismantleBundleConfig DismantleBundleConfig { get; set; }
+    public event System.Action QueueChanged;
 
-    #endregion Properties
-
-    #region Methods
-
-    /// <summary>
-    ///     Starts the botbase
-    /// </summary>
     public void Start()
     {
-        if (AlchemyEngine == AlchemyEngine.Enhance)
-        {
-            if (EnhanceBundleConfig == null)
-            {
-                Log.Warn("[LuckyAlchemyBot] Configuration issue detected!");
+        SessionStats.NotifyBotStarted();
 
-                Kernel.Bot.Stop();
-
-                return;
-            }
-
-            EnhanceBundle?.Start();
-        }
-
-        if (AlchemyEngine == AlchemyEngine.Magic)
-        {
-            if (MagicBundleConfig == null)
-            {
-                Log.Warn("[LuckyAlchemyBot] Configuration issue detected!");
-
-                Kernel.Bot.Stop();
-
-                return;
-            }
-
-            MagicBundle?.Start();
-        }
-
-        if (AlchemyEngine == AlchemyEngine.Attribute)
-        {
-            if (AttributeBundleConfig == null)
-            {
-                Log.Warn("[LuckyAlchemyBot] Configuration issue detected!");
-
-                Kernel.Bot.Stop();
-
-                return;
-            }
-
-            AttributeBundle?.Start();
-        }
-
-        if (AlchemyEngine == AlchemyEngine.Manufacture)
-        {
-            if (ManufactureBundleConfig?.Materials == null || ManufactureBundleConfig.Materials.Count == 0)
-            {
-                Log.Warn("[Alchemy] No materials selected for manufacture!");
-
-                Kernel.Bot.Stop();
-
-                return;
-            }
-
-            ManufactureBundle?.Start();
-        }
-
-        if (AlchemyEngine == AlchemyEngine.Dismantle)
-        {
-            if (DismantleBundleConfig?.Equipment == null || DismantleBundleConfig.Equipment.Count == 0)
-            {
-                Log.Warn("[Alchemy] No equipment selected for dismantling!");
-
-                Kernel.Bot.Stop();
-
-                return;
-            }
-
-            DismantleBundle?.Start();
-        }
-    }
-
-    /// <summary>
-    ///     Stops the botbase and all managers
-    /// </summary>
-    public void Stop()
-    {
-        if (AlchemyEngine == AlchemyEngine.Enhance)
-            EnhanceBundle?.Stop();
-
-        if (AlchemyEngine == AlchemyEngine.Magic)
-            MagicBundle?.Stop();
-
-        if (AlchemyEngine == AlchemyEngine.Attribute)
-            AttributeBundle?.Stop();
-
-        if (AlchemyEngine == AlchemyEngine.Manufacture)
-            ManufactureBundle?.Stop();
-
-        if (AlchemyEngine == AlchemyEngine.Dismantle)
-            DismantleBundle?.Stop();
-    }
-
-    /// <summary>
-    ///     Sends the run command to the current manager
-    /// </summary>
-    public void Tick()
-    {
         switch (AlchemyEngine)
-
         {
-            case AlchemyEngine.Enhance:
-                if (EnhanceBundleConfig == null || EnhanceBundle == null)
+            case AlchemyEngine.Queue:
+                if (Queue.Count == 0)
                 {
-                    Log.Warn("[Alchemy] Configuration issue detected!");
-
-                    Kernel.Bot.Stop();
-
+                    Log.Warn("[Alchemy] Alchemy queue is empty.");
+                    Bootstrap.StopRunner();
                     return;
                 }
 
-                EnhanceBundle.Run(EnhanceBundleConfig);
+                // Reset any stale Running flag back to Pending
+                foreach (var entry in Queue)
+                {
+                    if (entry.Status == QueueItemStatus.Running)
+                        entry.Status = QueueItemStatus.Pending;
+                }
 
+                _queueCursor = 0;
+                CurrentQueueEntry = null;
+                EnhanceBundle.Start();
+                MagicBundle.Start();
+                AttributeBundle.Start();
+                QueueChanged?.Invoke();
+                break;
+
+            case AlchemyEngine.Enhance:
+                if (EnhanceBundleConfig == null)
+                {
+                    Log.Warn("[Alchemy] Enhance configuration missing.");
+                    Bootstrap.StopRunner();
+                    return;
+                }
+                EnhanceBundle.Start();
                 break;
 
             case AlchemyEngine.Magic:
-                if (MagicBundle == null || MagicBundleConfig == null)
+                if (MagicBundleConfig == null)
                 {
-                    Log.Warn("[Alchemy] Configuration issue detected!");
-
-                    Kernel.Bot.Stop();
-
+                    Log.Warn("[Alchemy] Magic configuration missing.");
+                    Bootstrap.StopRunner();
                     return;
                 }
-
-                MagicBundle.Run(MagicBundleConfig);
-
+                MagicBundle.Start();
                 break;
 
             case AlchemyEngine.Attribute:
-                if (AttributeBundle == null || AttributeBundleConfig == null)
+                if (AttributeBundleConfig == null)
                 {
-                    Log.Warn("[Alchemy] Configuration issue detected!");
-
-                    Kernel.Bot.Stop();
-
+                    Log.Warn("[Alchemy] Attribute configuration missing.");
+                    Bootstrap.StopRunner();
                     return;
                 }
-
-                AttributeBundle.Run(AttributeBundleConfig);
-
+                AttributeBundle.Start();
                 break;
 
             case AlchemyEngine.Manufacture:
-                if (ManufactureBundle == null || ManufactureBundleConfig == null)
+                ManufactureBundleConfig ??= new ManufactureBundleConfig();
+                if ((ManufactureBundleConfig.Queue == null || ManufactureBundleConfig.Queue.Count == 0) &&
+                    (ManufactureBundleConfig.Materials == null || ManufactureBundleConfig.Materials.Count == 0))
                 {
-                    Log.Warn("[Alchemy] Configuration issue detected!");
-
-                    Kernel.Bot.Stop();
-
+                    Log.Warn("[Alchemy] No items or materials queued for manufacture.");
+                    Bootstrap.StopRunner();
                     return;
                 }
-
-                ManufactureBundle.Run(ManufactureBundleConfig);
-
+                ManufactureBundle.Start();
                 break;
 
             case AlchemyEngine.Dismantle:
-                if (DismantleBundle == null || DismantleBundleConfig == null)
-                {
-                    Log.Warn("[Alchemy] Configuration issue detected!");
-
-                    Kernel.Bot.Stop();
-
-                    return;
-                }
-
-                DismantleBundle.Run(DismantleBundleConfig);
-
+                DismantleBundleConfig ??= new DismantleBundleConfig();
+                DismantleBundle.Start();
                 break;
         }
     }
 
-    #endregion Methods
-}
+    public void Stop()
+    {
+        SessionStats.NotifyBotStopped();
 
-internal enum AlchemyEngine
-{
-    Enhance,
-    Magic,
-    Attribute,
-    Manufacture,
-    Dismantle
+        if (CurrentQueueEntry != null && CurrentQueueEntry.Status == QueueItemStatus.Running)
+            CurrentQueueEntry.Status = QueueItemStatus.Pending;
+
+        CurrentQueueEntry = null;
+
+        EnhanceBundle?.Stop();
+        MagicBundle?.Stop();
+        AttributeBundle?.Stop();
+        ManufactureBundle?.Stop();
+        DismantleBundle?.Stop();
+
+        QueueChanged?.Invoke();
+    }
+
+    public void Tick()
+    {
+        switch (AlchemyEngine)
+        {
+            case AlchemyEngine.Queue:
+                TickQueue();
+                break;
+
+            case AlchemyEngine.Enhance:
+                if (EnhanceBundleConfig == null)
+                {
+                    Bootstrap.StopRunner();
+                    return;
+                }
+                EnhanceBundle.Run(EnhanceBundleConfig);
+                break;
+
+            case AlchemyEngine.Magic:
+                if (MagicBundleConfig == null)
+                {
+                    Bootstrap.StopRunner();
+                    return;
+                }
+                MagicBundle.Run(MagicBundleConfig);
+                break;
+
+            case AlchemyEngine.Attribute:
+                if (AttributeBundleConfig == null)
+                {
+                    Bootstrap.StopRunner();
+                    return;
+                }
+                AttributeBundle.Run(AttributeBundleConfig);
+                break;
+
+            case AlchemyEngine.Manufacture:
+                ManufactureBundle.Run(ManufactureBundleConfig);
+                break;
+
+            case AlchemyEngine.Dismantle:
+                DismantleBundle.Run(DismantleBundleConfig);
+                break;
+        }
+    }
+
+    private void TickQueue()
+    {
+        if (CurrentQueueEntry == null || CurrentQueueEntry.Status != QueueItemStatus.Running)
+        {
+            CurrentQueueEntry = PickNextPendingEntry();
+            if (CurrentQueueEntry == null)
+            {
+                Log.Notify("[Alchemy] All queued items finished!");
+                Globals.View.AddLog("Queue", "All items finished");
+                QueueChanged?.Invoke();
+                Bootstrap.StopRunner();
+                return;
+            }
+
+            CurrentQueueEntry.Status = QueueItemStatus.Running;
+            CurrentQueueEntry.StatusNote = string.Empty;
+            PrepareBundleForEntry(CurrentQueueEntry);
+            QueueChanged?.Invoke();
+        }
+
+        switch (CurrentQueueEntry.Mode)
+        {
+            case AlchemyTargetMode.Plus:
+                EnhanceBundle.Run(EnhanceBundleConfig);
+                break;
+
+            case AlchemyTargetMode.Blues:
+                MagicBundle.Run(MagicBundleConfig);
+                break;
+
+            case AlchemyTargetMode.Stats:
+                AttributeBundle.Run(AttributeBundleConfig);
+                break;
+        }
+    }
+
+    private AlchemyQueueEntry PickNextPendingEntry()
+    {
+        if (Queue.Count == 0)
+            return null;
+
+        for (var offset = 0; offset < Queue.Count; offset++)
+        {
+            var idx = (_queueCursor + offset) % Queue.Count;
+            var candidate = Queue[idx];
+            if (candidate.Status == QueueItemStatus.Pending)
+            {
+                _queueCursor = idx;
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private void PrepareBundleForEntry(AlchemyQueueEntry entry)
+    {
+        var liveItem = entry.ResolveLiveItem();
+
+        switch (entry.Mode)
+        {
+            case AlchemyTargetMode.Plus:
+                EnhanceBundle.Start();
+                EnhanceBundleConfig = new EnhanceBundleConfig
+                {
+                    Item = liveItem,
+                    MaxOptLevel = entry.TargetPlus,
+                    PreferredElixirItemId = entry.PreferredElixirItemId,
+                    Elixirs = liveItem != null
+                        ? AlchemyItemHelper.GetElixirItems(AlchemyItemHelper.GetElixirTypeForItem(liveItem)).ToList()
+                        : new List<InventoryItem>(),
+                    UseLuckyPowder = entry.UseLuckyPowder,
+                    LuckyPowderMinPlus = entry.LuckyPowderFromPlus,
+                    StopIfLuckyPowderEmpty = entry.StopIfLuckyPowderEmpty,
+                    UseLuckyStones = entry.UseLuckyStone,
+                    LuckyStoneMinPlus = entry.LuckyStoneFromPlus,
+                    UseImmortalStones = entry.UseImmortalStone,
+                    ImmortalStoneMinPlus = entry.ImmortalStoneFromPlus,
+                    UseAstralStones = entry.UseAstralStone,
+                    AstralStoneMinPlus = entry.AstralStoneFromPlus,
+                    UseSteadyStones = entry.UseSteadyStone,
+                    SteadyStoneMinPlus = entry.SteadyStoneFromPlus,
+                    SkipToNextOnFail = entry.SkipToNextOnFail
+                };
+                break;
+
+            case AlchemyTargetMode.Blues:
+                MagicBundle.Start();
+                MagicBundleConfig = new MagicBundleConfig
+                {
+                    Item = liveItem,
+                    Targets = entry.Blues
+                        .Where(b => b.Enabled)
+                        .Select(b => new MagicBundleTarget
+                        {
+                            Group = b.Group,
+                            TargetValue = b.TargetValue,
+                            ReferenceOption = Game.ReferenceManager.GetMagicOption(b.Group, entry.Degree)
+                        })
+                        .Where(t => t.ReferenceOption != null)
+                        .ToList()
+                };
+                break;
+
+            case AlchemyTargetMode.Stats:
+                AttributeBundle.Start();
+                AttributeBundleConfig = new AttributeBundleConfig
+                {
+                    Item = liveItem,
+                    Attributes = entry.Stats
+                        .Where(s => s.Enabled)
+                        .Select(s => new AttributeBundleConfig.AttributeBundleConfigItem
+                        {
+                            Group = s.Group,
+                            MaxValue = s.TargetPercent,
+                            Stone = liveItem != null
+                                ? AlchemyItemHelper.GetAttributeStones(liveItem, s.Group).FirstOrDefault()
+                                : null
+                        })
+                        .ToList()
+                };
+                break;
+        }
+    }
+
+    public void NotifyItemProgressed(InventoryItem updatedItem)
+    {
+        if (updatedItem != null && CurrentQueueEntry != null)
+            CurrentQueueEntry.Slot = updatedItem.Slot;
+
+        QueueChanged?.Invoke();
+    }
+
+    public void NotifyItemCompleted(string reason)
+    {
+        if (AlchemyEngine == AlchemyEngine.Queue && CurrentQueueEntry != null)
+        {
+            CurrentQueueEntry.Status = QueueItemStatus.Completed;
+            CurrentQueueEntry.StatusNote = string.Empty;
+            _queueCursor = Queue.Count > 0 ? (_queueCursor + 1) % Queue.Count : 0;
+            CurrentQueueEntry = null;
+            QueueChanged?.Invoke();
+            return;
+        }
+
+        Bootstrap.StopRunner();
+    }
+
+    public void NotifyEnhanceAttemptFailed(InventoryItem updatedItem)
+    {
+        if (updatedItem != null && CurrentQueueEntry != null)
+            CurrentQueueEntry.Slot = updatedItem.Slot;
+
+        if (AlchemyEngine == AlchemyEngine.Queue && CurrentQueueEntry != null && CurrentQueueEntry.SkipToNextOnFail)
+        {
+            var anotherPendingExists = Queue.Any(q => q != CurrentQueueEntry && q.Status == QueueItemStatus.Pending);
+            if (anotherPendingExists)
+            {
+                CurrentQueueEntry.Status = QueueItemStatus.Pending;
+                _queueCursor = (_queueCursor + 1) % Queue.Count;
+                CurrentQueueEntry = null;
+            }
+        }
+
+        QueueChanged?.Invoke();
+    }
+
+    public void NotifyItemDestroyed(InventoryItem oldItem)
+    {
+        if (AlchemyEngine == AlchemyEngine.Queue && CurrentQueueEntry != null)
+        {
+            CurrentQueueEntry.Status = QueueItemStatus.Failed;
+            CurrentQueueEntry.StatusNote = Kernel.Language == "ar_AR" ? "اتكسر" : "Broken";
+            var canSkip = CurrentQueueEntry.SkipToNextOnFail &&
+                          Queue.Any(q => q != CurrentQueueEntry && q.Status == QueueItemStatus.Pending);
+
+            _queueCursor = Queue.Count > 0 ? (_queueCursor + 1) % Queue.Count : 0;
+            CurrentQueueEntry = null;
+            QueueChanged?.Invoke();
+
+            if (canSkip)
+                return;
+        }
+
+        EnhanceBundleConfig = null;
+        MagicBundleConfig = null;
+        AttributeBundleConfig = null;
+        Bootstrap.StopRunner();
+    }
+
+    public void NotifyItemFatal(string reason, bool allowSkipInQueue)
+    {
+        Log.Warn($"[Alchemy] {reason}");
+
+        if (AlchemyEngine == AlchemyEngine.Queue && CurrentQueueEntry != null)
+        {
+            CurrentQueueEntry.Status = QueueItemStatus.Failed;
+            CurrentQueueEntry.StatusNote = reason;
+            var hasMore = Queue.Any(q => q != CurrentQueueEntry && q.Status == QueueItemStatus.Pending);
+            _queueCursor = Queue.Count > 0 ? (_queueCursor + 1) % Queue.Count : 0;
+            CurrentQueueEntry = null;
+            QueueChanged?.Invoke();
+
+            if (allowSkipInQueue && hasMore)
+                return;
+        }
+
+        Bootstrap.StopRunner();
+    }
+
+    public void NotifyManufactureStateChanged()
+    {
+        QueueChanged?.Invoke();
+    }
 }

@@ -187,7 +187,7 @@ public class ClientManager
     /// <returns>The module base address, 0 if the injection failed</returns>
     private static uint InjectClientLibrary(uint processId, string dllPath)
     {
-        const int attempts = 5;
+        const int attempts = 6;
         const uint maxWait = 15000;
 
         var buffer = Encoding.Unicode.GetBytes(dllPath + "\0");
@@ -195,7 +195,7 @@ public class ClientManager
 
         //Right after CreateProcess the client is still initializing its loader,
         //injecting too early can make LoadLibrary return 0 without any error.
-        Thread.Sleep(200);
+        Thread.Sleep(80);
 
         var handle = OpenProcess(PROCESS_ALL_ACCESS, false, processId);
         if (handle == IntPtr.Zero)
@@ -274,7 +274,7 @@ public class ClientManager
                 }
 
                 //the client was not ready yet, give it a moment and try again
-                Thread.Sleep(400);
+                Thread.Sleep(200);
             }
 
             var diagnostics = ReadLoaderDiagnostics(processId);

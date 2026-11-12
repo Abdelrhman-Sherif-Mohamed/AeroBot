@@ -300,6 +300,8 @@ internal class EntityUpdateStatusResponse : IPacketHandler
 
                 if (Game.SelectedEntity?.UniqueId == bionic.UniqueId)
                     Game.SelectedEntity = null;
+
+                KillDeathTracker.OnEntityLifeStateChanged(bionic);
             }
 
             EventManager.FireEvent("OnUpdateEntityHp", bionic);

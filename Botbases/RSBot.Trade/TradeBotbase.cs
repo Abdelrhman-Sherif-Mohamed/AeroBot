@@ -14,7 +14,25 @@ namespace RSBot.Trade;
 
 public class TradeBotbase : IBotbase
 {
-    public static bool IsActive => Kernel.Bot?.Botbase.Name == "RSBot.Trade" && Kernel.Bot.Running;
+    public static TradeBotbase Instance { get; private set; }
+    public static BotRunner Runner { get; private set; }
+    public static bool IsActive => Runner?.Running == true;
+
+    public static BotRunner EnsureRunner()
+    {
+        Instance ??= new TradeBotbase();
+        return Runner ??= Kernel.GetOrCreateRunner(
+            Instance,
+            usesMovement: true,
+            stopsPickupOnStop: false,
+            stopsShoppingOnStop: true);
+    }
+
+    public static void StopRunner()
+    {
+        Runner?.Stop();
+    }
+
     public string Name => "RSBot.Trade";
 
     public string DisplayName => "Trade";
@@ -49,7 +67,7 @@ public class TradeBotbase : IBotbase
         {
             MessageBox.Show("The active character is not a trader! Make sure that you have the trader job and suite.",
                 "Not a trader", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            Kernel.Bot.Stop();
+            StopRunner();
 
             return;
         }
@@ -70,6 +88,9 @@ public class TradeBotbase : IBotbase
     /// </summary>
     public void Register()
     {
+        Instance = this;
+        EnsureRunner();
+
         Log.Debug("[Trade] Botbase registered to the kernel!");
 
         if (ScriptManager.CommandHandlers.All(h => h.Name != "buy-goods"))
@@ -99,24 +120,11 @@ public class TradeBotbase : IBotbase
         if (!TradeConfig.AutoStartAfterLogin)
             return;
 
-        if (Kernel.Bot == null || Kernel.Bot.Running)
+        if (IsActive || Kernel.IsAnyMovementBotRunning)
             return;
 
         if (!IsTrader())
             return;
-
-        // Make sure the trade botbase is the active one, otherwise the auto
-        // start would run whatever botbase the user had selected before.
-        if (Kernel.Bot.Botbase != this)
-        {
-            var registered = Kernel.BotbaseManager?.Bots
-                .FirstOrDefault(b => b.Value.Name == Name).Value;
-
-            if (registered == null)
-                return;
-
-            Kernel.Bot.SetBotbase(registered);
-        }
 
         Task.Run(async () =>
         {
@@ -127,14 +135,14 @@ public class TradeBotbase : IBotbase
             if (!TradeConfig.AutoStartAfterLogin)
                 return;
 
-            if (Kernel.Bot == null || Kernel.Bot.Running)
+            if (IsActive || Kernel.IsAnyMovementBotRunning)
                 return;
 
             if (!Game.Ready || Game.Player == null || !IsTrader())
                 return;
 
             Log.Notify("[Trade] بدء التجارة تلقائياً بعد تسجيل الدخول...");
-            Kernel.Bot.Start();
+            EnsureRunner().Start();
         });
     }
 

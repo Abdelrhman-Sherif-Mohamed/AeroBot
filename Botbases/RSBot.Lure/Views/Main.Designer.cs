@@ -33,7 +33,7 @@ namespace RSBot.Lure.Views
 
             groupBoxLureSpots = new SDUI.Controls.GroupBox();
             btnAddLureSpot = new SDUI.Controls.Button();
-            lstLureSpots = new System.Windows.Forms.ListView();
+            lstLureSpots = new SDUI.Controls.ListView();
             colIndex = new System.Windows.Forms.ColumnHeader();
             colX = new System.Windows.Forms.ColumnHeader();
             colY = new System.Windows.Forms.ColumnHeader();
@@ -273,8 +273,6 @@ namespace RSBot.Lure.Views
             // 
             // lstLureSpots
             // 
-            lstLureSpots.BackColor = System.Drawing.Color.FromArgb(24, 30, 44);
-            lstLureSpots.ForeColor = System.Drawing.Color.White;
             lstLureSpots.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             lstLureSpots.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { colIndex, colX, colY, colRadius });
             lstLureSpots.FullRowSelect = true;
@@ -617,8 +615,8 @@ namespace RSBot.Lure.Views
             // 
             // Main
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             Controls.Add(groupBoxParty);
             Controls.Add(groupBoxLureSpots);
             Controls.Add(groupBox3);
@@ -652,7 +650,7 @@ namespace RSBot.Lure.Views
 
         private SDUI.Controls.GroupBox groupBoxLureSpots;
         private SDUI.Controls.Button btnAddLureSpot;
-        private System.Windows.Forms.ListView lstLureSpots;
+        private SDUI.Controls.ListView lstLureSpots;
         private System.Windows.Forms.ColumnHeader colIndex;
         private System.Windows.Forms.ColumnHeader colX;
         private System.Windows.Forms.ColumnHeader colY;

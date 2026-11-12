@@ -73,7 +73,7 @@ internal class MoveScriptCommand : IScriptCommand
                     continue;
                 }
 
-                if (!IsBusy || !ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (!IsBusy || !ScriptManager.Running || !ScriptManager.CanContinueExecution())
                     return false;
                 Thread.Sleep(50);
             }
@@ -91,7 +91,7 @@ internal class MoveScriptCommand : IScriptCommand
                     continue;
                 }
 
-                if (!IsBusy || !ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (!IsBusy || !ScriptManager.Running || !ScriptManager.CanContinueExecution())
                     return false;
 
                 // If target could not be parsed, or player is far (> 35m), movement failure is fatal and cannot be skipped
@@ -161,7 +161,7 @@ internal class MoveScriptCommand : IScriptCommand
             return false;
 
         // Avoid conflicting riding-pet summon in RSBot.Trade (TransportBundle owns job transport COS_T).
-        var isTradeBot = Kernel.Bot?.Botbase?.Name == "RSBot.Trade";
+        var isTradeBot = Kernel.IsRunnerActive("RSBot.Trade");
         if (!isTradeBot && PlayerConfig.Get("RSBot.Training.checkUseMount", true))
             if (!Game.Player.HasActiveVehicle && !Game.Player.IsInDungeon && !Game.Player.InAction && Game.Player.JobTransport == null)
                 Game.Player.SummonVehicle();
@@ -190,7 +190,7 @@ internal class MoveScriptCommand : IScriptCommand
                         return false;
                 }
 
-                if (!IsBusy || !ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (!IsBusy || !ScriptManager.Running || !ScriptManager.CanContinueExecution())
                     return false;
 
                 var ratio = (float)s / steps;
@@ -281,7 +281,7 @@ internal class MoveScriptCommand : IScriptCommand
                 continue;
             }
 
-            if (!IsBusy || !ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+            if (!IsBusy || !ScriptManager.Running || !ScriptManager.CanContinueExecution())
             {
                 Game.Player?.MoveTo(Game.Player.Position, sleep: false);
                 return false;

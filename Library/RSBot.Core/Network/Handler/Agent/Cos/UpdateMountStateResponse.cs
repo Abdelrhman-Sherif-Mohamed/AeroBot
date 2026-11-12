@@ -40,9 +40,12 @@ internal class UpdateMountStateResponse : IPacketHandler
             if (cosUniqueId == Game.Player.Fellow?.UniqueId)
                 Game.Player.Vehicle = Game.Player.Fellow;
 
-            var bionicPosition = Game.Player.Vehicle.Bionic.Position;
-            Game.Player.Vehicle.StopMoving(bionicPosition);
-            Game.Player.StopMoving(bionicPosition);
+            if (Game.Player.Vehicle?.Bionic != null)
+            {
+                var bionicPosition = Game.Player.Vehicle.Bionic.Position;
+                Game.Player.Vehicle.StopMoving(bionicPosition);
+                Game.Player.StopMoving(bionicPosition);
+            }
         }
 
         //Assertion: only player's are supported to have active vehicles. Think it's the same in the client.

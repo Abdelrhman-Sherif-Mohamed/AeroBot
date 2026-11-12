@@ -22,15 +22,12 @@ internal class AlchemyEventsSubscriber
         if (!Bootstrap.IsActive)
             return;
 
-        Globals.Botbase.EnhanceBundleConfig = null;
-        Globals.Botbase.MagicBundleConfig = null;
-
-        Globals.View.SelectedItem = null;
-        Globals.View.AddLog(oldItem.Record.GetRealName(),
+        var itemName = oldItem?.Record?.GetRealName() ?? "Item";
+        Globals.View.AddLog(itemName,
             Game.ReferenceManager.GetTranslation("UIIT_MSG_REINFORCERR_BREAKDOWN"));
-        Log.Warn("[Alchemy] The item has been destroyed, stopping now...");
+        Log.Warn($"[Alchemy] {itemName} has been destroyed.");
 
-        Kernel.Bot?.Stop();
+        Globals.Botbase.NotifyItemDestroyed(oldItem);
     }
 
     private static void OnAlchemyError(ushort errorCode, AlchemyType type)
@@ -41,16 +38,13 @@ internal class AlchemyEventsSubscriber
         if (errorCode is 0x5423)
             return;
 
-        Kernel.Bot?.Stop();
+        if (type == AlchemyType.MagicStone || type == AlchemyType.AttributeStone)
+            return;
 
-        Log.Error($"[Alchemy] Alchemy fusion error: {errorCode:X}");
+        Log.Error($"[Alchemy] Alchemy fusion error: 0x{errorCode:X4}");
+        Globals.Botbase.NotifyItemFatal($"Server error 0x{errorCode:X4}", allowSkipInQueue: true);
     }
 
-    /// <summary>
-    ///     Will be triggered if any fuse request (either elixir or magic stone..) was sent to the server. Adds a log message.
-    /// </summary>
-    /// <param name="action">The alchemy action</param>
-    /// <param name="type">The type of alchemy</param>
     private static void OnFuseRequest(AlchemyAction action, AlchemyType type)
     {
         if (AlchemyManager.ActiveAlchemyItems == null)
@@ -58,25 +52,25 @@ internal class AlchemyEventsSubscriber
 
         var ingredient = AlchemyManager.ActiveAlchemyItems.ElementAtOrDefault(1);
         var item = AlchemyManager.ActiveAlchemyItems.ElementAtOrDefault(0);
+        var ingName = ingredient?.Record?.GetRealName() ?? string.Empty;
+        var itemName = item?.Record?.GetRealName() ?? string.Empty;
 
         switch (type)
         {
             case AlchemyType.Elixir:
-                Globals.View.AddLog(item?.Record.GetRealName(), $"Fusing elixir [{ingredient.Record.GetRealName()}]");
+                Globals.View.AddLog(itemName, $"Fusing elixir [{ingName}]");
                 break;
 
             case AlchemyType.MagicStone:
-                Globals.View.AddLog(item?.Record.GetRealName(),
-                    $"Fusing magic stone [{ingredient.Record.GetRealName()}]");
+                Globals.View.AddLog(itemName, $"Fusing magic stone [{ingName}]");
                 break;
 
             case AlchemyType.AttributeStone:
-                Globals.View.AddLog(item?.Record.GetRealName(),
-                    $"Fusing attribute stone [{ingredient.Record.GetRealName()}]");
+                Globals.View.AddLog(itemName, $"Fusing attribute stone [{ingName}]");
                 break;
 
             default:
-                Globals.View.AddLog(item?.Record.GetRealName(), $"Fusing [{ingredient.Record.GetRealName()}]");
+                Globals.View.AddLog(itemName, $"Fusing [{ingName}]");
                 break;
         }
     }

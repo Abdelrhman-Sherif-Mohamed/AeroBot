@@ -8,47 +8,145 @@ using RSBot.Core;
 using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Objects;
 using RSBot.Core.Objects.Skill;
+using Action = System.Action;
 
 namespace RSBot.Skills.Components;
 
 /// <summary>
-///     Handles the automatic upgrade of masteries and the skills that belong to them.
+///     Represents a single deduplicated skill progression line (level 1..max) belonging to a mastery.
+/// </summary>
+internal sealed class SkillLineInfo
+{
+    public SkillLineInfo(string codePrefix, uint masteryId, IReadOnlyList<RefSkill> levels)
+    {
+        CodePrefix = codePrefix;
+        MasteryId = masteryId;
+        Levels = levels;
+        FirstSkill = levels[0];
+        MaxSkill = levels[levels.Count - 1];
+    }
+
+    public string CodePrefix { get; }
+    public uint MasteryId { get; }
+    public IReadOnlyList<RefSkill> Levels { get; }
+    public RefSkill FirstSkill { get; }
+    public RefSkill MaxSkill { get; }
+
+    public byte UIPage => FirstSkill.UI_SkillPage;
+    public byte UIColumn => FirstSkill.UI_SkillColumn;
+    public byte UIRow => FirstSkill.UI_SkillRow;
+    public string BasicGroup => FirstSkill.Basic_Group;
+    public string DisplayName => FirstSkill.GetRealName();
+}
+
+/// <summary>
+///     Handles manual and automatic upgrades of masteries and skills.
 /// </summary>
 internal static class SkillUpgradeManager
 {
     private const string AutoMasteryConfigKey = "RSBot.Skills.AutoMasteryEnabled";
+    private const string AutoSkillsConfigKey = "RSBot.Skills.AutoSkillsEnabled";
+    private const string AutoWhenBotStoppedConfigKey = "RSBot.Skills.AutoWhenBotStopped";
+    private const string AutoMasteryGapConfigKey = "RSBot.Skills.AutoMasteryGap";
+
     private const int LearnDelay = 250;
     private const int MaxActionsPerRun = 250;
 
     private static readonly ConcurrentDictionary<uint, byte> _autoMasteries = new();
+    private static readonly ConcurrentDictionary<string, byte> _autoSkills = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<uint, byte> _blockedSkills = new();
-    private static readonly ConcurrentQueue<MasteryRequest> _manualRequests = new();
+    private static readonly ConcurrentQueue<UpgradeRequest> _manualRequests = new();
     private static readonly object _stateLock = new();
     private static readonly object _indexLock = new();
 
     private static Dictionary<(string Prefix, byte Level), RefSkill> _skillIndex;
+    private static Dictionary<string, List<RefSkill>> _skillLinesByPrefix;
 
     private static int _actionActive;
     private static int _masteryCursor;
     private static volatile bool _pendingRun;
     private static bool _settingsLoaded;
+    private static bool _autoWhenBotStopped = true;
+    private static byte _autoMasteryGap;
+
+    public static event Action BatchCompleted;
+
+    public static bool AutoWhenBotStopped
+    {
+        get
+        {
+            EnsureSettingsLoaded();
+            return _autoWhenBotStopped;
+        }
+        set
+        {
+            EnsureSettingsLoaded();
+            _autoWhenBotStopped = value;
+            SaveSettings();
+            if (value)
+                RunAutoUpgrade();
+        }
+    }
+
+    public static byte AutoMasteryGap
+    {
+        get
+        {
+            EnsureSettingsLoaded();
+            return _autoMasteryGap;
+        }
+        set
+        {
+            EnsureSettingsLoaded();
+            _autoMasteryGap = value;
+            SaveSettings();
+            RunAutoUpgrade();
+        }
+    }
 
     public static bool IsAutoEnabled(uint masteryId)
     {
+        EnsureSettingsLoaded();
         return _autoMasteries.ContainsKey(masteryId);
+    }
+
+    public static bool IsSkillAutoEnabled(string skillPrefix)
+    {
+        EnsureSettingsLoaded();
+        return !string.IsNullOrEmpty(skillPrefix) && _autoSkills.ContainsKey(skillPrefix);
+    }
+
+    public static bool IsEffectiveSkillAutoEnabled(string skillPrefix, uint masteryId)
+    {
+        return IsAutoEnabled(masteryId) || IsSkillAutoEnabled(skillPrefix);
     }
 
     public static void LoadSettings()
     {
         _autoMasteries.Clear();
+        _autoSkills.Clear();
         _blockedSkills.Clear();
 
         lock (_indexLock)
+        {
             _skillIndex = null;
+            _skillLinesByPrefix = null;
+        }
 
         foreach (var masteryId in PlayerConfig.GetArray<uint>(AutoMasteryConfigKey))
+        {
             if (masteryId != 0)
                 _autoMasteries[masteryId] = 0;
+        }
+
+        foreach (var prefix in PlayerConfig.GetArray<string>(AutoSkillsConfigKey))
+        {
+            if (!string.IsNullOrWhiteSpace(prefix))
+                _autoSkills[prefix.Trim()] = 0;
+        }
+
+        _autoWhenBotStopped = PlayerConfig.Get(AutoWhenBotStoppedConfigKey, true);
+        _autoMasteryGap = PlayerConfig.Get<byte>(AutoMasteryGapConfigKey, 0);
 
         _settingsLoaded = true;
     }
@@ -85,9 +183,57 @@ internal static class SkillUpgradeManager
         SetAutoEnabled(masteryId, !IsAutoEnabled(masteryId));
     }
 
+    public static void SetSkillAutoEnabled(string skillPrefix, bool enabled)
+    {
+        EnsureSettingsLoaded();
+        if (string.IsNullOrWhiteSpace(skillPrefix))
+            return;
+
+        if (enabled)
+            _autoSkills[skillPrefix] = 0;
+        else
+            _autoSkills.TryRemove(skillPrefix, out _);
+
+        SaveSettings();
+
+        if (enabled)
+            RunAutoUpgrade();
+    }
+
+    public static void ToggleSkillAuto(string skillPrefix)
+    {
+        SetSkillAutoEnabled(skillPrefix, !IsSkillAutoEnabled(skillPrefix));
+    }
+
+    public static void SetSkillsAutoEnabled(IEnumerable<string> skillPrefixes, bool enabled)
+    {
+        EnsureSettingsLoaded();
+        if (skillPrefixes == null)
+            return;
+
+        foreach (var prefix in skillPrefixes)
+        {
+            if (string.IsNullOrWhiteSpace(prefix))
+                continue;
+
+            if (enabled)
+                _autoSkills[prefix] = 0;
+            else
+                _autoSkills.TryRemove(prefix, out _);
+        }
+
+        SaveSettings();
+
+        if (enabled)
+            RunAutoUpgrade();
+    }
+
     public static void SaveSettings()
     {
         PlayerConfig.SetArray(AutoMasteryConfigKey, _autoMasteries.Keys.OrderBy(p => p).ToArray());
+        PlayerConfig.SetArray(AutoSkillsConfigKey, _autoSkills.Keys.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray());
+        PlayerConfig.Set(AutoWhenBotStoppedConfigKey, _autoWhenBotStopped);
+        PlayerConfig.Set(AutoMasteryGapConfigKey, _autoMasteryGap);
         PlayerConfig.Save();
     }
 
@@ -97,13 +243,134 @@ internal static class SkillUpgradeManager
     }
 
     /// <summary>
+    ///     Returns deduplicated skill progression lines for the specified mastery.
+    /// </summary>
+    public static IReadOnlyList<SkillLineInfo> GetSkillLinesForMastery(uint masteryId, Player player = null)
+    {
+        EnsureSkillIndex();
+
+        var race = player?.Race ?? Game.Player?.Race ?? ObjectCountry.Unassigned;
+        var result = new List<SkillLineInfo>();
+
+        if (_skillLinesByPrefix == null)
+            return result;
+
+        foreach (var kvp in _skillLinesByPrefix)
+        {
+            var levels = kvp.Value;
+            if (levels == null || levels.Count == 0)
+                continue;
+
+            var first = levels[0];
+            if (first.ReqCommon_Mastery1 != (int)masteryId &&
+                first.ReqCommon_Mastery2 != (int)masteryId)
+                continue;
+
+            if (race != ObjectCountry.Unassigned &&
+                first.ReqLearn_Race != 0 &&
+                first.ReqLearn_Race != (byte)race)
+                continue;
+
+            result.Add(new SkillLineInfo(kvp.Key, masteryId, levels));
+        }
+
+        return result
+            .OrderBy(s => s.UIPage == 0 ? byte.MaxValue : s.UIPage)
+            .ThenBy(s => s.UIRow)
+            .ThenBy(s => s.UIColumn)
+            .ThenBy(s => s.FirstSkill.ReqCommon_MasteryLevel1)
+            .ThenBy(s => s.FirstSkill.ID)
+            .ToList();
+    }
+
+    /// <summary>
+    ///     Gets the known skill level (and RefSkill) for a given code prefix, or (0, null) if not learned.
+    /// </summary>
+    public static (byte Level, RefSkill KnownRecord) GetKnownSkillState(string codePrefix, Player player)
+    {
+        if (player?.Skills?.KnownSkills == null || string.IsNullOrEmpty(codePrefix))
+            return (0, null);
+
+        RefSkill bestRecord = null;
+        byte bestLevel = 0;
+
+        foreach (var known in player.Skills.KnownSkills)
+        {
+            var record = known?.Record;
+            if (record == null || string.IsNullOrEmpty(record.Basic_Code))
+                continue;
+
+            if (!string.Equals(GetCodePrefix(record.Basic_Code), codePrefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (record.Basic_Level > bestLevel)
+            {
+                bestLevel = record.Basic_Level;
+                bestRecord = record;
+            }
+        }
+
+        return (bestLevel, bestRecord);
+    }
+
+    /// <summary>
+    ///     Gets the next RefSkill level in a skill line, or null if already at max level.
+    /// </summary>
+    public static RefSkill GetNextLevelForLine(SkillLineInfo line, Player player)
+    {
+        if (line == null || line.Levels.Count == 0)
+            return null;
+
+        var (knownLevel, knownRecord) = GetKnownSkillState(line.CodePrefix, player);
+        if (knownRecord == null)
+            return line.Levels[0];
+
+        return FindNextSkill(knownRecord)
+               ?? line.Levels.FirstOrDefault(l => l.Basic_Level > knownLevel);
+    }
+
+    public static bool CanLearnNextLevel(RefSkill skill, Player player)
+    {
+        return CanLearnSkill(skill, player);
+    }
+
+    /// <summary>
     ///     Levels the given mastery up once, or until it reaches the player level.
     /// </summary>
     public static void LearnMastery(uint masteryId, bool maxLevel)
     {
         EnsureSettingsLoaded();
 
-        _manualRequests.Enqueue(new MasteryRequest(masteryId, maxLevel));
+        _manualRequests.Enqueue(UpgradeRequest.ForMastery(masteryId, maxLevel));
+        TryProcessManualRequests();
+    }
+
+    /// <summary>
+    ///     Opens or upgrades a single skill line once or up to the highest currently learnable level.
+    /// </summary>
+    public static void LearnSkillLine(uint masteryId, string skillPrefix, bool maxLevel)
+    {
+        EnsureSettingsLoaded();
+        if (string.IsNullOrWhiteSpace(skillPrefix))
+            return;
+
+        _manualRequests.Enqueue(UpgradeRequest.ForSkill(masteryId, skillPrefix, maxLevel));
+        TryProcessManualRequests();
+    }
+
+    /// <summary>
+    ///     Opens or upgrades all eligible skills in a subset (group) or the whole mastery.
+    /// </summary>
+    public static void LearnSkillsBatch(uint masteryId, IEnumerable<string> skillPrefixesOrNull, bool maxLevel)
+    {
+        EnsureSettingsLoaded();
+
+        var prefixes = skillPrefixesOrNull?
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        _manualRequests.Enqueue(UpgradeRequest.ForBatch(masteryId, prefixes, maxLevel));
         TryProcessManualRequests();
     }
 
@@ -119,45 +386,140 @@ internal static class SkillUpgradeManager
         {
             try
             {
+                ResetBlockedSkills();
+
                 while (_manualRequests.TryDequeue(out var request))
                 {
-                    var player = Game.Player;
-                    if (player?.Skills == null)
-                        continue;
-
-                    var mastery = player.Skills.GetMasteryInfoById(request.MasteryId);
-                    if (mastery == null)
-                        continue;
-
-                    var actions = 0;
-                    do
+                    switch (request.Kind)
                     {
-                        if (!TryLearnMastery(mastery, true))
+                        case RequestKind.Mastery:
+                            ExecuteManualMastery(request.MasteryId, request.MaxLevel);
                             break;
-
-                        actions++;
-                        if (!request.MaxLevel || actions >= MaxActionsPerRun)
+                        case RequestKind.SingleSkill:
+                            ExecuteManualSingleSkill(request.MasteryId, request.SkillPrefix, request.MaxLevel);
                             break;
-
-                        mastery = Game.Player?.Skills?.GetMasteryInfoById(request.MasteryId);
-                    } while (mastery != null && mastery.Level < player.Level);
+                        case RequestKind.BatchSkills:
+                            ExecuteManualBatchSkills(request.MasteryId, request.SkillPrefixes, request.MaxLevel);
+                            break;
+                    }
                 }
             }
             finally
             {
+                try
+                {
+                    BatchCompleted?.Invoke();
+                }
+                catch
+                {
+                }
+
                 ExitAction();
             }
         });
     }
 
+    private static void ExecuteManualMastery(uint masteryId, bool maxLevel)
+    {
+        var player = Game.Player;
+        if (player?.Skills == null)
+            return;
+
+        var mastery = player.Skills.GetMasteryInfoById(masteryId);
+        if (mastery == null)
+            return;
+
+        var actions = 0;
+        do
+        {
+            if (!TryLearnMastery(mastery, true, 0))
+                break;
+
+            actions++;
+            if (!maxLevel || actions >= MaxActionsPerRun)
+                break;
+
+            Thread.Sleep(LearnDelay);
+            player = Game.Player;
+            mastery = player?.Skills?.GetMasteryInfoById(masteryId);
+        } while (mastery != null && player != null && mastery.Level < player.Level);
+    }
+
+    private static void ExecuteManualSingleSkill(uint masteryId, string skillPrefix, bool maxLevel)
+    {
+        var actions = 0;
+        do
+        {
+            var player = Game.Player;
+            if (player?.Skills == null)
+                break;
+
+            if (!TryLearnNextSkillForPrefix(skillPrefix, masteryId, player, true))
+                break;
+
+            actions++;
+            if (!maxLevel || actions >= MaxActionsPerRun)
+                break;
+
+            Thread.Sleep(LearnDelay);
+        } while (true);
+    }
+
+    private static void ExecuteManualBatchSkills(uint masteryId, string[] skillPrefixesOrNull, bool maxLevel)
+    {
+        var player = Game.Player;
+        if (player?.Skills == null)
+            return;
+
+        HashSet<string> allowedPrefixes = null;
+        if (skillPrefixesOrNull != null && skillPrefixesOrNull.Length > 0)
+            allowedPrefixes = new HashSet<string>(skillPrefixesOrNull, StringComparer.OrdinalIgnoreCase);
+
+        if (!maxLevel)
+        {
+            // One pass: open or add +1 level to every eligible skill in the selection.
+            var lines = GetSkillLinesForMastery(masteryId, player);
+            foreach (var line in lines)
+            {
+                if (allowedPrefixes != null && !allowedPrefixes.Contains(line.CodePrefix))
+                    continue;
+
+                var currentPlayer = Game.Player;
+                if (currentPlayer?.Skills == null)
+                    break;
+
+                if (TryLearnNextSkillForPrefix(line.CodePrefix, masteryId, currentPlayer, true))
+                    Thread.Sleep(LearnDelay);
+            }
+
+            return;
+        }
+
+        // Max mode: keep upgrading eligible skills until nothing more can be learned.
+        for (var action = 0; action < MaxActionsPerRun; action++)
+        {
+            var currentPlayer = Game.Player;
+            if (currentPlayer?.Skills == null)
+                break;
+
+            if (!TryLearnNextSkill(masteryId, allowedPrefixes))
+                break;
+
+            Thread.Sleep(LearnDelay);
+        }
+    }
+
     /// <summary>
-    ///     Runs the auto upgrade loop for every mastery that has auto upgrade enabled.
+    ///     Runs the auto upgrade loop for every enabled mastery and individually enabled auto-skill.
     /// </summary>
     public static void RunAutoUpgrade()
     {
         EnsureSettingsLoaded();
 
-        if (_autoMasteries.IsEmpty)
+        if (_autoMasteries.IsEmpty && _autoSkills.IsEmpty)
+            return;
+
+        if (!_autoWhenBotStopped && !Kernel.Bot.Running)
             return;
 
         if (!TryEnterAction())
@@ -191,34 +553,57 @@ internal static class SkillUpgradeManager
             if (player?.Skills == null)
                 return;
 
+            if (!_autoWhenBotStopped && !Kernel.Bot.Running)
+                return;
+
             var enabledMasteries = _autoMasteries.Keys.ToArray();
-            if (enabledMasteries.Length == 0)
+            var enabledSkills = _autoSkills.Keys.ToArray();
+            if (enabledMasteries.Length == 0 && enabledSkills.Length == 0)
                 return;
 
             var didSomething = false;
 
-            for (var index = 0; index < enabledMasteries.Length; index++)
+            if (enabledMasteries.Length > 0)
             {
-                var masteryId = enabledMasteries[(_masteryCursor + index) % enabledMasteries.Length];
-                if (!IsAutoEnabled(masteryId))
-                    continue;
-
-                var mastery = player.Skills.GetMasteryInfoById(masteryId);
-                if (mastery == null)
-                    continue;
-
-                if (mastery.Level < player.Level && TryLearnMastery(mastery, true))
+                for (var index = 0; index < enabledMasteries.Length; index++)
                 {
-                    _masteryCursor = (_masteryCursor + index + 1) % enabledMasteries.Length;
-                    didSomething = true;
-                    break;
+                    var masteryId = enabledMasteries[(_masteryCursor + index) % enabledMasteries.Length];
+                    if (!IsAutoEnabled(masteryId))
+                        continue;
+
+                    var mastery = player.Skills.GetMasteryInfoById(masteryId);
+                    if (mastery == null)
+                        continue;
+
+                    if (mastery.Level + _autoMasteryGap < player.Level &&
+                        TryLearnMastery(mastery, true, _autoMasteryGap))
+                    {
+                        _masteryCursor = (_masteryCursor + index + 1) % enabledMasteries.Length;
+                        didSomething = true;
+                        break;
+                    }
+
+                    if (TryLearnNextSkill(masteryId, null))
+                    {
+                        _masteryCursor = (_masteryCursor + index + 1) % enabledMasteries.Length;
+                        didSomething = true;
+                        break;
+                    }
                 }
+            }
 
-                if (TryLearnNextSkill(masteryId))
+            if (!didSomething && enabledSkills.Length > 0)
+            {
+                foreach (var prefix in enabledSkills)
                 {
-                    _masteryCursor = (_masteryCursor + index + 1) % enabledMasteries.Length;
-                    didSomething = true;
-                    break;
+                    if (!IsSkillAutoEnabled(prefix))
+                        continue;
+
+                    if (TryLearnNextSkillForPrefix(prefix, 0, player, true))
+                    {
+                        didSomething = true;
+                        break;
+                    }
                 }
             }
 
@@ -229,10 +614,10 @@ internal static class SkillUpgradeManager
         }
     }
 
-    private static bool TryLearnMastery(MasteryInfo mastery, bool log)
+    private static bool TryLearnMastery(MasteryInfo mastery, bool log, byte gap)
     {
         var player = Game.Player;
-        if (player == null || mastery == null || mastery.Level >= player.Level)
+        if (player == null || mastery == null || mastery.Level + gap >= player.Level)
             return false;
 
         var nextLevel = Game.ReferenceManager.GetRefLevel((byte)(mastery.Level + 1));
@@ -243,13 +628,13 @@ internal static class SkillUpgradeManager
         {
             if (log)
                 Log.Debug(
-                    $"Auto. mastery upgrade cancelled due to insufficient skill points. Required: {nextLevel.Exp_M}");
+                    $"Mastery upgrade cancelled due to insufficient skill points. Required: {nextLevel.Exp_M}");
 
             return false;
         }
 
         if (log)
-            Log.Notify($"Auto. train mastery [{mastery.Record?.Name}] to lv. {mastery.Level + 1}");
+            Log.Notify($"Train mastery [{mastery.Record?.Name}] to lv. {mastery.Level + 1}");
 
         var previousLevel = mastery.Level;
 
@@ -260,7 +645,60 @@ internal static class SkillUpgradeManager
         return updated != null && updated.Level > previousLevel;
     }
 
-    private static bool TryLearnNextSkill(uint masteryId)
+    private static bool TryLearnNextSkillForPrefix(string skillPrefix, uint masteryIdFilter, Player player, bool manualLog)
+    {
+        if (player?.Skills == null || string.IsNullOrEmpty(skillPrefix))
+            return false;
+
+        EnsureSkillIndex();
+
+        var (_, knownRecord) = GetKnownSkillState(skillPrefix, player);
+        RefSkill nextSkill = null;
+
+        if (knownRecord != null)
+        {
+            nextSkill = FindNextSkill(knownRecord);
+        }
+        else if (_skillLinesByPrefix != null && _skillLinesByPrefix.TryGetValue(skillPrefix, out var levels) && levels.Count > 0)
+        {
+            nextSkill = levels[0];
+        }
+
+        if (nextSkill == null)
+            return false;
+
+        if (masteryIdFilter != 0 &&
+            nextSkill.ReqCommon_Mastery1 != (int)masteryIdFilter &&
+            nextSkill.ReqCommon_Mastery2 != (int)masteryIdFilter)
+            return false;
+
+        if (_blockedSkills.ContainsKey(nextSkill.ID))
+            return false;
+
+        if (player.Skills.HasSkill(nextSkill.ID))
+            return false;
+
+        if (!CanLearnSkill(nextSkill, player))
+            return false;
+
+        var success = LearnSkillHandler.LearnSkill(nextSkill.ID);
+        var learned = Game.Player?.Skills?.HasSkill(nextSkill.ID) == true;
+
+        if (success && learned)
+        {
+            if (manualLog)
+                Log.Notify($"Learned skill [{nextSkill.GetRealName()}] lv. {nextSkill.Basic_Level}");
+            return true;
+        }
+
+        _blockedSkills[nextSkill.ID] = 0;
+        if (manualLog)
+            Log.Debug($"Skill upgrade failed for [{nextSkill.GetRealName()}] lv. {nextSkill.Basic_Level}");
+
+        return false;
+    }
+
+    private static bool TryLearnNextSkill(uint masteryId, HashSet<string> allowedPrefixesOrNull)
     {
         var player = Game.Player;
         if (player?.Skills == null)
@@ -278,6 +716,10 @@ internal static class SkillUpgradeManager
                  record.ReqCommon_Mastery2 != (int)masteryId))
                 continue;
 
+            if (allowedPrefixesOrNull != null &&
+                !allowedPrefixesOrNull.Contains(GetCodePrefix(record.Basic_Code)))
+                continue;
+
             var next = FindNextSkill(record);
             if (next != null && !knownSkillIds.Contains(next.ID))
                 candidates.Add(next);
@@ -291,6 +733,10 @@ internal static class SkillUpgradeManager
 
             if (skill.ReqCommon_Mastery1 != (int)masteryId &&
                 skill.ReqCommon_Mastery2 != (int)masteryId)
+                continue;
+
+            if (allowedPrefixesOrNull != null &&
+                !allowedPrefixesOrNull.Contains(GetCodePrefix(skill.Basic_Code)))
                 continue;
 
             if (knownSkillIds.Contains(skill.ID))
@@ -317,12 +763,12 @@ internal static class SkillUpgradeManager
 
             if (success && learned)
             {
-                Log.Notify($"Auto. learned skill [{nextSkill.GetRealName()}] lv. {nextSkill.Basic_Level}");
+                Log.Notify($"Learned skill [{nextSkill.GetRealName()}] lv. {nextSkill.Basic_Level}");
                 return true;
             }
 
             _blockedSkills[nextSkill.ID] = 0;
-            Log.Debug($"Auto. skill upgrade failed for [{nextSkill.GetRealName()}] lv. {nextSkill.Basic_Level}");
+            Log.Debug($"Skill upgrade failed for [{nextSkill.GetRealName()}] lv. {nextSkill.Basic_Level}");
         }
 
         return false;
@@ -330,11 +776,6 @@ internal static class SkillUpgradeManager
 
     /// <summary>
     ///     Finds the skill of the next level in the same skill line.
-    ///     <para>
-    ///         Note: <see cref="RefSkill.Basic_ChainCode" /> does not point to the previous level, it links
-    ///         the skill to its hidden companion skill (e.g. the "A2" variants). Therefore the next level is
-    ///         resolved by the code prefix (the code without its level suffix) and the level.
-    ///     </para>
     /// </summary>
     private static RefSkill FindNextSkill(RefSkill currentSkill)
     {
@@ -354,15 +795,16 @@ internal static class SkillUpgradeManager
 
     private static void EnsureSkillIndex()
     {
-        if (_skillIndex != null)
+        if (_skillIndex != null && _skillLinesByPrefix != null)
             return;
 
         lock (_indexLock)
         {
-            if (_skillIndex != null)
+            if (_skillIndex != null && _skillLinesByPrefix != null)
                 return;
 
             var index = new Dictionary<(string Prefix, byte Level), RefSkill>();
+            var lines = new Dictionary<string, List<RefSkill>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var skill in Game.ReferenceManager.SkillData.Values)
             {
@@ -371,17 +813,35 @@ internal static class SkillUpgradeManager
                     string.IsNullOrEmpty(skill.Basic_Code))
                     continue;
 
-                // Hidden companion skills have no learn cost and are learned with their base skill.
-                var key = (GetCodePrefix(skill.Basic_Code), skill.Basic_Level);
-                if (!index.ContainsKey(key))
-                    index[key] = skill;
+                var prefix = GetCodePrefix(skill.Basic_Code);
+                var key = (prefix, skill.Basic_Level);
+                if (index.ContainsKey(key))
+                    continue;
+
+                index[key] = skill;
+
+                if (!lines.TryGetValue(prefix, out var list))
+                {
+                    list = new List<RefSkill>();
+                    lines[prefix] = list;
+                }
+
+                list.Add(skill);
             }
 
+            foreach (var list in lines.Values)
+                list.Sort((a, b) =>
+                {
+                    var cmp = a.Basic_Level.CompareTo(b.Basic_Level);
+                    return cmp != 0 ? cmp : a.ID.CompareTo(b.ID);
+                });
+
             _skillIndex = index;
+            _skillLinesByPrefix = lines;
         }
     }
 
-    private static string GetCodePrefix(string code)
+    public static string GetCodePrefix(string code)
     {
         if (string.IsNullOrEmpty(code))
             return string.Empty;
@@ -395,7 +855,6 @@ internal static class SkillUpgradeManager
         if (skill == null || player?.Skills == null)
             return false;
 
-        // Hidden companion skills (chain code targets) are learned together with their base skill.
         if (skill.ReqLearn_SP <= 0)
             return false;
 
@@ -447,8 +906,6 @@ internal static class SkillUpgradeManager
         if (requiredSkill == null || string.IsNullOrEmpty(requiredSkill.Basic_Group))
             return true;
 
-        // Only enforce the prerequisite when it belongs to the same skill line. Some
-        // custom server files contain unrelated entries in these columns.
         if (!string.Equals(requiredSkill.Basic_Group, skill.Basic_Group, StringComparison.OrdinalIgnoreCase))
             return true;
 
@@ -472,7 +929,6 @@ internal static class SkillUpgradeManager
     {
         Interlocked.Exchange(ref _actionActive, 0);
 
-        // A manual action was requested while another action was running.
         if (!_manualRequests.IsEmpty)
         {
             TryProcessManualRequests();
@@ -486,16 +942,43 @@ internal static class SkillUpgradeManager
         RunAutoUpgrade();
     }
 
-    private readonly struct MasteryRequest
+    private enum RequestKind
     {
-        public MasteryRequest(uint masteryId, bool maxLevel)
+        Mastery,
+        SingleSkill,
+        BatchSkills
+    }
+
+    private readonly struct UpgradeRequest
+    {
+        private UpgradeRequest(RequestKind kind, uint masteryId, string skillPrefix, string[] skillPrefixes, bool maxLevel)
         {
+            Kind = kind;
             MasteryId = masteryId;
+            SkillPrefix = skillPrefix;
+            SkillPrefixes = skillPrefixes;
             MaxLevel = maxLevel;
         }
 
+        public RequestKind Kind { get; }
         public uint MasteryId { get; }
-
+        public string SkillPrefix { get; }
+        public string[] SkillPrefixes { get; }
         public bool MaxLevel { get; }
+
+        public static UpgradeRequest ForMastery(uint masteryId, bool maxLevel)
+        {
+            return new UpgradeRequest(RequestKind.Mastery, masteryId, null, null, maxLevel);
+        }
+
+        public static UpgradeRequest ForSkill(uint masteryId, string skillPrefix, bool maxLevel)
+        {
+            return new UpgradeRequest(RequestKind.SingleSkill, masteryId, skillPrefix, null, maxLevel);
+        }
+
+        public static UpgradeRequest ForBatch(uint masteryId, string[] skillPrefixes, bool maxLevel)
+        {
+            return new UpgradeRequest(RequestKind.BatchSkills, masteryId, null, skillPrefixes, maxLevel);
+        }
     }
 }

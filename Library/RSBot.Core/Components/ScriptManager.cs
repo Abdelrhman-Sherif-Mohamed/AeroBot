@@ -75,6 +75,16 @@ public class ScriptManager
     private static readonly object _loopLock = new();
     private static readonly object _stateLock = new();
     private static volatile bool _isExecutingLoop;
+    private static volatile bool _ignoreBotRunning;
+
+    /// <summary>
+    ///     Returns whether the current script execution is allowed to continue based on
+    ///     <see cref="ScriptManager" /> settings and active movement runners (Training, Trade, Lure).
+    /// </summary>
+    public static bool CanContinueExecution(bool ignoreBotRunning = false)
+    {
+        return ignoreBotRunning || _ignoreBotRunning || Kernel.IsAnyMovementBotRunning;
+    }
 
     public static void Initialize()
     {
@@ -138,7 +148,7 @@ public class ScriptManager
     /// </summary>
     public static bool WaitWhilePaused(bool ignoreBotRunning = false, Func<bool> extraCondition = null)
     {
-        while (Paused && Running && (ignoreBotRunning || Kernel.Bot == null || Kernel.Bot.Running))
+        while (Paused && Running && CanContinueExecution(ignoreBotRunning))
         {
             if (extraCondition != null && !extraCondition())
                 return false;
@@ -146,7 +156,7 @@ public class ScriptManager
             Thread.Sleep(100);
         }
 
-        return Running && !Paused && (ignoreBotRunning || Kernel.Bot == null || Kernel.Bot.Running) &&
+        return Running && !Paused && CanContinueExecution(ignoreBotRunning) &&
                (extraCondition == null || extraCondition());
     }
 
@@ -237,6 +247,8 @@ public class ScriptManager
 
         try
         {
+            _ignoreBotRunning = ignoreBotRunning;
+
             if (Commands == null || Commands.Length == 0 || Commands.Length <= CurrentLineIndex)
                 return;
 
@@ -250,7 +262,7 @@ public class ScriptManager
             {
                 CurrentLineIndex = i;
 
-                if (Paused && Running && (ignoreBotRunning || Kernel.Bot == null || Kernel.Bot.Running))
+                if (Paused && Running && CanContinueExecution(ignoreBotRunning))
                 {
                     if (!WaitWhilePaused(ignoreBotRunning))
                     {
@@ -259,7 +271,7 @@ public class ScriptManager
                     }
                 }
 
-                if (!Running || (!ignoreBotRunning && Kernel.Bot != null && !Kernel.Bot.Running))
+                if (!Running || !CanContinueExecution(ignoreBotRunning))
                 {
                     error = true;
                     break;
@@ -304,7 +316,7 @@ public class ScriptManager
 
                 if (executionResult == false)
                 {
-                    if (Paused && Running && (ignoreBotRunning || Kernel.Bot == null || Kernel.Bot.Running))
+                    if (Paused && Running && CanContinueExecution(ignoreBotRunning))
                     {
                         Log.Debug($"[Script] Script paused during [{commandName}] at line #{CurrentLineIndex}; waiting to resume...");
                         if (WaitWhilePaused(ignoreBotRunning))
@@ -317,7 +329,7 @@ public class ScriptManager
                         break;
                     }
 
-                    if (!Running || (!ignoreBotRunning && Kernel.Bot != null && !Kernel.Bot.Running))
+                    if (!Running || !CanContinueExecution(ignoreBotRunning))
                     {
                         error = true;
                         break;
@@ -354,6 +366,7 @@ public class ScriptManager
         }
         finally
         {
+            _ignoreBotRunning = false;
             _isExecutingLoop = false;
         }
     }

@@ -1463,9 +1463,9 @@ namespace RSBot.Items.Views
             numDegreeFrom.Margin = new Padding(4, 4, 4, 4);
             numDegreeFrom.Maximum = new decimal(new int[] { 100, 0, 0, 0 });
             numDegreeFrom.Minimum = new decimal(new int[] { 0, 0, 0, 0 });
-            numDegreeFrom.MinimumSize = new Size(75, 31);
+            numDegreeFrom.MinimumSize = new Size(88, 31);
             numDegreeFrom.Name = "numDegreeFrom";
-            numDegreeFrom.Size = new Size(75, 31);
+            numDegreeFrom.Size = new Size(88, 31);
             numDegreeFrom.TabIndex = 32;
             numDegreeFrom.Value = new decimal(new int[] { 0, 0, 0, 0 });
             // 
@@ -1474,13 +1474,13 @@ namespace RSBot.Items.Views
             numDegreeTo.BackColor = Color.Transparent;
             numDegreeTo.Font = new Font("Segoe UI", 9.25F);
             numDegreeTo.ForeColor = Color.FromArgb(0, 0, 0);
-            numDegreeTo.Location = new Point(175, 136);
+            numDegreeTo.Location = new Point(190, 136);
             numDegreeTo.Margin = new Padding(4, 4, 4, 4);
             numDegreeTo.Maximum = new decimal(new int[] { 100, 0, 0, 0 });
             numDegreeTo.Minimum = new decimal(new int[] { 0, 0, 0, 0 });
-            numDegreeTo.MinimumSize = new Size(75, 31);
+            numDegreeTo.MinimumSize = new Size(88, 31);
             numDegreeTo.Name = "numDegreeTo";
-            numDegreeTo.Size = new Size(75, 31);
+            numDegreeTo.Size = new Size(88, 31);
             numDegreeTo.TabIndex = 34;
             numDegreeTo.Value = new decimal(new int[] { 0, 0, 0, 0 });
             // 
@@ -1496,7 +1496,7 @@ namespace RSBot.Items.Views
     Color.Black
     };
             label4.GradientAnimation = false;
-            label4.Location = new Point(152, 138);
+            label4.Location = new Point(166, 138);
             label4.Margin = new Padding(4, 0, 4, 0);
             label4.Name = "label4";
             label4.Size = new Size(18, 24);

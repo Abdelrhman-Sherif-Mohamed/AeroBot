@@ -161,12 +161,21 @@ public class TabControl : System.Windows.Forms.TabControl
 
         var graphics = e.Graphics;
 
-        // Clip parent background drawing strictly to the tab header strip
-        // so we never paint over child TabPages or their controls
-        var headerHeight = DisplayRectangle.Top > 0 ? DisplayRectangle.Top : (ItemSize.Height + 4);
-        var headerRect = new Rectangle(0, 0, Width, headerHeight);
+        // Paint header strip + outer 4px TabControl border frame without ever painting over child TabPages
+        using (var outerRegion = new Region(new Rectangle(0, 0, Width, Height)))
+        {
+            var innerRect = DisplayRectangle;
+            if (innerRect.Width > 0 && innerRect.Height > 0)
+                outerRegion.Exclude(innerRect);
 
-        GroupBoxRenderer.DrawParentBackground(graphics, headerRect, this);
+            var oldClip = graphics.Clip;
+            graphics.SetClip(outerRegion, System.Drawing.Drawing2D.CombineMode.Replace);
+            using (var bgBrush = new SolidBrush(ColorScheme.BackColor))
+            {
+                graphics.FillRectangle(bgBrush, 0, 0, Width, Height);
+            }
+            graphics.Clip = oldClip;
+        }
 
         graphics.SetHighQuality();
         using var backBrush = new SolidBrush(ColorScheme.BackColor.IsDark() ? Color.FromArgb(10, 255, 255, 255) : Color.FromArgb(50, 0, 0, 0));

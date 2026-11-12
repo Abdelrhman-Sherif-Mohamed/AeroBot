@@ -115,11 +115,12 @@ public static class UpdateManager
             if (!string.IsNullOrWhiteSpace(AuthConfig.Instance.AuthSecret))
                 endpoint += "?auth=" + AuthConfig.Instance.AuthSecret;
 
-            var response = await _httpClient.GetAsync(endpoint);
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(3.5));
+            using var response = await _httpClient.GetAsync(endpoint, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
                 return null;
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(json) || json == "null")
                 return null;
 

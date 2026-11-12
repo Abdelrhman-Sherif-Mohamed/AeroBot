@@ -42,6 +42,7 @@ internal class EntityUpdateStateResponse : IPacketHandler
             case 0:
 
                 entity.State.LifeState = (LifeState)state;
+                KillDeathTracker.OnEntityLifeStateChanged(entity);
                 if ( /*uniqueId == Game.SelectedEntity?.UniqueId || */
                     Game.Player.GetAttackers().Any(e => e.UniqueId == uniqueId) &&
                     entity.State.LifeState == LifeState.Dead)
@@ -110,9 +111,13 @@ internal class EntityUpdateStateResponse : IPacketHandler
                 var scrollState = (ScrollState)state;
                 entity.State.ScrollState = scrollState;
 
-                if (uniqueId == Game.Player.UniqueId)
-                    if (scrollState == ScrollState.Cancel && Kernel.Bot.Running)
+                if (uniqueId == Game.Player.UniqueId && scrollState == ScrollState.Cancel)
+                {
+                    if (Kernel.Bot.Running)
                         Kernel.Bot.Stop();
+
+                    Kernel.StopAllIndependentRunners(onlyMovement: true);
+                }
 
                 EventManager.FireEvent("OnUpdateEntityScrollState", uniqueId);
 

@@ -128,10 +128,10 @@ public class RefSkill : IReference<uint>
     //public short Consume_HPRatio;
     //public short Consume_MPRatio;
     //public byte Consume_HWAN;
-    //public byte UI_SkillTab;
-    //public byte UI_SkillPage;
-    //public byte UI_SkillColumn;
-    //public byte UI_SkillRow;
+    public byte UI_SkillTab;
+    public byte UI_SkillPage;
+    public byte UI_SkillColumn;
+    public byte UI_SkillRow;
     public string UI_IconFile;
 
     public string UI_SkillName;
@@ -166,9 +166,9 @@ public class RefSkill : IReference<uint>
             return false;
 
         parser.TryParse(3, out Basic_Code);
-        //parser.TryParseString(4, out Basic_Name);
-        //parser.TryParseString(5, out Basic_Group);
-        //parser.TryParseInt(6, out Basic_Original);
+        parser.TryParse(4, out Basic_Name);
+        parser.TryParse(5, out Basic_Group);
+        parser.TryParse(6, out Basic_Original);
         parser.TryParse(7, out Basic_Level);
         parser.TryParse(8, out Basic_Activity);
         parser.TryParse(9, out Basic_ChainCode);
@@ -225,10 +225,10 @@ public class RefSkill : IReference<uint>
         //Consume_MPRatio = short.Parse(data[55]);
         //Consume_HWAN = byte.Parse(data[56]);
 
-        //UI_SkillTab = byte.Parse(data[57]);
-        //UI_SkillPage = byte.Parse(data[58]);
-        //UI_SkillColumn = byte.Parse(data[59]);
-        //UI_SkillRow = byte.Parse(data[60]);
+        parser.TryParse(57, out UI_SkillTab);
+        parser.TryParse(58, out UI_SkillPage);
+        parser.TryParse(59, out UI_SkillColumn);
+        parser.TryParse(60, out UI_SkillRow);
 
         parser.TryParse(61, out UI_IconFile);
         parser.TryParse(62, out UI_SkillName);

@@ -1,16 +1,18 @@
 using System.Collections.Generic;
+using RSBot.Alchemy.Models;
 using RSBot.Core.Objects;
 
 namespace RSBot.Alchemy.Bundle.Dismantle;
 
 internal class DismantleBundleConfig
 {
-    #region Properties
+    public bool AutoDismantle { get; set; }
+    public bool DismantleWhenBagFull { get; set; }
+    public bool OnlySelectedItems { get; set; }
+    public bool UseMaxLevelFilter { get; set; }
+    public int MaxItemLevel { get; set; } = 100;
 
-    /// <summary>
-    ///     Gets or sets the equipment selected for dismantling.
-    /// </summary>
     public List<InventoryItem> Equipment { get; set; } = new();
-
-    #endregion Properties
+    public List<DismantleFilterRule> Filters { get; set; } = new();
+    public List<DismantleOutputEntry> Outputs { get; set; } = new();
 }

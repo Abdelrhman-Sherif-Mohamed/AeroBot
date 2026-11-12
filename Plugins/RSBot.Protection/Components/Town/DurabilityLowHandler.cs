@@ -55,7 +55,7 @@ public class DurabilityLowHandler : AbstractTownHandler
         {
             var item = Game.Player.Inventory.GetItemAt(slot);
             if (item == null)
-                return;
+                continue;
 
             if (!item.Record.IsEquip)
                 continue;

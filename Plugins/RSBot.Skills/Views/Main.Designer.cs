@@ -123,7 +123,7 @@
             groupBoxAttackingSkills.Padding = new System.Windows.Forms.Padding(3, 10, 3, 3);
             groupBoxAttackingSkills.Radius = 10;
             groupBoxAttackingSkills.ShadowDepth = 4;
-            groupBoxAttackingSkills.Size = new System.Drawing.Size(357, 213);
+            groupBoxAttackingSkills.Size = new System.Drawing.Size(357, 234);
             groupBoxAttackingSkills.TabIndex = 1;
             groupBoxAttackingSkills.TabStop = false;
             groupBoxAttackingSkills.Text = "Attacking skills";
@@ -132,12 +132,12 @@
             // 
             checkUseSkillsInOrder.BackColor = System.Drawing.Color.Transparent;
             checkUseSkillsInOrder.Depth = 0;
-            checkUseSkillsInOrder.Location = new System.Drawing.Point(231, 178);
+            checkUseSkillsInOrder.Location = new System.Drawing.Point(9, 204);
             checkUseSkillsInOrder.Margin = new System.Windows.Forms.Padding(0);
             checkUseSkillsInOrder.MouseLocation = new System.Drawing.Point(-1, -1);
             checkUseSkillsInOrder.Name = "checkUseSkillsInOrder";
             checkUseSkillsInOrder.Ripple = true;
-            checkUseSkillsInOrder.Size = new System.Drawing.Size(120, 20);
+            checkUseSkillsInOrder.Size = new System.Drawing.Size(338, 22);
             checkUseSkillsInOrder.TabIndex = 10;
             checkUseSkillsInOrder.Text = "Use in order";
             checkUseSkillsInOrder.UseVisualStyleBackColor = false;
@@ -147,12 +147,12 @@
             // 
             checkBoxNoAttack.BackColor = System.Drawing.Color.Transparent;
             checkBoxNoAttack.Depth = 0;
-            checkBoxNoAttack.Location = new System.Drawing.Point(231, 155);
+            checkBoxNoAttack.Location = new System.Drawing.Point(9, 178);
             checkBoxNoAttack.Margin = new System.Windows.Forms.Padding(0);
             checkBoxNoAttack.MouseLocation = new System.Drawing.Point(-1, -1);
             checkBoxNoAttack.Name = "checkBoxNoAttack";
             checkBoxNoAttack.Ripple = true;
-            checkBoxNoAttack.Size = new System.Drawing.Size(120, 20);
+            checkBoxNoAttack.Size = new System.Drawing.Size(338, 22);
             checkBoxNoAttack.TabIndex = 9;
             checkBoxNoAttack.Text = "No Attack";
             checkBoxNoAttack.UseVisualStyleBackColor = false;
@@ -166,9 +166,9 @@
             listAttackingSkills.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             listAttackingSkills.FullRowSelect = true;
             listAttackingSkills.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
-            listAttackingSkills.Location = new System.Drawing.Point(6, 25);
+            listAttackingSkills.Location = new System.Drawing.Point(6, 24);
             listAttackingSkills.Name = "listAttackingSkills";
-            listAttackingSkills.Size = new System.Drawing.Size(315, 128);
+            listAttackingSkills.Size = new System.Drawing.Size(315, 118);
             listAttackingSkills.TabIndex = 8;
             listAttackingSkills.UseCompatibleStateImageBehavior = false;
             listAttackingSkills.View = System.Windows.Forms.View.Details;
@@ -189,7 +189,7 @@
             label2.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             label2.Gradient = new System.Drawing.Color[] { System.Drawing.Color.Gray, System.Drawing.Color.Black };
             label2.GradientAnimation = false;
-            label2.Location = new System.Drawing.Point(9, 158);
+            label2.Location = new System.Drawing.Point(9, 151);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(34, 15);
             label2.TabIndex = 7;
@@ -204,11 +204,11 @@
             comboMonsterType.IntegralHeight = false;
             comboMonsterType.ItemHeight = 17;
             comboMonsterType.Items.AddRange(new object[] { "General (Default)", "Champion", "Giant", "General (Party)", "Champion (Party)", "Giant (Party)", "Elite", "Strong", "Unique", "Event" });
-            comboMonsterType.Location = new System.Drawing.Point(54, 155);
+            comboMonsterType.Location = new System.Drawing.Point(54, 148);
             comboMonsterType.Name = "comboMonsterType";
             comboMonsterType.Radius = 5;
             comboMonsterType.ShadowDepth = 4F;
-            comboMonsterType.Size = new System.Drawing.Size(171, 23);
+            comboMonsterType.Size = new System.Drawing.Size(267, 23);
             comboMonsterType.TabIndex = 2;
             comboMonsterType.SelectedIndexChanged += comboMonsterType_SelectedIndexChanged;
             // 
@@ -263,12 +263,12 @@
             groupBox2.Controls.Add(btnMoveBuffSkillUp);
             groupBox2.Controls.Add(label1);
             groupBox2.Controls.Add(btnRemoveBuffSkill);
-            groupBox2.Location = new System.Drawing.Point(14, 224);
+            groupBox2.Location = new System.Drawing.Point(14, 245);
             groupBox2.Name = "groupBox2";
             groupBox2.Padding = new System.Windows.Forms.Padding(3, 10, 3, 3);
             groupBox2.Radius = 10;
             groupBox2.ShadowDepth = 4;
-            groupBox2.Size = new System.Drawing.Size(357, 198);
+            groupBox2.Size = new System.Drawing.Size(357, 184);
             groupBox2.TabIndex = 2;
             groupBox2.TabStop = false;
             groupBox2.Text = "Buffing skills";
@@ -281,9 +281,9 @@
             listBuffs.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             listBuffs.FullRowSelect = true;
             listBuffs.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
-            listBuffs.Location = new System.Drawing.Point(6, 27);
+            listBuffs.Location = new System.Drawing.Point(6, 25);
             listBuffs.Name = "listBuffs";
-            listBuffs.Size = new System.Drawing.Size(315, 138);
+            listBuffs.Size = new System.Drawing.Size(315, 122);
             listBuffs.TabIndex = 8;
             listBuffs.UseCompatibleStateImageBehavior = false;
             listBuffs.View = System.Windows.Forms.View.Details;
@@ -319,7 +319,7 @@
             comboImbue.FormattingEnabled = true;
             comboImbue.IntegralHeight = false;
             comboImbue.ItemHeight = 17;
-            comboImbue.Location = new System.Drawing.Point(54, 171);
+            comboImbue.Location = new System.Drawing.Point(54, 153);
             comboImbue.Name = "comboImbue";
             comboImbue.Radius = 5;
             comboImbue.ShadowDepth = 4F;
@@ -348,7 +348,7 @@
             label1.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
             label1.Gradient = new System.Drawing.Color[] { System.Drawing.Color.Gray, System.Drawing.Color.Black };
             label1.GradientAnimation = false;
-            label1.Location = new System.Drawing.Point(9, 174);
+            label1.Location = new System.Drawing.Point(9, 156);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(44, 15);
             label1.TabIndex = 6;

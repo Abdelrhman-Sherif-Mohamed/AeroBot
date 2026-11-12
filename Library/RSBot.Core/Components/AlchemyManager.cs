@@ -257,13 +257,16 @@ public class AlchemyManager
     /// <param name="powder">The powder.</param>
     public static bool TryFuseElixir(InventoryItem item, InventoryItem elixir, InventoryItem? powder)
     {
+        if (item == null || elixir == null)
+            return false;
+
         var itemInInventory = Game.Player.Inventory.GetItemAt(item.Slot);
         var elixirInInventory = Game.Player.Inventory.GetItemAt(elixir.Slot);
-        var powderInInventory = Game.Player.Inventory.GetItemAt(powder.Slot);
+        var powderInInventory = powder != null ? Game.Player.Inventory.GetItemAt(powder.Slot) : null;
 
         if (itemInInventory?.ItemId != item.ItemId ||
             elixirInInventory?.ItemId != elixir.ItemId ||
-            (powderInInventory != null && powderInInventory.ItemId != powder.ItemId))
+            (powder != null && powderInInventory?.ItemId != powder.ItemId))
         {
             Log.Warn("[Alchemy] Requested to fuse an item that does not match the current item at the specified slot.");
 
@@ -300,6 +303,9 @@ public class AlchemyManager
     /// <param name="magicStone">The elixir.</param>
     public static bool TryFuseMagicStone(InventoryItem item, InventoryItem magicStone)
     {
+        if (item == null || magicStone == null)
+            return false;
+
         var itemInInventory = Game.Player.Inventory.GetItemAt(item.Slot);
         var stoneInInventory = Game.Player.Inventory.GetItemAt(magicStone.Slot);
 
@@ -340,6 +346,9 @@ public class AlchemyManager
     /// <param name="attributeStone">The attribute stone.</param>
     public static bool TryFuseAttributeStone(InventoryItem item, InventoryItem attributeStone)
     {
+        if (item == null || attributeStone == null)
+            return false;
+
         var itemInInventory = Game.Player.Inventory.GetItemAt(item.Slot);
         var stoneInInventory = Game.Player.Inventory.GetItemAt(attributeStone.Slot);
 

@@ -122,6 +122,7 @@ namespace RSBot.Trade.Views
         private System.Windows.Forms.Panel panelLogHeader;
         private System.Windows.Forms.Label lblJobInfo;
         private System.Windows.Forms.Label lblTradeStatus;
+        private System.Windows.Forms.Label lblTradeStats;
         private System.Windows.Forms.Panel panelLogButtons;
         private SDUI.Controls.Button btnStartBot;
         private SDUI.Controls.Button btnStopBot;

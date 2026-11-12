@@ -26,7 +26,7 @@ public class RefMagicOpt : IReference
     public const string MaterialResistPoison = "MATTR_RESIST_POISON";
     public const string MaterialResistBurn = "MATTR_RESIST_BURN";
     public const string MaterialResistElectroShock = "MATTR_RESIST_ESHOCK";
-    public const string MaterialResistFrostbite = "MATTR_RESIST_FROSTBYTE";
+    public const string MaterialResistFrostbite = "MATTR_RESIST_FROSTBITE";
     public const string MaterialResistDisease = "MATTR_RESIST_DISEASE";
     public const string MaterialResistSleep = "MATTR_RESIST_SLEEP";
     public const string MaterialResistFear = "MATTR_RESIST_FEAR";

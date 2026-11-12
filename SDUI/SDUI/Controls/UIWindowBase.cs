@@ -331,9 +331,17 @@ public class UIWindowBase : Form
         }
         else if (control is SDUI.Controls.Button sduiBtn)
         {
-            sduiBtn.ForeColor = fore;
-            sduiBtn.BackColor = Color.Transparent;
-            sduiBtn.Color = Color.Transparent;
+            var preserveColor = Equals(sduiBtn.Tag, "PreserveColor")
+                || (sduiBtn.Tag != null
+                    && string.Equals(sduiBtn.Tag.GetType().Name, "ButtonTone", StringComparison.Ordinal)
+                    && !string.Equals(sduiBtn.Tag.ToString(), "Neutral", StringComparison.Ordinal));
+
+            if (!preserveColor)
+            {
+                sduiBtn.ForeColor = fore;
+                sduiBtn.BackColor = Color.Transparent;
+                sduiBtn.Color = Color.Transparent;
+            }
             sduiBtn.Invalidate();
         }
         else if (control is System.Windows.Forms.Button sysBtn)
@@ -417,7 +425,8 @@ public class UIWindowBase : Form
         }
         else if (control is SDUI.Controls.Label sduiLbl)
         {
-            sduiLbl.ForeColor = fore;
+            if (!Equals(sduiLbl.Tag, "CustomFore"))
+                sduiLbl.ForeColor = fore;
             sduiLbl.BackColor = Color.Transparent;
             sduiLbl.Invalidate();
         }

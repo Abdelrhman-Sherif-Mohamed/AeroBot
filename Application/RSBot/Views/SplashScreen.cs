@@ -15,7 +15,7 @@ namespace RSBot.Views;
 
 public partial class SplashScreen : UIWindow
 {
-    private readonly Main _mainForm;
+    private Main _mainForm;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="SplashScreen" /> class.
@@ -27,8 +27,6 @@ public partial class SplashScreen : UIWindow
         ColorScheme.BackColor = Main.DarkThemeColor;
         BackColor = Main.DarkThemeColor;
         CheckForIllegalCrossThreadCalls = false;
-
-        _mainForm = new Main();
 
         labelVersion.Text = Program.AssemblyVersion;
 
@@ -165,6 +163,7 @@ public partial class SplashScreen : UIWindow
             return;
         }
 
+        _mainForm ??= new Main();
         LanguageManager.Translate(_mainForm, Kernel.Language);
 
         var silkroadDirectory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");

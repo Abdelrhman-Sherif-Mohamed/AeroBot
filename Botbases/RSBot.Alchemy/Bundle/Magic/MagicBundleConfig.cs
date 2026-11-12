@@ -4,19 +4,15 @@ using RSBot.Core.Objects;
 
 namespace RSBot.Alchemy.Bundle.Magic;
 
+internal sealed class MagicBundleTarget
+{
+    public string Group { get; init; }
+    public uint TargetValue { get; init; }
+    public RefMagicOpt ReferenceOption { get; init; }
+}
+
 internal class MagicBundleConfig
 {
-    #region Properties
-
-    /// <summary>
-    ///     Gets or sets the selected item
-    /// </summary>
     public InventoryItem Item { get; set; }
-
-    /// <summary>
-    ///     Gets or sets a dictionary of inventory items and the referenced magic option
-    /// </summary>
-    public Dictionary<InventoryItem, RefMagicOpt> MagicStones { get; set; }
-
-    #endregion Properties
+    public List<MagicBundleTarget> Targets { get; set; } = new();
 }

@@ -58,7 +58,7 @@ public class PackFileSystem : IFileSystem
 
         var packFileReader = new PackReader();
 
-        _fileStream = new FileStream(path, FileMode.Open, FileAccess.Read);
+        _fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 65536, FileOptions.SequentialScan);
 
         _archive = packFileReader.Read(_fileStream, null, this.PathSeparator);
 
@@ -69,7 +69,7 @@ public class PackFileSystem : IFileSystem
     {
         this.BasePath = path;
 
-        _fileStream = new FileStream(path, FileMode.Open, FileAccess.Read);
+        _fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 65536, FileOptions.SequentialScan);
 
         var packFileReader = new PackReader();
 

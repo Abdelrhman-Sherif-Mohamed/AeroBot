@@ -1,5 +1,4 @@
-﻿using System.Windows.Forms;
-using RSBot.Core;
+﻿using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Network;
 using View = RSBot.Chat.Views.View;
@@ -30,42 +29,55 @@ internal class AgentNotifyResponse : IPacketHandler
     /// <param name="packet">The packet.</param>
     public void Invoke(Packet packet)
     {
+        if (packet == null || packet.Remaining < 1)
+            return;
+
         var noticeType = packet.ReadByte();
-        if (Game.ClientType > GameClientType.Thailand)
+        if (Game.ClientType > GameClientType.Thailand && packet.Remaining >= 1)
             packet.ReadByte();
+
+        var characterData = Game.ReferenceManager?.CharacterData;
+        if (characterData == null)
+            return;
 
         switch (noticeType)
         {
             //[%s] has appeared
             case 0x5:
-                var refObjId = packet.ReadUInt();
-                if (!Game.ReferenceManager.CharacterData.TryGetValue(refObjId, out var obj))
+            {
+                if (packet.Remaining < 4)
                     return;
 
-                View.Instance.UniqueText.Write(LanguageManager.GetLang("UniqueAppeared", obj.GetRealName()));
+                var refObjId = packet.ReadUInt();
+                if (!characterData.TryGetValue(refObjId, out var obj))
+                    return;
 
+                View.Instance.AppendUniqueNotice(LanguageManager.GetLang("UniqueAppeared", obj.GetRealName()));
                 break;
+            }
 
             //[%s] has disappeared or killed
             case 0x6:
-
-                refObjId = packet.ReadUInt();
-                if (!Game.ReferenceManager.CharacterData.TryGetValue(refObjId, out obj))
+            {
+                if (packet.Remaining < 4)
                     return;
 
-                var characterName = packet.ReadString();
+                var refObjId = packet.ReadUInt();
+                if (!characterData.TryGetValue(refObjId, out var obj))
+                    return;
 
-                // If name equals "???" then "[%s] has disappeared." is displayed.
+                var characterName = Bundle.Chat.ReadSenderName(packet);
+
                 if (characterName == "???")
                 {
-                    View.Instance.UniqueText.Write($"{obj.GetRealName()} has disappeared.");
+                    View.Instance.AppendUniqueNotice($"{obj.GetRealName()} has disappeared.");
                     return;
                 }
 
-                View.Instance.UniqueText.Write(
+                View.Instance.AppendUniqueNotice(
                     LanguageManager.GetLang("UniqueKilled", characterName, obj.GetRealName()));
-
                 break;
+            }
         }
     }
 }

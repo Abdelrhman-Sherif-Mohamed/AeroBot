@@ -260,6 +260,7 @@ internal class BuyGoodsScriptCommand : IScriptCommand
             {
                 var totalUnits = Game.Player.JobTransport.Inventory.Sum(i => i?.Amount ?? 0);
                 Log.Notify($"[Trade] تم تأكيد شحن البضاعة في الجمل بنجاح ({totalUnits} وحدة)، جاهز للتحرك نحو وجهة البيع!");
+                TradeStats.OnRunStarted();
             }
 
             // Remount job transport if MountTransport option is enabled
@@ -336,14 +337,19 @@ internal class BuyGoodsScriptCommand : IScriptCommand
     private static readonly Dictionary<string, SpecialtyGoodsInfo> SpecialtyGoodsMap = new(StringComparer.OrdinalIgnoreCase)
     {
         { "NPC_WC_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_WC_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_WC_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Leather" } },
+        { "NPC_WC_SPECIAL2", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_WC_05", PackageCode = "PACKAGE_ITEM_ETC_TRADE_WC_05", TabIndex = 0, SlotIndex = 0, EnglishName = "Brown Pearl" } },
         { "NPC_KT_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_KT_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_KT_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Nephrite" } },
         { "NPC_CH_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_CH_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_CH_01", TabIndex = 0, SlotIndex = 0, EnglishName = "White Silk" } },
-        { "NPC_EU_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_EU_CA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_EU_CA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Linen" } },
-        { "NPC_CA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_EU_SA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_EU_SA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Wool" } },
-        { "NPC_OA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_OA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_OA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Incense" } },
-        { "NPC_SD_M_AREA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_OA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_OA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Incense" } },
-        { "NPC_SD_M_AREA_SPECIAL_2", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_OA_02", PackageCode = "PACKAGE_ITEM_ETC_TRADE_OA_02", TabIndex = 0, SlotIndex = 1, EnglishName = "Marble" } },
+        { "NPC_CH_SPECIAL2", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_CH_05", PackageCode = "PACKAGE_ITEM_ETC_TRADE_CH_05", TabIndex = 0, SlotIndex = 0, EnglishName = "Tiger Eye Stone" } },
+        { "NPC_EU_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_EU_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_EU_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Linen" } },
+        { "NPC_CA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_CA_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_CA_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Wool" } },
+        { "NPC_OA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_SD_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_SD_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Incense" } },
+        { "NPC_SD_M_AREA_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_SD_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_SD_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Incense" } },
+        { "NPC_SD_M_AREA_SPECIAL2", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_VE_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_VE_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Alabastar" } },
+        { "NPC_SD_M_AREA_SPECIAL_2", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_VE_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_VE_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Alabastar" } },
+        { "NPC_SD_M_AREA_SPECIAL3", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_DE_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_DE_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Lily" } },
         { "NPC_TK_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_TK_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_TK_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Red Sand" } },
+        { "NPC_RM_SPECIAL", new SpecialtyGoodsInfo { ItemCode = "ITEM_ETC_TRADE_RM_01", PackageCode = "PACKAGE_ITEM_ETC_TRADE_RM_01", TabIndex = 0, SlotIndex = 0, EnglishName = "Wind Seed" } },
     };
 
     private static int CountTradeGoodsInTransport(Cos transport, string specificCode = null)

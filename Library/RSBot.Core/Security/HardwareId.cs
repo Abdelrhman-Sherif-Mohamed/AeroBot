@@ -12,6 +12,8 @@ namespace RSBot.Core.Security;
 public static class HardwareId
 {
     private static string _cachedHwid;
+    private static string _cachedPublicIp;
+    private static readonly HttpClient _ipClient = new() { Timeout = TimeSpan.FromSeconds(1.8) };
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern bool GetVolumeInformation(
@@ -89,25 +91,32 @@ public static class HardwareId
     }
 
     /// <summary>
-    /// Asynchronously fetches public IP address with a fast 2.5s timeout.
+    /// Asynchronously fetches public IP address with a fast 1.8s timeout and in-session cache.
     /// </summary>
     public static async Task<string> GetPublicIpAsync()
     {
+        if (!string.IsNullOrWhiteSpace(_cachedPublicIp))
+            return _cachedPublicIp;
+
         try
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2.5) };
-            var ip = (await client.GetStringAsync("https://api.ipify.org")).Trim();
+            var ip = (await _ipClient.GetStringAsync("https://api.ipify.org").ConfigureAwait(false)).Trim();
             if (!string.IsNullOrWhiteSpace(ip) && ip.Length < 45)
+            {
+                _cachedPublicIp = ip;
                 return ip;
+            }
         }
         catch { }
 
         try
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2.5) };
-            var ip = (await client.GetStringAsync("https://icanhazip.com")).Trim();
+            var ip = (await _ipClient.GetStringAsync("https://icanhazip.com").ConfigureAwait(false)).Trim();
             if (!string.IsNullOrWhiteSpace(ip) && ip.Length < 45)
+            {
+                _cachedPublicIp = ip;
                 return ip;
+            }
         }
         catch { }
 

@@ -126,7 +126,7 @@ public class PickupManager
                     return;
 
                 var inActionWait = 0;
-                while (Game.Player.InAction && inActionWait++ < 20 && RunningPlayerPickup && (Kernel.Bot?.Running == true))
+                while (Game.Player.InAction && inActionWait++ < 20 && RunningPlayerPickup && Kernel.IsAnyMovementBotRunning)
                     Thread.Sleep(50);
 
                 if (item.Record.IsSpecialtyGoodBox && Game.Player.Job2SpecialtyBag.Full)

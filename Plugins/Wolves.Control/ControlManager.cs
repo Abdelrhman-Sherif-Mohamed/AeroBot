@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Extensions;
 using RSBot.Core.Network;
 using RSBot.Core.Objects;
+using RSBot.Core.Objects.Inventory;
 using RSBot.Core.Objects.Spawn;
 
 namespace Wolves.Control;
@@ -256,6 +258,54 @@ public class ControlManager
                         var itemName = string.Join(" ", parts.Skip(1));
                         UseItem(itemName);
                     }
+                    break;
+
+                case "EQUIP":
+                    if (parts.Length > 1)
+                        EquipItem(string.Join(" ", parts.Skip(1)));
+                    break;
+
+                case "UNEQUIP":
+                    if (parts.Length > 1)
+                        UnequipItem(string.Join(" ", parts.Skip(1)));
+                    break;
+
+                case "TERMINATE":
+                    TerminateTransports();
+                    break;
+
+                case "SORT":
+                    SortInventory();
+                    break;
+
+                case "RECALL":
+                    if (parts.Length > 1)
+                        DesignateRecall(string.Join(" ", parts.Skip(1)));
+                    break;
+
+                case "TP":
+                    if (parts.Length > 1)
+                        TeleportToDestination(string.Join(" ", parts.Skip(1)));
+                    break;
+
+                case "R":
+                    if (parts.Length > 1)
+                        UseReverseScroll("player", string.Join(" ", parts.Skip(1)));
+                    break;
+
+                case "REVERSE":
+                    if (parts.Length > 1)
+                        UseReverseScroll(parts[1], parts.Length > 2 ? string.Join(" ", parts.Skip(2)) : string.Empty);
+                    break;
+
+                case "CHAT":
+                    if (parts.Length >= 3)
+                        ExecuteChatCommand(parts.Skip(1).ToArray());
+                    break;
+
+                case "INJECT":
+                    if (parts.Length > 1)
+                        InjectRawPacket(parts.Skip(1).ToArray());
                     break;
 
                 // Target Support Integration
@@ -709,25 +759,419 @@ public class ControlManager
         var botState = Kernel.Bot != null && Kernel.Bot.Running ? "Running" : "Stopped";
         var msg = $"Status: {botState} | HP:{hpPct}% MP:{mpPct}% | Lv.{Game.Player.Level} | Gold:{Game.Player.Gold:N0}";
 
+        SendChatPacket(chatType == ChatType.Private ? ChatType.Private : ChatType.Party, msg, receiver);
+    }
+
+    private static void SendChatPacket(ChatType chatType, string msg, string receiver = null)
+    {
+        if (string.IsNullOrWhiteSpace(msg))
+            return;
+
         var chatPacket = new Packet(0x7025);
+        chatPacket.WriteByte(chatType);
+        chatPacket.WriteByte(1);
+        if (Game.ClientType > GameClientType.Vietnam) chatPacket.WriteByte(0);
+        if (Game.ClientType >= GameClientType.Chinese) chatPacket.WriteByte(0);
         if (chatType == ChatType.Private)
-        {
-            chatPacket.WriteByte(ChatType.Private);
-            chatPacket.WriteByte(1);
-            if (Game.ClientType > GameClientType.Vietnam) chatPacket.WriteByte(0);
-            if (Game.ClientType >= GameClientType.Chinese) chatPacket.WriteByte(0);
-            chatPacket.WriteString(receiver);
-            chatPacket.WriteConditonalString(msg);
-        }
-        else
-        {
-            chatPacket.WriteByte(ChatType.Party);
-            chatPacket.WriteByte(1);
-            if (Game.ClientType > GameClientType.Vietnam) chatPacket.WriteByte(0);
-            if (Game.ClientType >= GameClientType.Chinese) chatPacket.WriteByte(0);
-            chatPacket.WriteConditonalString(msg);
-        }
+            chatPacket.WriteString(receiver ?? string.Empty);
+        chatPacket.WriteConditonalString(msg);
         PacketManager.SendPacket(chatPacket, PacketDestination.Server);
+    }
+
+    private void EquipItem(string keyword)
+    {
+        if (Game.Player?.Inventory == null || string.IsNullOrWhiteSpace(keyword))
+            return;
+
+        var item = FindMatchingItem(keyword, equippedOnly: false);
+        if (item == null)
+        {
+            Log($"EQUIP: no matching item in inventory for \"{keyword}\"");
+            return;
+        }
+
+        var targetSlot = ResolveEquipSlot(item);
+        if (targetSlot == byte.MaxValue)
+        {
+            Log($"EQUIP: \"{item.Record?.GetRealName()}\" cannot be equipped to a standard equipment slot.");
+            return;
+        }
+
+        Task.Run(() =>
+        {
+            var moved = Game.Player.Inventory.MoveItem(item.Slot, targetSlot);
+            Log(moved
+                ? $"Equipped [{item.Record.GetRealName()}] to slot {targetSlot}"
+                : $"EQUIP failed for [{item.Record.GetRealName()}]");
+        });
+    }
+
+    private void UnequipItem(string keyword)
+    {
+        if (Game.Player?.Inventory == null || string.IsNullOrWhiteSpace(keyword))
+            return;
+
+        var item = FindMatchingItem(keyword, equippedOnly: true);
+        if (item == null)
+        {
+            Log($"UNEQUIP: no matching equipped item for \"{keyword}\"");
+            return;
+        }
+
+        var freeSlot = Game.Player.Inventory.GetFreeSlot();
+        if (freeSlot == 0)
+        {
+            Log("UNEQUIP: inventory is full.");
+            return;
+        }
+
+        Task.Run(() =>
+        {
+            var moved = Game.Player.Inventory.MoveItem(item.Slot, freeSlot);
+            Log(moved
+                ? $"Unequipped [{item.Record.GetRealName()}] to slot {freeSlot}"
+                : $"UNEQUIP failed for [{item.Record.GetRealName()}]");
+        });
+    }
+
+    private static InventoryItem FindMatchingItem(string keyword, bool equippedOnly)
+    {
+        var query = keyword.Trim();
+        var jobToken = query.ToLowerInvariant() switch
+        {
+            "trader" or "trade" => "TRADER",
+            "hunter" => "HUNTER",
+            "thief" => "THIEF",
+            "job" => "_JOB_",
+            _ => null
+        };
+
+        var items = equippedOnly
+            ? Game.Player.Inventory.GetEquippedPartItems()
+            : Game.Player.Inventory.GetNormalPartItems();
+
+        return items.FirstOrDefault(i =>
+        {
+            if (i?.Record == null)
+                return false;
+
+            if (jobToken != null)
+                return (i.Record.CodeName ?? string.Empty).IndexOf(jobToken, StringComparison.OrdinalIgnoreCase) >= 0;
+
+            var realName = i.Record.GetRealName() ?? string.Empty;
+            var codeName = i.Record.CodeName ?? string.Empty;
+            return realName.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   string.Equals(codeName, query, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    private static byte ResolveEquipSlot(InventoryItem item)
+    {
+        var rec = item?.Record;
+        if (rec == null || !rec.IsEquip || rec.IsAvatar)
+            return byte.MaxValue;
+
+        if (rec.IsArmor)
+        {
+            return rec.TypeID4 switch
+            {
+                1 => 0, // Head
+                2 => 2, // Shoulders
+                3 => 1, // Chest
+                4 => 4, // Legs
+                5 => 3, // Gloves
+                6 => 5, // Boots
+                _ => byte.MaxValue
+            };
+        }
+
+        if (rec.IsShield) return 7;
+        if (rec.IsWeapon) return 6;
+        if (rec.IsJobOutfit) return 8;
+
+        if (rec.IsAccessory)
+        {
+            return rec.TypeID4 switch
+            {
+                1 => 9,  // Earring
+                2 => 10, // Necklace
+                3 => Game.Player.Inventory.GetItemAt(11) == null ? (byte)11 : (byte)12, // Ring
+                _ => byte.MaxValue
+            };
+        }
+
+        return byte.MaxValue;
+    }
+
+    private void TerminateTransports()
+    {
+        if (Game.Player == null)
+            return;
+
+        var transports = new RSBot.Core.Objects.Cos.Cos[] { Game.Player.Transport, Game.Player.JobTransport }
+            .Where(c => c != null && c.UniqueId != 0)
+            .ToArray();
+
+        if (transports.Length == 0)
+        {
+            Log("No active transport or trade pet to terminate.");
+            return;
+        }
+
+        Task.Run(async () =>
+        {
+            foreach (var cos in transports)
+            {
+                if (Game.Player.HasActiveVehicle && Game.Player.Vehicle?.UniqueId == cos.UniqueId)
+                {
+                    cos.Dismount();
+                    await Task.Delay(600);
+                }
+
+                cos.Terminate();
+            }
+
+            Log($"Terminated {transports.Length} transport pet(s).");
+        });
+    }
+
+    private void SortInventory()
+    {
+        if (Game.Player?.Inventory == null)
+            return;
+
+        Task.Run(() =>
+        {
+            Game.Player.Inventory.Sort();
+            Log("Inventory sorted.");
+        });
+    }
+
+    private void DesignateRecall(string npcName)
+    {
+        if (string.IsNullOrWhiteSpace(npcName))
+            return;
+
+        var npc = SpawnManager.GetEntity<SpawnedNpcNpc>(n =>
+            n?.Record != null &&
+            (string.Equals(n.Record.GetRealName(), npcName, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(n.Record.CodeName, npcName, StringComparison.OrdinalIgnoreCase) ||
+             (n.Record.GetRealName()?.IndexOf(npcName, StringComparison.OrdinalIgnoreCase) >= 0)));
+
+        if (npc == null)
+        {
+            Log($"RECALL: NPC \"{npcName}\" not found nearby.");
+            return;
+        }
+
+        var packet = new Packet(0x7059);
+        packet.WriteUInt(npc.UniqueId);
+        PacketManager.SendPacket(packet, PacketDestination.Server);
+        Log($"Designating recall point to [{npc.Record.GetRealName()}].");
+    }
+
+    private void TeleportToDestination(string rawArgs)
+    {
+        if (Game.ReferenceManager?.TeleportData == null || string.IsNullOrWhiteSpace(rawArgs))
+            return;
+
+        var separator = rawArgs.Contains(',') ? new[] { ',' } : new[] { ' ' };
+        var args = rawArgs.Split(separator, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToArray();
+        if (args.Length == 0)
+            return;
+
+        var sourceFilter = args.Length >= 2 ? args[0] : null;
+        var destFilter = args.Length >= 2 ? string.Join(" ", args.Skip(1)) : args[0];
+
+        if (!SpawnManager.TryGetEntities<SpawnedNpcNpc>(n => n?.Record != null, out var nearbyNpcs))
+            return;
+
+        foreach (var npc in nearbyNpcs)
+        {
+            var srcTp = Game.ReferenceManager.TeleportData.FirstOrDefault(t => t.AssocRefObjId == npc.Record.ID);
+            if (srcTp == null)
+                continue;
+
+            if (!string.IsNullOrWhiteSpace(sourceFilter))
+            {
+                var npcName = npc.Record.GetRealName() ?? string.Empty;
+                if (npcName.IndexOf(sourceFilter, StringComparison.OrdinalIgnoreCase) < 0 &&
+                    !string.Equals(npc.Record.CodeName, sourceFilter, StringComparison.OrdinalIgnoreCase))
+                    continue;
+            }
+
+            var matchingLink = srcTp.GetLinks().FirstOrDefault(l =>
+            {
+                var target = l?.Target;
+                if (target == null) return false;
+                var zone = target.ZoneName128 ?? string.Empty;
+                var code = target.CodeName ?? string.Empty;
+                return zone.IndexOf(destFilter, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                       code.IndexOf(destFilter, StringComparison.OrdinalIgnoreCase) >= 0;
+            });
+
+            if (matchingLink == null)
+                continue;
+
+            Task.Run(async () =>
+            {
+                if (Game.Player?.HasActiveVehicle == true)
+                {
+                    Game.Player.Vehicle?.Dismount();
+                    await Task.Delay(500);
+                }
+
+                npc.TrySelect();
+                await Task.Delay(250);
+
+                var packet = new Packet(0x705A);
+                packet.WriteUInt(npc.UniqueId);
+                packet.WriteByte(TeleportType.Destination);
+                packet.WriteUInt((uint)matchingLink.TargetTeleport);
+                PacketManager.SendPacket(packet, PacketDestination.Server);
+
+                Log($"Teleporting from [{npc.Record.GetRealName()}] to [{matchingLink.Target?.CodeName ?? matchingLink.TargetTeleport.ToString()}].");
+            });
+            return;
+        }
+
+        Log($"TP: no nearby teleporter offers destination \"{destFilter}\".");
+    }
+
+    private void UseReverseScroll(string mode, string targetArg)
+    {
+        if (Game.Player?.Inventory == null || string.IsNullOrWhiteSpace(mode))
+            return;
+
+        var reverseScroll = Game.Player.Inventory.GetNormalPartItems(i =>
+            i?.Record?.CodeName != null &&
+            i.Record.CodeName.IndexOf("SCROLL_REVERSE", StringComparison.OrdinalIgnoreCase) >= 0)
+            .FirstOrDefault();
+
+        if (reverseScroll == null)
+        {
+            Log("REVERSE: no Reverse Return Scroll found in inventory.");
+            return;
+        }
+
+        var normalizedMode = mode.Trim().ToLowerInvariant();
+        if (normalizedMode is "return" or "recall")
+        {
+            SendReversePacket(reverseScroll, (byte)GuideTeleportType.Recall);
+            Log("Using Reverse Return Scroll to last recall point.");
+            return;
+        }
+
+        if (normalizedMode == "death")
+        {
+            SendReversePacket(reverseScroll, (byte)GuideTeleportType.Death);
+            Log("Using Reverse Return Scroll to last death location.");
+            return;
+        }
+
+        if (normalizedMode == "zone" && !string.IsNullOrWhiteSpace(targetArg))
+        {
+            var tp = Game.ReferenceManager?.TeleportData?.FirstOrDefault(t =>
+                (t.ZoneName128?.IndexOf(targetArg, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                (t.CodeName?.IndexOf(targetArg, StringComparison.OrdinalIgnoreCase) >= 0));
+
+            if (tp == null)
+            {
+                Log($"REVERSE zone: destination \"{targetArg}\" not found.");
+                return;
+            }
+
+            reverseScroll.UseTo(0x07, (int)tp.ID);
+            Log($"Using Reverse Return Scroll to zone [{tp.CodeName}].");
+            return;
+        }
+
+        Log($"REVERSE: unsupported mode \"{mode}\" (supported: return, death, zone <name>).");
+    }
+
+    private static void SendReversePacket(InventoryItem reverseScroll, byte guideType)
+    {
+        var packet = new Packet(0x704C);
+        packet.WriteByte(reverseScroll.Slot);
+        if (Game.ClientType > GameClientType.Vietnam)
+            packet.WriteInt(reverseScroll.Record.Tid);
+        else
+            packet.WriteUShort(reverseScroll.Record.Tid);
+        packet.WriteByte(guideType);
+        PacketManager.SendPacket(packet, PacketDestination.Server);
+    }
+
+    private void ExecuteChatCommand(string[] args)
+    {
+        if (args.Length < 2)
+            return;
+
+        var channel = args[0].Trim().ToLowerInvariant();
+        switch (channel)
+        {
+            case "all":
+                SendChatPacket(ChatType.All, string.Join(" ", args.Skip(1)));
+                break;
+            case "party":
+                SendChatPacket(ChatType.Party, string.Join(" ", args.Skip(1)));
+                break;
+            case "guild":
+                SendChatPacket(ChatType.Guild, string.Join(" ", args.Skip(1)));
+                break;
+            case "union":
+                SendChatPacket(ChatType.Union, string.Join(" ", args.Skip(1)));
+                break;
+            case "academy":
+                SendChatPacket(ChatType.Academy, string.Join(" ", args.Skip(1)));
+                break;
+            case "global":
+                SendChatPacket(ChatType.Global, string.Join(" ", args.Skip(1)));
+                break;
+            case "private" when args.Length >= 3:
+                SendChatPacket(ChatType.Private, string.Join(" ", args.Skip(2)), args[1]);
+                break;
+            default:
+                Log($"CHAT: unsupported channel \"{channel}\"");
+                break;
+        }
+    }
+
+    private void InjectRawPacket(string[] args)
+    {
+        try
+        {
+            if (args.Length == 0)
+                return;
+
+            var opcodeText = args[0].StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                ? args[0].Substring(2)
+                : args[0];
+            var opcode = ushort.Parse(opcodeText, System.Globalization.NumberStyles.HexNumber);
+
+            var dataStart = 1;
+            var encrypted = false;
+            if (args.Length >= 2 && bool.TryParse(args[1], out var parsedEnc))
+            {
+                encrypted = parsedEnc;
+                dataStart = 2;
+            }
+
+            var packet = new Packet(opcode, encrypted);
+            for (var i = dataStart; i < args.Length; i++)
+            {
+                var hex = args[i].StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                    ? args[i].Substring(2)
+                    : args[i];
+                packet.WriteByte(byte.Parse(hex, System.Globalization.NumberStyles.HexNumber));
+            }
+
+            PacketManager.SendPacket(packet, PacketDestination.Server);
+            Log($"Injected packet 0x{opcode:X4} (encrypted={encrypted}, bytes={Math.Max(0, args.Length - dataStart)})");
+        }
+        catch (Exception ex)
+        {
+            Log($"INJECT failed: {ex.Message}");
+        }
     }
 
     private void SetScript(string scriptPath)

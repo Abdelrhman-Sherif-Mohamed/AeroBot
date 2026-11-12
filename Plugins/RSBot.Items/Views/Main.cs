@@ -1036,11 +1036,13 @@ public partial class Main : DoubleBufferedControl
     {
         var result = new List<TypeIdFilter>();
 
-        for (byte i = 1; i <= 3; i++)
+        for (byte i = 1; i <= 4; i++)
             result.Add(new TypeIdFilter { TypeID1 = 3, TypeID2 = 3, TypeID3 = 10, TypeID4 = i });
 
         for (byte i = 1; i <= 10; i++)
             result.Add(new TypeIdFilter { TypeID1 = 3, TypeID2 = 3, TypeID3 = 11, TypeID4 = i });
+
+        result.Add(new TypeIdFilter { TypeID1 = 3, TypeID2 = 3, TypeID3 = 11, TypeID4 = 14 });
 
         return result;
     }

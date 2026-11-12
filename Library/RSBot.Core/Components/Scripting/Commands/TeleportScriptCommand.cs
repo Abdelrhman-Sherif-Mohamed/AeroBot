@@ -87,7 +87,7 @@ internal class TeleportScriptCommand : IScriptCommand
                 continue;
             }
 
-            if (!ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+            if (!ScriptManager.Running || !ScriptManager.CanContinueExecution())
                 return false;
 
             Thread.Sleep(200);
@@ -116,7 +116,7 @@ internal class TeleportScriptCommand : IScriptCommand
                     continue;
                 }
 
-                if (!ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (!ScriptManager.Running || !ScriptManager.CanContinueExecution())
                     return false;
 
                 Thread.Sleep(100);
@@ -197,7 +197,7 @@ internal class TeleportScriptCommand : IScriptCommand
                     continue;
                 }
 
-                if (!ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (!ScriptManager.Running || !ScriptManager.CanContinueExecution())
                     break;
 
                 Thread.Sleep(100);

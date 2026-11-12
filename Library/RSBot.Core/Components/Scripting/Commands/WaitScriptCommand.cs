@@ -56,7 +56,7 @@ internal class WaitScriptCommand : IScriptCommand
                     continue;
                 }
 
-                if (!IsBusy || !ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+                if (!IsBusy || !ScriptManager.Running || !ScriptManager.CanContinueExecution())
                     return false;
 
                 Thread.Sleep(100);

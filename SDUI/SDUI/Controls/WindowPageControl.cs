@@ -42,34 +42,31 @@ namespace SDUI.Controls
             {
                 var sys = Stopwatch.StartNew();
 
-                if (_selectedIndex == value)
-                    return;
-
+                int target = value;
                 if (_pages.Count > 0)
                 {
-                    if (value < 0)
-                        value = _pages.Count - 1;
+                    if (target < 0)
+                        target = _pages.Count - 1;
 
-                    if (value > _pages.Count - 1)
-                        value = 0;
+                    if (target > _pages.Count - 1)
+                        target = 0;
                 }
                 else
-                    value = -1;
+                {
+                    target = -1;
+                }
+
+                bool needsVisibilitySync = _selectedIndex >= 0 && _selectedIndex < _pages.Count && !_pages[_selectedIndex].Visible;
+                if (_selectedIndex == target && !needsVisibilitySync)
+                    return;
 
                 var previousSelectedIndex = _selectedIndex;
-                _selectedIndex = value;
-                _onSelectedIndexChanged?.Invoke(this, previousSelectedIndex);
+                _selectedIndex = target;
 
-                SuspendLayout();
-                try
-                {
-                    for (int i = 0; i < _pages.Count; i++)
-                        _pages[i].Visible = i == _selectedIndex;
-                }
-                finally
-                {
-                    ResumeLayout(true);
-                }
+                if (_selectedIndex != previousSelectedIndex)
+                    _onSelectedIndexChanged?.Invoke(this, previousSelectedIndex);
+
+                SyncPageVisibility();
 
                 Debug.WriteLine($"Index: {_selectedIndex} Finished: {sys.ElapsedMilliseconds} ms");
             } 
@@ -116,9 +113,13 @@ namespace SDUI.Controls
             if (oldIndex == index)
                 return;
 
+            var previouslySelected = GetPage(_selectedIndex);
+            var previousIndex = _selectedIndex;
+
             _pages.RemoveAt(oldIndex);
             _pages.Insert(index, control);
 
+            SyncSelectionAfterReorder(previouslySelected, previousIndex);
             PagesChanged?.Invoke(this, EventArgs.Empty);
             Invalidate();
         }
@@ -160,13 +161,53 @@ namespace SDUI.Controls
             }
 
             if (!changed)
+            {
+                SyncPageVisibility();
                 return;
+            }
+
+            var previouslySelected = GetPage(_selectedIndex);
+            var previousIndex = _selectedIndex;
 
             _pages.Clear();
             _pages.AddRange(ordered);
 
+            SyncSelectionAfterReorder(previouslySelected, previousIndex);
             PagesChanged?.Invoke(this, EventArgs.Empty);
             Invalidate();
+        }
+
+        private void SyncSelectionAfterReorder(Control previouslySelected, int previousIndex)
+        {
+            if (_pages.Count == 0)
+            {
+                _selectedIndex = -1;
+                return;
+            }
+
+            int nextIndex = previouslySelected != null ? _pages.IndexOf(previouslySelected) : -1;
+            if (nextIndex < 0)
+                nextIndex = (_selectedIndex >= 0 && _selectedIndex < _pages.Count) ? _selectedIndex : 0;
+
+            _selectedIndex = nextIndex;
+            SyncPageVisibility();
+
+            if (_selectedIndex != previousIndex)
+                _onSelectedIndexChanged?.Invoke(this, previousIndex);
+        }
+
+        private void SyncPageVisibility()
+        {
+            SuspendLayout();
+            try
+            {
+                for (int i = 0; i < _pages.Count; i++)
+                    _pages[i].Visible = i == _selectedIndex;
+            }
+            finally
+            {
+                ResumeLayout(true);
+            }
         }
 
         public WindowPageControl() 

@@ -26,7 +26,9 @@ internal class SummonTransportScriptCommand : IScriptCommand
         {
             IsBusy = true;
             var jobTransportItem = Game.Player?.Inventory?
-                .GetNormalPartItems(i => i?.Record != null && (i.Record.CodeName.Contains("COS_T_") || (i.Record.TypeID3 == 2 && i.Record.TypeID4 == 1)))
+                .GetNormalPartItems(i => i?.Record != null &&
+                                         i.Record.CodeName.Contains("COS_T_", System.StringComparison.OrdinalIgnoreCase) &&
+                                         i.Record.TypeID1 == 3 && i.Record.TypeID2 == 3 && i.Record.TypeID3 == 3 && i.Record.TypeID4 == 2)
                 .FirstOrDefault();
 
             if (jobTransportItem != null)

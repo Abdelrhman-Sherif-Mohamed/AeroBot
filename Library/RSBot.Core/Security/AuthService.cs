@@ -385,14 +385,16 @@ public class AuthService
 
         try
         {
-            var account = await GetAccountAsync(username);
+            var accountTask = GetAccountAsync(username);
+            var ipTask = HardwareId.GetPublicIpAsync();
+            var account = await accountTask;
             if (account == null)
             {
                 return AuthResult.Fail("اسم المستخدم أو كلمة المرور غير صحيحة.");
             }
 
             var currentHwid = HardwareId.GetHwid();
-            var currentIp = await HardwareId.GetPublicIpAsync();
+            var currentIp = await ipTask;
 
             // Check password
             var expectedHash = ComputeHash(password, account.Salt ?? string.Empty);
@@ -426,7 +428,7 @@ public class AuthService
                 account.IsOnline = true;
 
                 await SaveAccountAsync(account);
-                await LogSecurityEventAsync(username, "HWID_REBIND", currentHwid, currentIp, "تم ربط جهاز جديد بالحساب بعد إعادة التعيين من الأدمن");
+                _ = LogSecurityEventAsync(username, "HWID_REBIND", currentHwid, currentIp, "تم ربط جهاز جديد بالحساب بعد إعادة التعيين من الأدمن");
 
                 CurrentUser = account;
                 return AuthResult.Ok("تم تسجيل الدخول وربط جهازك الجديد بنجاح!", account);
@@ -445,7 +447,7 @@ public class AuthService
                 account.IsOnline = true;
 
                 await SaveAccountAsync(account);
-                await LogSecurityEventAsync(username, "LOGIN_SUCCESS", currentHwid, currentIp, "تسجيل دخول ناجح");
+                _ = LogSecurityEventAsync(username, "LOGIN_SUCCESS", currentHwid, currentIp, "تسجيل دخول ناجح");
 
                 CurrentUser = account;
                 return AuthResult.Ok("تم تسجيل الدخول بنجاح!", account);

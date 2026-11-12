@@ -100,6 +100,12 @@ public class TextBox : Control
         set => _textBox.Text = value;
     }
 
+    public string PlaceholderText
+    {
+        get => _textBox.PlaceholderText;
+        set => _textBox.PlaceholderText = value ?? string.Empty;
+    }
+
     protected override void OnBackColorChanged(System.EventArgs e)
     {
         base.OnBackColorChanged(e);
@@ -155,6 +161,9 @@ public class TextBox : Control
         _textBox.UseSystemPasswordChar = UseSystemPasswordChar;
         _textBox.TextChanged += _textbox_TextChanged;
         _textBox.PreviewKeyDown += _textbox_PreviewKeyDown;
+        _textBox.KeyDown += _textbox_KeyDown;
+        _textBox.KeyPress += _textbox_KeyPress;
+        _textBox.KeyUp += _textbox_KeyUp;
         Controls.Add(_textBox);
 
         SetStyle(ControlStyles.UserPaint, true);
@@ -169,6 +178,21 @@ public class TextBox : Control
     private void _textbox_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
     {
         OnPreviewKeyDown(e);
+    }
+
+    private void _textbox_KeyDown(object sender, KeyEventArgs e)
+    {
+        OnKeyDown(e);
+    }
+
+    private void _textbox_KeyPress(object sender, KeyPressEventArgs e)
+    {
+        OnKeyPress(e);
+    }
+
+    private void _textbox_KeyUp(object sender, KeyEventArgs e)
+    {
+        OnKeyUp(e);
     }
 
     private void _textbox_TextChanged(object sender, System.EventArgs e)

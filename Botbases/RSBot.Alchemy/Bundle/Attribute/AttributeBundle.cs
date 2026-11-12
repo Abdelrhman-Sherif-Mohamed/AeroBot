@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Linq;
+using RSBot.Alchemy.Bot;
+using RSBot.Alchemy.Helper;
 using RSBot.Core;
 using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Components;
@@ -11,24 +13,25 @@ namespace RSBot.Alchemy.Bundle.Attribute;
 
 internal class AttributeBundle : IAlchemyBundle
 {
-    #region Members
-
     private bool _shouldRun;
-
-    #endregion Members
-
-    #region Constructor
 
     public AttributeBundle()
     {
         SubscribeEvents();
     }
 
-    #endregion Constructor
+    public void Start()
+    {
+        _shouldRun = true;
+    }
 
-    #region Methods
+    public void Stop()
+    {
+        _shouldRun = false;
+        AlchemyManager.CancelPending();
+    }
 
-    public void SubscribeEvents()
+    private void SubscribeEvents()
     {
         EventManager.SubscribeEvent("OnAlchemySuccess",
             new Action<InventoryItem, InventoryItem, AlchemyType>(OnStoneAlchemySuccess));
@@ -39,78 +42,67 @@ internal class AttributeBundle : IAlchemyBundle
         EventManager.SubscribeEvent("OnFuseRequest", new Action<AlchemyAction, AlchemyType>(OnFuseRequest));
     }
 
-    /// <summary>
-    ///     Runs the attribute granter using the specified configuration.
-    /// </summary>
-    /// <param name="engineConfig">The configuration.</param>
     public void Run<T>(T engineConfig)
     {
         if (engineConfig is not AttributeBundleConfig config)
             return;
 
-        //Wait for the next tick to operate
-        if (!_shouldRun)
+        if (!_shouldRun || (Globals.Botbase.AlchemyEngine != AlchemyEngine.Attribute &&
+                            Globals.Botbase.AlchemyEngine != AlchemyEngine.Queue))
             return;
 
-        if (!config.Attributes.Any())
+        if (config.Item == null)
         {
-            Log.Error("[Alchemy] No attribute stone fusion configured!");
-
-            Kernel.Bot.Stop();
-
+            Globals.Botbase.NotifyItemFatal("No item configured for Stats", allowSkipInQueue: true);
             return;
         }
 
-        foreach (var attribute in config.Attributes)
+        var item = Game.Player.Inventory.GetItemAt(config.Item.Slot);
+        if (item == null || item.ItemId != config.Item.ItemId || item.Amount == 0)
         {
-            if (_shouldRun == false)
+            Globals.Botbase.NotifyItemFatal("Item for Stats is unavailable", allowSkipInQueue: true);
+            return;
+        }
+
+        config.Item = item;
+
+        var attributes = config.Attributes?.ToList();
+        if (attributes == null || attributes.Count == 0)
+        {
+            Globals.Botbase.NotifyItemFatal("No attributes configured", allowSkipInQueue: true);
+            return;
+        }
+
+        foreach (var attribute in attributes)
+        {
+            if (!_shouldRun)
                 break;
 
-            var slot = ItemAttributesInfo.GetAttributeSlotForItem(attribute.Group, config.Item.Record);
-            var currentValue = config.Item.Attributes.GetPercentage(slot);
+            var slot = ItemAttributesInfo.GetAttributeSlotForItem(attribute.Group, item.Record);
+            var currentValue = item.Attributes.GetPercentage(slot);
 
             if (currentValue >= attribute.MaxValue && attribute.MaxValue > 0)
                 continue;
 
-            if (!AlchemyManager.TryFuseAttributeStone(config.Item, attribute.Stone))
+            var liveStone = AlchemyItemHelper.GetAttributeStones(item, attribute.Group).FirstOrDefault();
+            if (liveStone == null || liveStone.Amount == 0)
+                continue;
+
+            if (!AlchemyManager.TryFuseAttributeStone(item, liveStone))
                 continue;
 
             _shouldRun = false;
+            return;
         }
 
         if (_shouldRun)
         {
-            Log.Notify("[Alchemy] Attribute stone fusing finished!");
-
-            Kernel.Bot.Stop();
+            Log.Notify("[Alchemy] Attribute stone fusing finished.");
+            Globals.View.AddLog(item.Record.GetRealName(), "Stats finished");
+            Globals.Botbase.NotifyItemCompleted("Stats completed");
         }
     }
 
-    /// <summary>
-    ///     Stops this instance.
-    /// </summary>
-    public void Stop()
-    {
-        _shouldRun = false;
-    }
-
-    /// <summary>
-    ///     Starts this instance.
-    /// </summary>
-    public void Start()
-    {
-        _shouldRun = true;
-    }
-
-    #endregion Methods
-
-    #region Events
-
-    /// <summary>
-    ///     Will be triggered if any fuse request was sent to the server
-    /// </summary>
-    /// <param name="action"></param>
-    /// <param name="type"></param>
     private void OnFuseRequest(AlchemyAction action, AlchemyType type)
     {
         if (type != AlchemyType.AttributeStone || !Bootstrap.IsActive)
@@ -119,9 +111,6 @@ internal class AttributeBundle : IAlchemyBundle
         _shouldRun = false;
     }
 
-    /// <summary>
-    ///     Will be triggered if any stone alchemy action response was sent from the server
-    /// </summary>
     private void OnStoneAlchemy(AlchemyType type)
     {
         if (type != AlchemyType.AttributeStone || !Bootstrap.IsActive)
@@ -130,63 +119,55 @@ internal class AttributeBundle : IAlchemyBundle
         _shouldRun = true;
     }
 
-    /// <summary>
-    ///     Will be triggered if a stone alchemy operation was successful
-    /// </summary>
-    /// <param name="oldItem"></param>
-    /// <param name="newItem">The new item after the successful action</param>
-    /// <param name="type"></param>
     private void OnStoneAlchemySuccess(InventoryItem oldItem, InventoryItem newItem, AlchemyType type)
     {
-        if (type != AlchemyType.AttributeStone || !Bootstrap.IsActive)
+        if (type != AlchemyType.AttributeStone || !Bootstrap.IsActive || newItem == null)
             return;
 
-        var changedAttributeSlots = oldItem.Attributes.CompareSlots(newItem.Attributes);
+        _shouldRun = true;
 
-        foreach (var slot in changedAttributeSlots)
+        if (Globals.Botbase.AttributeBundleConfig?.Item?.Slot == newItem.Slot)
+            Globals.Botbase.AttributeBundleConfig.Item = newItem;
+
+        if (oldItem != null)
         {
-            var attributeGroup = ItemAttributesInfo.GetAttributeGroupBySlot(newItem.Record, slot);
-            var attributeValue = newItem.Attributes.GetPercentage(slot);
-
-            Globals.View.AddLog(newItem.Record.GetRealName(),
-                $"The attribute [{attributeGroup.GetTranslation()}] changed to [+{attributeValue}%]");
+            var changedSlots = oldItem.Attributes.CompareSlots(newItem.Attributes);
+            foreach (var slot in changedSlots)
+            {
+                var group = ItemAttributesInfo.GetAttributeGroupBySlot(newItem.Record, slot);
+                var val = newItem.Attributes.GetPercentage(slot);
+                Globals.View.AddLog(newItem.Record.GetRealName(),
+                    $"[{group.GetTranslation()}] -> +{val}%");
+            }
         }
 
-        _shouldRun = true;
+        Globals.Botbase.NotifyItemProgressed(newItem);
     }
 
-    /// <summary>
-    ///     Will be triggered if a stone alchemy action failed
-    /// </summary>
-    /// <param name="oldItem"></param>
-    /// <param name="newItem">The new item after the operation failed</param>
-    /// <param name="type"></param>
     private void OnStoneAlchemyFailed(InventoryItem oldItem, InventoryItem newItem, AlchemyType type)
     {
         if (type != AlchemyType.AttributeStone || !Bootstrap.IsActive)
             return;
 
-        Globals.View.AddLog(newItem.Record.GetRealName(),
-            Game.ReferenceManager.GetTranslation("UIIT_MSG_REINFORCERR_FAIL"));
-
         _shouldRun = true;
+        if (newItem != null)
+        {
+            if (Globals.Botbase.AttributeBundleConfig?.Item?.Slot == newItem.Slot)
+                Globals.Botbase.AttributeBundleConfig.Item = newItem;
+
+            Globals.View.AddLog(newItem.Record.GetRealName(),
+                Game.ReferenceManager.GetTranslation("UIIT_MSG_REINFORCERR_FAIL"));
+            Globals.Botbase.NotifyItemProgressed(newItem);
+        }
     }
 
-    /// <summary>
-    ///     Will be triggered if an stone alchemy error
-    /// </summary>
-    /// <param name="errorCode">The error code</param>
-    /// <param name="type"></param>
     private void OnStoneAlchemyError(ushort errorCode, AlchemyType type)
     {
         if (type != AlchemyType.AttributeStone || !Bootstrap.IsActive)
             return;
 
         _shouldRun = true;
-
-        Globals.View.AddLog(Globals.Botbase.AttributeBundleConfig?.Item?.Record?.GetRealName(),
+        Globals.View.AddLog(Globals.Botbase.AttributeBundleConfig?.Item?.Record?.GetRealName() ?? string.Empty,
             Game.ReferenceManager.GetTranslation("UIIT_MSG_REINFORCERR_FAIL"));
     }
-
-    #endregion Events
 }

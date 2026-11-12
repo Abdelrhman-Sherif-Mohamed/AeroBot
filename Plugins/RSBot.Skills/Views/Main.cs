@@ -30,15 +30,6 @@ public partial class Main : DoubleBufferedControl
         InitializeComponent();
         SubscribeEvents();
 
-        var masteriesPage = new TabPage
-        {
-            BackColor = System.Drawing.Color.White,
-            Padding = new Padding(3),
-            Text = "Mastery"
-        };
-        masteriesPage.Controls.Add(new MasteriesTab { Dock = DockStyle.Fill });
-        tabControl2.TabPages.Add(masteriesPage);
-
         listAttackingSkills.SmallImageList = ListViewExtensions.StaticImageList;
         listBuffs.SmallImageList = ListViewExtensions.StaticImageList;
         listSkills.SmallImageList = ListViewExtensions.StaticImageList;

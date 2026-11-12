@@ -120,7 +120,9 @@ internal class LoopBundle : IBundle
 
         if (PlayerConfig.Get<bool>("RSBot.Protection.checkStopBotOnReturnToTown"))
         {
-            Kernel.Bot.Stop();
+            if (Kernel.Bot.Running)
+                Kernel.Bot.Stop();
+            Kernel.StopAllIndependentRunners(onlyMovement: true);
             return;
         }
 
@@ -170,7 +172,7 @@ internal class LoopBundle : IBundle
                             Log.Notify(Kernel.Language == "ar_AR" ? "[Happy] التوجه إلى So-Ok لتبديل الهابي..." : "[Happy] Walking to So-Ok to exchange letters...");
                             Game.Player.Move(npc.Position);
                             var waitWalk = 0;
-                            while (npc.DistanceToPlayer > 10.0f && waitWalk++ < 40 && Kernel.Bot.Running)
+                            while (npc.DistanceToPlayer > 10.0f && waitWalk++ < 40 && Kernel.IsAnyMovementBotRunning)
                                 Thread.Sleep(500);
                         }
                         if (npc.DistanceToPlayer <= 15.0f)
@@ -199,7 +201,7 @@ internal class LoopBundle : IBundle
         if (Config.WalkScript == null ||
             ScriptManager.Running ||
             !File.Exists(Config.WalkScript) ||
-            !Kernel.Bot.Running)
+            !Kernel.IsAnyMovementBotRunning)
             return;
 
         Invoke();

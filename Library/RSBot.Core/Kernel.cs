@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -49,6 +50,102 @@ public static class Kernel
     ///     The bot.
     /// </value>
     public static Bot Bot { get; set; }
+
+    private static readonly ConcurrentDictionary<string, BotRunner> _independentRunners =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    ///     Gets or creates an independent runner for a non-training botbase (Trade, Lure, Alchemy)
+    ///     so its start/stop lifecycle runs outside <see cref="Bot" />.
+    /// </summary>
+    public static BotRunner GetOrCreateRunner(
+        IBotbase botbase,
+        bool usesMovement,
+        bool stopsPickupOnStop = false,
+        bool stopsShoppingOnStop = false)
+    {
+        if (botbase == null || string.IsNullOrWhiteSpace(botbase.Name))
+            return null;
+
+        return _independentRunners.GetOrAdd(botbase.Name,
+            _ => new BotRunner(botbase, usesMovement, stopsPickupOnStop, stopsShoppingOnStop));
+    }
+
+    public static BotRunner GetRunner(string botbaseName)
+    {
+        if (string.IsNullOrWhiteSpace(botbaseName))
+            return null;
+
+        return _independentRunners.TryGetValue(botbaseName, out var runner) ? runner : null;
+    }
+
+    public static bool IsRunnerActive(string botbaseName)
+    {
+        if (string.IsNullOrWhiteSpace(botbaseName))
+            return false;
+
+        if (Bot?.Running == true && string.Equals(Bot.Botbase?.Name, botbaseName, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return _independentRunners.TryGetValue(botbaseName, out var runner) && runner.Running;
+    }
+
+    public static bool IsAnyMovementBotRunning =>
+        (Bot?.Running == true) || _independentRunners.Values.Any(r => r.Running && r.UsesMovement);
+
+    public static bool IsAnyBotRunning =>
+        (Bot?.Running == true) || _independentRunners.Values.Any(r => r.Running);
+
+    internal static string GetLocalizedBotDisplayName(string botbaseName, string fallbackDisplayName)
+    {
+        var isAr = Language == "ar_AR";
+        return botbaseName switch
+        {
+            "RSBot.Default" => isAr ? "التدريب" : "Training",
+            "RSBot.Trade" => isAr ? "التجارة" : "Trade",
+            "RSBot.Lure" => isAr ? "سحب الوحوش" : "Lure",
+            "RSBot.Alchemy" => isAr ? "الكمي" : "Alchemy",
+            _ => string.IsNullOrWhiteSpace(fallbackDisplayName) ? botbaseName : fallbackDisplayName
+        };
+    }
+
+    internal static string GetConflictingMovementBotDisplayName(string excludeBotName = null)
+    {
+        if (Bot?.Running == true &&
+            !string.Equals(Bot.Botbase?.Name, excludeBotName, StringComparison.OrdinalIgnoreCase))
+        {
+            return GetLocalizedBotDisplayName(Bot.Botbase?.Name ?? "RSBot.Default",
+                Bot.Botbase?.DisplayName ?? "Training");
+        }
+
+        var activeOther = _independentRunners.Values.FirstOrDefault(r =>
+            r.Running &&
+            r.UsesMovement &&
+            !string.Equals(r.Botbase?.Name, excludeBotName, StringComparison.OrdinalIgnoreCase));
+
+        return activeOther == null
+            ? null
+            : GetLocalizedBotDisplayName(activeOther.Botbase?.Name, activeOther.Botbase?.DisplayName);
+    }
+
+    public static void StopAllIndependentRunners(bool onlyMovement = false)
+    {
+        foreach (var runner in _independentRunners.Values)
+        {
+            if (onlyMovement && !runner.UsesMovement)
+                continue;
+
+            try
+            {
+                if (runner.Running)
+                    runner.Stop();
+            }
+            catch (Exception ex)
+            {
+                Log.Debug($"[Kernel] Error stopping runner [{runner.Botbase?.Name}]: {ex.Message}");
+            }
+        }
+    }
 
     /// <summary>
     ///     The application language
@@ -137,6 +234,8 @@ public static class Kernel
         //Network handlers/hooks
         RegisterNetworkHandlers();
         RegisterNetworkHooks();
+
+        EventManager.SubscribeEvent("OnAgentServerDisconnected", () => StopAllIndependentRunners());
 
         _updaterTokenSource = new CancellationTokenSource();
 

@@ -807,7 +807,7 @@ public class Player : SpawnedBionic
                     return;
                 break;
             }
-            if (!Components.ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+            if (!Components.ScriptManager.Running || !Components.ScriptManager.CanContinueExecution())
                 return;
             Thread.Sleep(50);
             elapsed += 50;
@@ -875,7 +875,7 @@ public class Player : SpawnedBionic
                     return;
                 break;
             }
-            if (!Components.ScriptManager.Running || (Kernel.Bot != null && !Kernel.Bot.Running))
+            if (!Components.ScriptManager.Running || !Components.ScriptManager.CanContinueExecution())
                 return;
             Thread.Sleep(50);
             elapsed += 50;
@@ -1078,7 +1078,7 @@ public class Player : SpawnedBionic
     /// </summary>
     public void EquipAmmunition()
     {
-        if (!Kernel.Bot.Running)
+        if (!Kernel.Bot.Running && !Kernel.IsRunnerActive("RSBot.Lure"))
             return;
 
         var currentWeapon = Inventory.GetItemAt(6);
@@ -1104,7 +1104,9 @@ public class Player : SpawnedBionic
 
         if (!PlayerConfig.Get<bool>("RSBot.Protection.checkNoArrows"))
         {
-            Kernel.Bot.Stop();
+            if (Kernel.Bot.Running)
+                Kernel.Bot.Stop();
+            Kernel.GetRunner("RSBot.Lure")?.Stop();
             return;
         }
 

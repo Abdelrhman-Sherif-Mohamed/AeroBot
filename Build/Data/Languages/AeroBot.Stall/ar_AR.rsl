@@ -1,5 +1,5 @@
-DisplayName="المتجر"
-TabText="المتجر"
+DisplayName="Stall"
+TabText="Stall"
 groupStallInfo="إعدادات كشك البيع (البسطة)"
 lblTitle="العنوان:"
 lblNote="الملاحظة:"

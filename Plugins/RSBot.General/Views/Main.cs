@@ -459,10 +459,10 @@ internal partial class Main : DoubleBufferedControl
         try
         {
             btnStartClient.Enabled = false;
-            Game.Start();
 
             await Task.Run(async () =>
             {
+                Game.Start();
                 var startedResult = await ClientManager.Start();
                 if (!startedResult)
                 {

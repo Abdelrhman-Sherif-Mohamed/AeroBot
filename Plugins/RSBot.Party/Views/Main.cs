@@ -53,6 +53,10 @@ public partial class Main : DoubleBufferedControl
         CheckForIllegalCrossThreadCalls = false;
         cbPartySearchPurpose.SelectedIndex = 0;
 
+        if (buttonAutoJoinConfig.Font.Name != Font.Name)
+            buttonAutoJoinConfig.Font = new Font(Font.FontFamily, 9F, FontStyle.Regular);
+        SetAutoJoinConfigVisibility(false);
+
         SubscribeEvents();
     }
 
@@ -64,6 +68,7 @@ public partial class Main : DoubleBufferedControl
     private string _none => LanguageManager.GetLang("None");
 
     private bool _applyingPartyLayout;
+    private bool _autoJoinConfigExpanded;
 
     protected override void OnResize(EventArgs e)
     {
@@ -97,10 +102,20 @@ public partial class Main : DoubleBufferedControl
         if (control == null)
             return;
 
-        control.Anchor = AnchorStyles.None;
+        control.Anchor = AnchorStyles.Top | AnchorStyles.Left;
         control.Dock = DockStyle.None;
         control.AutoSize = false;
         control.SetBounds(S(x), S(y), Math.Max(1, S(width)), Math.Max(1, S(height)));
+    }
+
+    private void SetAutoJoinConfigVisibility(bool expanded)
+    {
+        if (separator11 != null) separator11.Visible = expanded;
+        if (checkBoxJoinByName != null) checkBoxJoinByName.Visible = expanded;
+        if (textBoxJoinByName != null) textBoxJoinByName.Visible = expanded;
+        if (checkBoxJoinByTitle != null) checkBoxJoinByTitle.Visible = expanded;
+        if (textBoxJoinByTitle != null) textBoxJoinByTitle.Visible = expanded;
+        if (buttonConfirmJoinConfig != null) buttonConfirmJoinConfig.Visible = expanded;
     }
 
     private void PlaceLabel(SDUI.Controls.Label label, int x, int y, int width, int height,
@@ -282,30 +297,32 @@ public partial class Main : DoubleBufferedControl
         const int footerH = 46;
 
         var contentW = width - margin * 2;
-        var topH = topPartyPanel.Height > 60 ? 170 : 48;
+        var topH = _autoJoinConfigExpanded ? 168 : 48;
 
         Place(topPartyPanel, margin, margin, contentW, topH);
+        SetAutoJoinConfigVisibility(_autoJoinConfigExpanded);
 
-        Place(label3, 16, 15, 45, 20);
-        Place(tbPartySearchName, 63, 13, 150, 23);
-        Place(label4, 224, 15, 50, 20);
-        Place(cbPartySearchPurpose, 276, 13, 140, 23);
-        Place(label5, 428, 15, 55, 20);
-        Place(nudPartySearchMin, 485, 13, 85, 25);
-        PlaceLabel(label6, 574, 15, 18, 20, ContentAlignment.MiddleCenter);
-        Place(nudPartySearchMax, 596, 13, 85, 25);
-        Place(btnPartySearch, 694, 14, 90, 23);
-        Place(btnPartyRefresh, 792, 14, 90, 23);
-        Place(buttonAutoJoinConfig, contentW - 16 - 28, 12, 28, 25);
+        const int autoJoinBtnW = 112;
+        Place(label3, 12, 14, 44, 22);
+        Place(tbPartySearchName, 58, 12, 138, 24);
+        Place(label4, 204, 14, 48, 22);
+        Place(cbPartySearchPurpose, 254, 12, 130, 24);
+        Place(label5, 392, 14, 56, 22);
+        Place(nudPartySearchMin, 452, 11, 86, 26);
+        PlaceLabel(label6, 540, 14, 18, 22, ContentAlignment.MiddleCenter);
+        Place(nudPartySearchMax, 560, 11, 86, 26);
+        Place(btnPartySearch, 658, 12, 78, 24);
+        Place(btnPartyRefresh, 742, 12, 78, 24);
+        Place(buttonAutoJoinConfig, contentW - 12 - autoJoinBtnW, 12, autoJoinBtnW, 24);
 
-        if (topH > 60)
+        if (_autoJoinConfigExpanded)
         {
-            Place(separator11, 16, 48, contentW - 32, 10);
-            Place(checkBoxJoinByName, 16, 60, 220, 28);
-            Place(textBoxJoinByName, 250, 62, 260, 23);
-            Place(checkBoxJoinByTitle, 16, 94, 220, 28);
-            Place(textBoxJoinByTitle, 250, 96, 260, 23);
-            Place(buttonConfirmJoinConfig, contentW - 16 - 110, 128, 110, 26);
+            Place(separator11, 14, 48, contentW - 28, 10);
+            Place(checkBoxJoinByName, 14, 62, 224, 28);
+            Place(textBoxJoinByName, 248, 64, 280, 24);
+            Place(checkBoxJoinByTitle, 14, 96, 224, 28);
+            Place(textBoxJoinByTitle, 248, 98, 280, 24);
+            Place(buttonConfirmJoinConfig, contentW - 14 - 120, 128, 120, 26);
         }
 
         var listY = margin + topH + gap;
@@ -314,18 +331,18 @@ public partial class Main : DoubleBufferedControl
 
         Place(bottomPartyPanel, margin, height - margin - footerH, contentW, footerH);
 
-        Place(btnJoinFormedParty, 12, 10, 110, 26);
-        Place(btnWhisperPartyMaster, 128, 10, 80, 26);
-        Place(btnAutoMatchParty, 214, 10, 130, 26);
+        Place(btnJoinFormedParty, 12, 10, 112, 26);
+        Place(btnWhisperPartyMaster, 130, 10, 80, 26);
+        Place(btnAutoMatchParty, 216, 10, 130, 26);
 
         var navCenter = contentW / 2;
         Place(btnPrev, navCenter - 80, 11, 24, 24);
         PlaceLabel(lbl_partyPageRange, navCenter - 48, 10, 70, 24, ContentAlignment.MiddleCenter);
         Place(btnNext, navCenter + 56, 11, 24, 24);
 
-        Place(btnPartyMatchDeleteEntry, contentW - 12 - 90, 10, 90, 26);
-        Place(btnPartyMatchChangeEntry, contentW - 12 - 90 - 8 - 90, 10, 90, 26);
-        Place(btnPartyMatchForm, contentW - 12 - 90 - 8 - 90 - 8 - 110, 10, 110, 26);
+        Place(btnPartyMatchDeleteEntry, contentW - 12 - 96, 10, 96, 26);
+        Place(btnPartyMatchChangeEntry, contentW - 12 - 96 - 8 - 96, 10, 96, 26);
+        Place(btnPartyMatchForm, contentW - 12 - 96 - 8 - 96 - 8 - 110, 10, 110, 26);
 
         if (bottomPartyPanel.Height > 0)
         {
@@ -444,6 +461,14 @@ public partial class Main : DoubleBufferedControl
 
         if (label2.Font.Name != "Segoe UI")
             label2.Font = new Font("Segoe UI", 9F);
+
+        if (buttonAutoJoinConfig.Font.Name != "Segoe UI")
+            buttonAutoJoinConfig.Font = new Font("Segoe UI", 9F);
+
+        if (buttonAutoJoinConfig.Text == "@")
+            buttonAutoJoinConfig.Text = "Auto Join";
+        else if (buttonAutoJoinConfig.Text.StartsWith("⚙"))
+            buttonAutoJoinConfig.Text = buttonAutoJoinConfig.Text.TrimStart('⚙', ' ');
     }
 
     private static string GetPurposeText(PartyPurpose purpose)
@@ -1506,13 +1531,21 @@ public partial class Main : DoubleBufferedControl
 
     private void buttonAutoJoinConfig_Click(object sender, EventArgs e)
     {
-        checkBoxJoinByName.Checked = PlayerConfig.Get("RSBot.Party.AutoJoin.ByName", false);
-        checkBoxJoinByTitle.Checked = PlayerConfig.Get("RSBot.Party.AutoJoin.ByTitle", false);
-        textBoxJoinByName.Text = PlayerConfig.Get("RSBot.Party.AutoJoin.Name", string.Empty);
-        textBoxJoinByTitle.Text = PlayerConfig.Get("RSBot.Party.AutoJoin.Title", string.Empty);
-        topPartyPanel.Height = 162;
+        _autoJoinConfigExpanded = !_autoJoinConfigExpanded;
 
-        buttonAutoJoinConfig.Color = ColorScheme.BackColor;
+        if (_autoJoinConfigExpanded)
+        {
+            checkBoxJoinByName.Checked = PlayerConfig.Get("RSBot.Party.AutoJoin.ByName", false);
+            checkBoxJoinByTitle.Checked = PlayerConfig.Get("RSBot.Party.AutoJoin.ByTitle", false);
+            textBoxJoinByName.Text = PlayerConfig.Get("RSBot.Party.AutoJoin.Name", string.Empty);
+            textBoxJoinByTitle.Text = PlayerConfig.Get("RSBot.Party.AutoJoin.Title", string.Empty);
+            buttonAutoJoinConfig.Color = ColorScheme.BackColor;
+        }
+        else
+        {
+            buttonAutoJoinConfig.Color = Color.Transparent;
+        }
+
         ApplyPartyLayout();
     }
 
@@ -1530,7 +1563,7 @@ public partial class Main : DoubleBufferedControl
         Bundle.Container.Refresh();
 
         buttonAutoJoinConfig.Color = Color.Transparent;
-        topPartyPanel.Height = 47;
+        _autoJoinConfigExpanded = false;
         ApplyPartyLayout();
     }
 

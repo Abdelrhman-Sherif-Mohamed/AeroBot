@@ -14,7 +14,7 @@ public class CommandCenterPlugin : IPlugin
     public string DisplayName => "Command center";
 
     /// <inheritdoc />
-    public bool DisplayAsTab => false;
+    public bool DisplayAsTab => true;
 
     /// <inheritdoc />
     public int Index => 100;

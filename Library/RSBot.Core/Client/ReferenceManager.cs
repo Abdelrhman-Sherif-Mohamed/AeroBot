@@ -398,9 +398,10 @@ public class ReferenceManager
         where TReference : IReference<TKey>, new()
     {
         using var reader = new StreamReader(stream);
+        var builder = new StringBuilder(1024);
         while (!reader.EndOfStream)
         {
-            var line = reader.ReadLineByCRLF();
+            var line = reader.ReadLineByCRLF(builder);
 
             //Skip invalid
             if (string.IsNullOrEmpty(line) || line.StartsWith("//"))
@@ -432,7 +433,10 @@ public class ReferenceManager
 
     public string GetTranslation(string name)
     {
-        if (TextData.TryGetValue(name, out var refText))
+        if (string.IsNullOrEmpty(name))
+            return string.Empty;
+
+        if (TextData != null && TextData.TryGetValue(name, out var refText))
             return refText.Data;
 
         return name;
