@@ -3,23 +3,21 @@ import urllib.request
 import json
 from datetime import datetime
 
-changelog_ar = """• تحديث شامل v2.9.49: تحسينات الواجهة والسرعة والتجارة والتحكم والإشعارات:
-  - تسريع فتح البوت واللانشر بشكل ملحوظ (تأجيل بناء الواجهة لما بعد تسجيل الدخول، تقليل مهلة فحص التحديث، تحميل PK2 بالتوازي، وتسريع بدء تشغيل اللعبة).
-  - إصلاحات الواجهة والخطوط والقوائم (الشنطة، المهارات، الأيتمات، التدريب، أزرار الإضافات، معلومات السيرفر، والدردشة بدون ترجمة).
-  - تطوير نظام التجارة وإحصائيات الجولات المباشرة (عدد الجولات، المتوسط، الأفضل، صافي الربح، ذهب/ساعة) وتثبيت استقرار القوافل وقتال اللصوص.
-  - إضافة نظام تنبيهات تيليجرام وديسكورد (Wolves.Notify) لمتابعة الموت، اليونيك، الجرعات، التجارة، الدروب النادر، والرسائل مع منع التكرار.
-  - ترقية أوامر التحكم عن بُعد (Wolves.Control) بأوامر EQUIP / UNEQUIP / TERMINATE / SORT / TP / RECALL / REVERSE / CHAT / INJECT."""
+changelog_ar = """• تحديث شامل v2.9.50 (إصلاحات التجارة وقتال اللصوص واللانشر وبدء التشغيل):
+  - التعرف التلقائي على لاعبي الثيف (Player Thieves بأسمائهم وبدلاتهم) والترجل لقتالهم وردع أي هجوم على وسيلة النقل.
+  - إصلاح ركوب وسيلة النقل (الفيل والجمال) بعد 20 ثانية من قتل اللصوص بزيادة نطاق الركوب إلى 6.0 أمتار ومعايرة عقوبة القتال.
+  - إصلاح خطأ تشغيل RSBot.CommandCenter، وضمان نسخ ملف Client.Library.dll والتحقق المسبق قبل تشغيل الكلاينت.
+  - استقرار تشغيل اللعبة وتخفيف تحذيرات السوكيت غير الضرورية، مع كامل تحسينات الواجهة والتجارة والتحكم وWolves.Notify."""
 
-changelog_en = """• Comprehensive Update v2.9.49 — Performance, UI Fixes, Trade Stats, Control & Notifications:
-  - Faster startup & launcher opening (deferred main UI creation until login, bounded update check timeout, parallel PK2 loading, and async client start).
-  - UI & RTL fixes across Skills, Inventory, Items, Training, Extensions Hub, Server Info, and Chat (with chat translator removed).
-  - Upgraded Trade botbase with live caravan stats (Runs, Avg, Best, Net Profit, Gold/h) and thief-hunting / transport stability improvements.
-  - Added Wolves.Notify plugin (Telegram & Discord alerts for Death, Stop, Attacks, Trade, HP/MP Pots, Uniques, Rare Drops, Level Up, and Chat).
-  - Expanded Wolves.Control remote commands with EQUIP, UNEQUIP, TERMINATE, SORT, TP, RECALL, REVERSE, CHAT, and INJECT."""
+changelog_en = """• Comprehensive Update v2.9.50 (Trade Thief Combat, Remount Fix, Startup & Client Launch):
+  - Fixed automatic detection & high-threat counter-attack for Player Thieves (*alias & job suits) and transport protection.
+  - Fixed 20s remount after combat for large trade mounts (White Elephant / Camels with 6.0m radius and exact 20s cooldown).
+  - Fixed RSBot.CommandCenter startup exception, Client.Library.dll build copy & pre-launch checks.
+  - Improved client process stability, plus all v2.9.49 UI/RTL, Trade live stats, Wolves.Control, and Wolves.Notify."""
 
 data = {
-    "version": "2.9.49",
-    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.49.zip",
+    "version": "2.9.50",
+    "downloadUrl": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.50.zip",
     "mandatory": True,
     "changelog_ar": changelog_ar,
     "changelog_en": changelog_en,
@@ -36,4 +34,4 @@ req = urllib.request.Request(
 )
 
 with urllib.request.urlopen(req) as res:
-    print('Published 2.9.49 update to Firebase! Status:', res.status)
+    print('Published 2.9.50 update to Firebase! Status:', res.status)

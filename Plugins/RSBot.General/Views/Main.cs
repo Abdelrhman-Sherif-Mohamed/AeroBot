@@ -460,13 +460,24 @@ internal partial class Main : DoubleBufferedControl
         {
             btnStartClient.Enabled = false;
 
+            if (!ClientManager.ValidateStartPrerequisites())
+            {
+                OnExitClient();
+                Log.WarnLang("ClientStartingError");
+                return;
+            }
+
             await Task.Run(async () =>
             {
                 Game.Start();
                 var startedResult = await ClientManager.Start();
                 if (!startedResult)
                 {
-                    OnExitClient();
+                    if (InvokeRequired && IsHandleCreated)
+                        BeginInvoke(OnExitClient);
+                    else
+                        OnExitClient();
+
                     Log.WarnLang("ClientStartingError");
                 }
             });
@@ -896,7 +907,7 @@ internal partial class Main : DoubleBufferedControl
     /// </summary>
     /// <param name="sender">The source of the event.</param>
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
-    private void btnStartClient_Click(object sender, EventArgs e)
+    private async void btnStartClient_Click(object sender, EventArgs e)
     {
         if (!Game.Clientless && Kernel.Proxy != null && Kernel.Proxy.IsConnectedToAgentserver)
         {
@@ -913,7 +924,7 @@ internal partial class Main : DoubleBufferedControl
             return;
         }
 
-        StartClientProcess();
+        await StartClientProcess();
     }
 
     /// <summary>

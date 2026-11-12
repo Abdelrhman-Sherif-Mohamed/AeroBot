@@ -19,9 +19,9 @@
 		<RepositoryUrl>https://github.com/WolvesBot</RepositoryUrl>
 		<OutputType>WinExe</OutputType>
 		<ApplicationIcon>app.ico</ApplicationIcon>
-		<AssemblyVersion>2.9.49</AssemblyVersion>
-		<FileVersion>2.9.49</FileVersion>
-		<Version>2.9.49</Version>
+		<AssemblyVersion>2.9.50</AssemblyVersion>
+		<FileVersion>2.9.50</FileVersion>
+		<Version>2.9.50</Version>
 		<PlatformTarget>x86</PlatformTarget>
 		<UseWPF>False</UseWPF>
 		<CodePage>65001</CodePage>
@@ -34,6 +34,10 @@
 	  <Content Include="Resources\splash_banner.jpg">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	    <Link>splash_banner.jpg</Link>
+	  </Content>
+	  <Content Include="..\..\Dependencies\Client.Library.dll">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	    <Link>Client.Library.dll</Link>
 	  </Content>
 	</ItemGroup>
 

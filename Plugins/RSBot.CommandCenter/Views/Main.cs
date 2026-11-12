@@ -5,6 +5,7 @@ using RSBot.CommandCenter.Components;
 using RSBot.CommandCenter.Views.Controls;
 using RSBot.Core;
 using RSBot.Core.Components;
+using RSBot.Core.Event;
 using SDUI;
 using SDUI.Controls;
 
@@ -17,6 +18,19 @@ public partial class Main : DoubleBufferedControl
     {
         InitializeComponent();
         RefreshView();
+
+        EventManager.SubscribeEvent("OnLoadGameData", OnLoadGameData);
+    }
+
+    private void OnLoadGameData()
+    {
+        if (IsDisposed)
+            return;
+
+        if (InvokeRequired && IsHandleCreated)
+            BeginInvoke(RefreshView);
+        else
+            RefreshView();
     }
 
     private void RefreshView()

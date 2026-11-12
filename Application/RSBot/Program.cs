@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -71,8 +72,20 @@ internal static class Program
         {
             try
             {
-                Log.Fatal(e.Exception);
-                SessionLog.Write("Unobserved task exception", e.Exception);
+                var inner = e.Exception?.Flatten().InnerExceptions;
+                var isBenignIoAbort = inner != null && inner.Count > 0 && inner.All(ex =>
+                    ex is OperationCanceledException or ObjectDisposedException or System.IO.IOException or System.Net.Sockets.SocketException);
+
+                if (isBenignIoAbort)
+                {
+                    Log.Debug($"[UnobservedTask] Suppressed aborted I/O task exception: {e.Exception.GetBaseException().Message}");
+                }
+                else
+                {
+                    Log.Fatal(e.Exception);
+                    SessionLog.Write("Unobserved task exception", e.Exception);
+                }
+
                 e.SetObserved();
             }
             catch { }

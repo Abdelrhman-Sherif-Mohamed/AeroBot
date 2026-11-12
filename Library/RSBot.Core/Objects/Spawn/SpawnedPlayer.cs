@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Network;
 using RSBot.Core.Objects.Item;
@@ -231,7 +232,18 @@ public sealed class SpawnedPlayer : SpawnedBionic
 
             //Check if the player wears a job-suit
             if (itemObj.IsJobOutfit)
+            {
                 WearsJobSuite = true;
+                if (Job == JobType.None)
+                {
+                    if (itemObj.TypeID4 == 1 || itemObj.CodeName.Contains("TRADER", StringComparison.OrdinalIgnoreCase))
+                        Job = JobType.Trade;
+                    else if (itemObj.TypeID4 == 2 || itemObj.CodeName.Contains("THIEF", StringComparison.OrdinalIgnoreCase) || itemObj.CodeName.Contains("TIEF", StringComparison.OrdinalIgnoreCase))
+                        Job = JobType.Thief;
+                    else if (itemObj.TypeID4 == 3 || itemObj.CodeName.Contains("HUNTER", StringComparison.OrdinalIgnoreCase))
+                        Job = JobType.Hunter;
+                }
+            }
 
             if (itemObj.IsEquip)
                 Inventory.Add(itemObj, packet.ReadByte()); //Item object and the "+" value as value
@@ -252,6 +264,20 @@ public sealed class SpawnedPlayer : SpawnedBionic
                     packet.ReadByte();
                     Log.Debug($"Unknown item [{itemId}]");
                     continue;
+                }
+
+                if (itemObj.IsJobOutfit)
+                {
+                    WearsJobSuite = true;
+                    if (Job == JobType.None)
+                    {
+                        if (itemObj.TypeID4 == 1 || itemObj.CodeName.Contains("TRADER", StringComparison.OrdinalIgnoreCase))
+                            Job = JobType.Trade;
+                        else if (itemObj.TypeID4 == 2 || itemObj.CodeName.Contains("THIEF", StringComparison.OrdinalIgnoreCase) || itemObj.CodeName.Contains("TIEF", StringComparison.OrdinalIgnoreCase))
+                            Job = JobType.Thief;
+                        else if (itemObj.TypeID4 == 3 || itemObj.CodeName.Contains("HUNTER", StringComparison.OrdinalIgnoreCase))
+                            Job = JobType.Hunter;
+                    }
                 }
 
                 Avatars.Add(itemObj, packet.ReadByte()); //Item object and the "+" value as value
@@ -282,7 +308,12 @@ public sealed class SpawnedPlayer : SpawnedBionic
         ParseBionicDetails(packet);
 
         Name = packet.ReadString();
-        Job = (JobType)packet.ReadByte();
+        var rawJob = packet.ReadByte();
+        if (rawJob != 0)
+            Job = (JobType)rawJob;
+
+        if (!string.IsNullOrEmpty(Name) && Name.StartsWith("*"))
+            WearsJobSuite = true;
 
         if (Game.ClientType >= GameClientType.Chinese && WearsJobSuite)
             if (WearsJobSuite)

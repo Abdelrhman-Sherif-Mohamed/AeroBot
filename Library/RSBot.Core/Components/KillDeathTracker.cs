@@ -820,11 +820,10 @@ public static class KillDeathTracker
         if (player.Job == JobType.Thief)
             return true;
 
-        return player.WearsJobSuite &&
+        var wearsJob = player.WearsJobSuite || (!string.IsNullOrEmpty(player.Name) && player.Name.StartsWith("*"));
+        return wearsJob &&
                player.Job != JobType.Trade &&
-               player.Job != JobType.Hunter &&
-               !string.IsNullOrEmpty(player.Name) &&
-               player.Name.StartsWith("*");
+               player.Job != JobType.Hunter;
     }
 
     private static bool IsMyEntity(uint uniqueId)

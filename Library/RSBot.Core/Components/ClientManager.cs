@@ -27,34 +27,70 @@ public class ClientManager
     public static bool IsRunning => _process != null && !_process.HasExited;
 
     /// <summary>
+    ///     Resolves the loader library path from the runtime base directory or development Dependencies fallback.
+    /// </summary>
+    public static string ResolveLoaderLibraryPath()
+    {
+        var primary = Path.Combine(Kernel.BasePath, "Client.Library.dll");
+        if (File.Exists(primary))
+            return primary;
+
+        var localDeps = Path.Combine(Kernel.BasePath, "Dependencies", "Client.Library.dll");
+        if (File.Exists(localDeps))
+            return localDeps;
+
+        var parentDeps = Path.GetFullPath(Path.Combine(Kernel.BasePath, "..", "Dependencies", "Client.Library.dll"));
+        if (File.Exists(parentDeps))
+            return parentDeps;
+
+        return primary;
+    }
+
+    /// <summary>
+    ///     Checks whether the Silkroad executable and loader library exist before starting the proxy/client.
+    /// </summary>
+    public static bool ValidateStartPrerequisites()
+    {
+        var silkroadDirectory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
+        var path = Path.Combine(
+            silkroadDirectory ?? string.Empty,
+            GlobalConfig.Get<string>("RSBot.SilkroadExecutable") ?? string.Empty
+        );
+
+        if (!File.Exists(path))
+        {
+            Log.Error($"The game client '{path}' does not exist.");
+            SessionLog.Write($"Client start aborted: '{path}' does not exist");
+            return false;
+        }
+
+        var dllPath = ResolveLoaderLibraryPath();
+        if (!File.Exists(dllPath))
+        {
+            Log.Error($"The loader library '{dllPath}' does not exist, the client can not be started. (If Windows Defender removed it, restore it from Protection History and exclude the bot folder.)");
+            SessionLog.Write($"Client start aborted: '{dllPath}' does not exist");
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     ///     Start the game client
     /// </summary>
     /// <returns>Has successfully started <c>true</c>; otherwise <c>false</c></returns>
     public static async Task<bool> Start()
     {
+        if (!ValidateStartPrerequisites())
+            return false;
+
         var silkroadDirectory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
         var path = Path.Combine(
             silkroadDirectory,
             GlobalConfig.Get<string>("RSBot.SilkroadExecutable")
         );
 
-        var dllPath = Path.Combine(Kernel.BasePath, "Client.Library.dll");
-
-        if (!File.Exists(path))
-        {
-            Log.Error($"The game client '{path}' does not exist.");
-            SessionLog.Write($"Client start aborted: '{path}' does not exist");
-
-            return false;
-        }
-
-        if (!File.Exists(dllPath))
-        {
-            Log.Error($"The loader library '{dllPath}' does not exist, the client can not be started.");
-            SessionLog.Write($"Client start aborted: '{dllPath}' does not exist");
-
-            return false;
-        }
+        var dllPath = ResolveLoaderLibraryPath();
 
         var gatewayIndex = GlobalConfig.Get<byte>("RSBot.GatewayIndex");
         var divisionIndex = GlobalConfig.Get<byte>("RSBot.DivisionIndex");

@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v8.0": {
-      "AeroBot/2.9.49": {
+      "AeroBot/2.9.50": {
         "dependencies": {
           "AeroBot.Core": "1.0.0",
           "SDUI": "1.0.0",
@@ -103,7 +103,7 @@
     }
   },
   "libraries": {
-    "AeroBot/2.9.49": {
+    "AeroBot/2.9.50": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

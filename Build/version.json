@@ -1,8 +1,8 @@
 {
-  "version": "2.9.49",
+  "version": "2.9.50",
   "release_date": "2026-11-12",
-  "download_url": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.49.zip",
+  "download_url": "https://raw.githubusercontent.com/Abdelrhman-Sherif-Mohamed/AeroBot/main/Releases/update_2.9.50.zip",
   "github_url": "https://github.com/Abdelrhman-Sherif-Mohamed/AeroBot",
-  "changelog": "Release v2.9.49: Comprehensive UI/RTL & plugin fixes, faster startup & launcher, Chat/ServerInfo/Inventory fixes, Trade live stats & stability improvements, upgraded Wolves.Control commands, and new Wolves.Notify (Telegram & Discord alerts).",
+  "changelog": "Release v2.9.50: Fixed player thief detection (*alias) & high-threat counter-attacks, fixed 20s remount on White Elephant/large trade mounts (6.0m radius), fixed RSBot.CommandCenter startup exception, Client.Library.dll resolution, and client process launch stability.",
   "required": true
 }

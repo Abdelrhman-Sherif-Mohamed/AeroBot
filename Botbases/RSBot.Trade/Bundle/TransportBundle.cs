@@ -12,10 +12,10 @@ namespace RSBot.Trade.Bundle;
 
 internal class TransportBundle
 {
-    private const float MountRangeMeters = 3.5f;
+    private const float MountRangeMeters = 6.0f;
     private const double MountCooldownSeconds = 3.5;
-    private const double RemountTimeoutSeconds = 7.0;
-    private const double BattleFallbackSeconds = 22.0;
+    private const double RemountTimeoutSeconds = 12.0;
+    private const double BattleFallbackSeconds = 20.0;
 
     /// <summary>
     ///     A value indicating if the bot is waiting for transport.
@@ -208,9 +208,12 @@ internal class TransportBundle
         var inBattle = player.State?.BattleState == BattleState.InBattle;
         if (inBattle)
         {
+            if (_inBattleSince == DateTime.MinValue)
+                _inBattleSince = DateTime.UtcNow;
+
             var combatEndedAt = Bundles.AttackBundle.LastCombatEndedAt;
             var battleAnchor = combatEndedAt > _inBattleSince ? combatEndedAt : _inBattleSince;
-            if (battleAnchor == DateTime.MinValue || (DateTime.UtcNow - battleAnchor).TotalSeconds < BattleFallbackSeconds)
+            if ((DateTime.UtcNow - battleAnchor).TotalSeconds < BattleFallbackSeconds)
             {
                 CancelRemount();
                 return;

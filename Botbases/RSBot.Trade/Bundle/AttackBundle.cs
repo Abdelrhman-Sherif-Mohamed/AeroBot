@@ -136,24 +136,48 @@ internal class AttackBundle
 
     private static bool IsThiefPlayer(SpawnedPlayer player)
     {
-        if (player == null)
+        if (player == null || player.State == null || player.State.LifeState != LifeState.Alive)
             return false;
 
         if (player.Job == JobType.Thief)
             return true;
 
-        if (player.WearsJobSuite && player.Name != null && player.Name.StartsWith("*"))
+        var wearsJob = player.WearsJobSuite || (!string.IsNullOrEmpty(player.Name) && player.Name.StartsWith("*"));
+        if (!wearsJob)
+            return false;
+
+        // If any equipped or avatar item indicates Thief suit
+        if (player.Inventory?.Keys.Any(i => i != null && (i.TypeID4 == 2 || i.CodeName.Contains("THIEF", StringComparison.OrdinalIgnoreCase) || i.CodeName.Contains("TIEF", StringComparison.OrdinalIgnoreCase))) == true ||
+            player.Avatars?.Keys.Any(i => i != null && (i.TypeID4 == 2 || i.CodeName.Contains("THIEF", StringComparison.OrdinalIgnoreCase) || i.CodeName.Contains("TIEF", StringComparison.OrdinalIgnoreCase))) == true)
         {
-            if (player.Job != JobType.Trade && player.Job != JobType.Hunter)
-                return true;
+            return true;
         }
 
-        var playerUniqueId = Game.Player?.UniqueId ?? 0;
-        var transportUniqueId = Game.Player?.JobTransport?.UniqueId ?? 0;
+        // Check if player is an explicit ally (fellow Trader or Hunter)
+        if (player.Job == JobType.Trade || player.Job == JobType.Hunter)
+            return false;
 
-        return player.WearsJobSuite && player.TargetId != 0 &&
-               (player.TargetId == playerUniqueId ||
-                (transportUniqueId != 0 && player.TargetId == transportUniqueId));
+        // Check if player has an active trade transport (camel, elephant, horse, behemoth, etc.)
+        if (player.OnTransport && player.TransportUniqueId != 0)
+        {
+            if (SpawnManager.TryGetEntity<SpawnedCos>(player.TransportUniqueId, out var cos) &&
+                cos.Record != null && cos.Record.TypeID3 == 3)
+            {
+                // Fellow trader with trade transport
+                return false;
+            }
+        }
+
+        // Check if player wears a Trader or Hunter suit
+        var hasAllySuit =
+            (player.Inventory?.Keys.Any(i => i != null && i.IsJobOutfit && (i.TypeID4 == 1 || i.TypeID4 == 3 || i.CodeName.Contains("TRADER", StringComparison.OrdinalIgnoreCase) || i.CodeName.Contains("HUNTER", StringComparison.OrdinalIgnoreCase))) == true) ||
+            (player.Avatars?.Keys.Any(i => i != null && i.IsJobOutfit && (i.TypeID4 == 1 || i.TypeID4 == 3 || i.CodeName.Contains("TRADER", StringComparison.OrdinalIgnoreCase) || i.CodeName.Contains("HUNTER", StringComparison.OrdinalIgnoreCase))) == true);
+
+        if (hasAllySuit)
+            return false;
+
+        // In Silkroad, any job-suited player that is not a fellow Trader or Hunter is an enemy Thief
+        return true;
     }
 
     /// <summary>
@@ -542,6 +566,14 @@ internal class AttackBundle
                     return attacker;
             }
 
+            if (AttackThiefPlayers && SpawnManager.TryGetEntity<SpawnedPlayer>(
+                    p => p != null && IsSelectable(p, allowBehindObstacle: true) &&
+                         (p.TargetId == transport.UniqueId || p.AttackingPlayer) && IsWithinChaseRange(p),
+                    out var playerAttackingTransport))
+            {
+                return playerAttackingTransport;
+            }
+
             if (AttackThiefNpcs && SpawnManager.TryGetEntity<SpawnedMonster>(
                     m => m != null && IsSelectable(m, allowBehindObstacle: true) &&
                          m.TargetId == transport.UniqueId && IsWithinChaseRange(m),
@@ -560,6 +592,14 @@ internal class AttackBundle
             if (attacker != null)
                 return attacker;
 
+            if (AttackThiefPlayers && SpawnManager.TryGetEntity<SpawnedPlayer>(
+                    p => p != null && IsSelectable(p, allowBehindObstacle: true) &&
+                         (p.TargetId == player.UniqueId || p.AttackingPlayer) && IsWithinChaseRange(p),
+                    out var playerAttackingPlayer))
+            {
+                return playerAttackingPlayer;
+            }
+
             if (AttackThiefNpcs && SpawnManager.TryGetEntity<SpawnedMonster>(
                     m => m != null && IsSelectable(m, allowBehindObstacle: true) &&
                          m.TargetId == player.UniqueId && IsWithinChaseRange(m),
@@ -567,32 +607,24 @@ internal class AttackBundle
             {
                 return mobAttackingPlayer;
             }
-
-            if (AttackThiefPlayers && SpawnManager.TryGetEntity<SpawnedPlayer>(
-                    p => p != null && IsSelectable(p, allowBehindObstacle: true) &&
-                         p.TargetId == player.UniqueId && IsWithinChaseRange(p),
-                    out var playerAttackingPlayer))
-            {
-                return playerAttackingPlayer;
-            }
         }
 
-        // Priority 3: Closest thief NPC nearby
-        if (AttackThiefNpcs && SpawnManager.TryGetEntities<SpawnedMonster>(
-                m => m != null && IsSelectable(m) && IsInRange(m), out var thiefMobs))
-        {
-            var thiefMob = thiefMobs.OrderBy(m => m.DistanceToPlayer).FirstOrDefault();
-            if (thiefMob != null)
-                return thiefMob;
-        }
-
-        // Priority 4: Closest thief player nearby
+        // Priority 3: Closest thief player nearby (HIGH THREAT: Player thieves must be engaged immediately)
         if (AttackThiefPlayers && SpawnManager.TryGetEntities<SpawnedPlayer>(
                 p => p != null && IsSelectable(p) && IsInRange(p), out var thiefPlayers))
         {
             var thiefPlayer = thiefPlayers.OrderBy(p => p.DistanceToPlayer).FirstOrDefault();
             if (thiefPlayer != null)
                 return thiefPlayer;
+        }
+
+        // Priority 4: Closest thief NPC nearby
+        if (AttackThiefNpcs && SpawnManager.TryGetEntities<SpawnedMonster>(
+                m => m != null && IsSelectable(m) && IsInRange(m), out var thiefMobs))
+        {
+            var thiefMob = thiefMobs.OrderBy(m => m.DistanceToPlayer).FirstOrDefault();
+            if (thiefMob != null)
+                return thiefMob;
         }
 
         return null;
